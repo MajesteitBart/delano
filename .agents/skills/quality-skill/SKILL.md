@@ -1,6 +1,6 @@
 ---
 name: quality-skill
-intent: verify release readiness and gate closure
+description: Verify release readiness and enforce quality gates with risk-based checks and evidence capture. Use before closure or merge.
 ---
 
 # quality-skill

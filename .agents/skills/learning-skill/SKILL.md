@@ -1,6 +1,6 @@
 ---
 name: learning-skill
-intent: distill reusable decisions and lessons into project memory
+description: Distill reusable decisions and lessons into project memory and improvement actions. Use at milestones, closeout, or recurring failure patterns.
 ---
 
 # learning-skill
