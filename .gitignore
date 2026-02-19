@@ -1,0 +1,10 @@
+# Runtime local artifacts
+.claude/logs/*.jsonl
+.claude/logs/tests/
+
+# Keep structural markers and docs
+!.claude/logs/.gitkeep
+!.claude/logs/schema.md
+
+# Local Claude overrides
+.claude/settings.local.json
