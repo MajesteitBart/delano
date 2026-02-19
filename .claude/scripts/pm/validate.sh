@@ -53,6 +53,30 @@ check_required_path ".claude/hooks"
 check_required_path ".claude/logs"
 check_required_path ".claude/skills"
 
+# Required skill contracts
+required_skills=(
+  discovery-skill
+  planning-skill
+  breakdown-skill
+  sync-skill
+  execution-skill
+  quality-skill
+  closeout-skill
+  learning-skill
+)
+
+echo ""
+echo "Required skills"
+echo "---------------"
+for skill in "${required_skills[@]}"; do
+  if [[ -f ".claude/skills/$skill/SKILL.md" ]]; then
+    echo "✅ .claude/skills/$skill/SKILL.md"
+  else
+    echo "❌ Missing skill contract: .claude/skills/$skill/SKILL.md"
+    errors=$((errors + 1))
+  fi
+done
+
 # Project contract validation
 for project_dir in .project/projects/*; do
   [[ -d "$project_dir" ]] || continue
