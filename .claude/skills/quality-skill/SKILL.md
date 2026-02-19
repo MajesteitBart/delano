@@ -33,3 +33,8 @@ intent: verify release readiness and gate closure
 ## Script hooks
 - `bash .claude/scripts/test-and-log.sh <command>`
 - `bash .claude/scripts/pm/validate.sh`
+
+## Execution assets
+- `references/runbook.md`
+- `templates/quality-evidence.md`
+- `templates/gate-decision.md`

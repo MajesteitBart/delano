@@ -37,3 +37,8 @@ intent: define and approve a measurable outcome and Spec
 ## Script hooks
 - `bash .claude/scripts/pm/init.sh <slug> "<Project Name>" <owner> <lead>`
 - `bash .claude/scripts/pm/validate.sh`
+
+## Execution assets
+- `references/runbook.md`
+- `templates/clarification-questions.md`
+- `templates/discovery-summary.md`

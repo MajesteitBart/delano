@@ -35,3 +35,8 @@ intent: close delivery loop and capture completion evidence
 - `bash .claude/scripts/pm/status.sh`
 - `bash .claude/scripts/query-log.sh --last 50`
 - `bash .claude/scripts/pm/validate.sh`
+
+## Execution assets
+- `references/runbook.md`
+- `templates/outcome-review.md`
+- `templates/closure-checklist.md`

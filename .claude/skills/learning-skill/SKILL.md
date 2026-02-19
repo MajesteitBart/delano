@@ -34,3 +34,8 @@ intent: distill reusable decisions and lessons into project memory
 ## Script hooks
 - `bash .claude/scripts/query-log.sh --last 200`
 - `bash .claude/scripts/pm/status.sh`
+
+## Execution assets
+- `references/runbook.md`
+- `templates/retrospective.md`
+- `templates/improvement-backlog.md`

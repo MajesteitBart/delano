@@ -34,3 +34,8 @@ intent: reconcile local contracts with Linear and GitHub
 ## Script hooks
 - `bash .claude/scripts/pm/status.sh`
 - `bash .claude/scripts/pm/validate.sh`
+
+## Execution assets
+- `references/runbook.md`
+- `templates/drift-report.md`
+- `templates/conflict-resolution-actions.md`

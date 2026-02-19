@@ -35,3 +35,8 @@ intent: execute mapped tasks with stream discipline and evidence updates
 - `bash .claude/scripts/pm/in-progress.sh`
 - `bash .claude/scripts/pm/standup.sh`
 - `bash .claude/scripts/pm/next.sh`
+
+## Execution assets
+- `references/runbook.md`
+- `templates/blocker-update.md`
+- `templates/stream-update.md`

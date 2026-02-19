@@ -69,10 +69,41 @@ echo ""
 echo "Required skills"
 echo "---------------"
 for skill in "${required_skills[@]}"; do
-  if [[ -f ".claude/skills/$skill/SKILL.md" ]]; then
-    echo "✅ .claude/skills/$skill/SKILL.md"
+  skill_dir=".claude/skills/$skill"
+  skill_file="$skill_dir/SKILL.md"
+
+  if [[ -f "$skill_file" ]]; then
+    echo "✅ $skill_file"
   else
-    echo "❌ Missing skill contract: .claude/skills/$skill/SKILL.md"
+    echo "❌ Missing skill contract: $skill_file"
+    errors=$((errors + 1))
+    continue
+  fi
+
+  runbook="$skill_dir/references/runbook.md"
+  if [[ -f "$runbook" ]]; then
+    echo "✅ $runbook"
+  else
+    echo "❌ Missing skill runbook: $runbook"
+    errors=$((errors + 1))
+  fi
+
+  template_count=0
+  if [[ -d "$skill_dir/templates" ]]; then
+    template_count=$(find "$skill_dir/templates" -maxdepth 1 -type f -name '*.md' | wc -l | tr -d ' ')
+  fi
+
+  if [[ "$template_count" -ge 2 ]]; then
+    echo "✅ $skill_dir/templates ($template_count files)"
+  else
+    echo "❌ Skill needs at least 2 templates: $skill_dir/templates"
+    errors=$((errors + 1))
+  fi
+
+  if grep -q '^## Execution assets' "$skill_file"; then
+    echo "✅ $skill_file includes execution assets section"
+  else
+    echo "❌ $skill_file missing execution assets section"
     errors=$((errors + 1))
   fi
 done

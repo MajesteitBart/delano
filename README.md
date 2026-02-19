@@ -18,7 +18,7 @@ The handbook runtime scaffold is initialized in this repository:
 Useful commands:
 
 ```bash
-# Validate the environment
+# Validate the environment (now includes skill-pack checks)
 bash .claude/scripts/pm/validate.sh
 
 # Create a new delivery project scaffold
@@ -27,3 +27,11 @@ bash .claude/scripts/pm/init.sh <slug> "<Project Name>" <owner> <lead>
 # Portfolio status snapshot
 bash .claude/scripts/pm/status.sh
 ```
+
+## Skill packs
+
+Execution-ready skill contracts live in `.claude/skills/*`.
+Each skill includes:
+- `SKILL.md` contract
+- `references/runbook.md`
+- `templates/*.md`

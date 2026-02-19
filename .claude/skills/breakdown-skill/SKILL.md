@@ -33,3 +33,8 @@ intent: decompose approved plan into atomic tasks
 - `bash .claude/scripts/pm/validate.sh`
 - `bash .claude/scripts/pm/next.sh`
 - `bash .claude/scripts/pm/blocked.sh`
+
+## Execution assets
+- `references/runbook.md`
+- `templates/task-batch-summary.md`
+- `templates/ambiguity-report.md`

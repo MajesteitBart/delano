@@ -33,3 +33,8 @@ intent: translate approved Spec into executable Delivery Plan
 ## Script hooks
 - `bash .claude/scripts/pm/validate.sh`
 - `bash .claude/scripts/pm/status.sh`
+
+## Execution assets
+- `references/runbook.md`
+- `templates/architecture-decision.md`
+- `templates/workstream-definition.md`
