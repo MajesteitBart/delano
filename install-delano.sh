@@ -164,14 +164,18 @@ CORE_PATHS=(
   ".delano"
   ".agents/README.md"
   ".agents/common"
-  ".agents/runtime"
+  ".agents/scripts"
+  ".agents/rules"
+  ".agents/hooks"
+  ".agents/skills"
+  ".agents/logs"
 )
 
 declare -A ADAPTER_PATHS
-ADAPTER_PATHS[claude]=".agents/claude CLAUDE.md"
-ADAPTER_PATHS[codex]=".agents/codex CODEX.md"
-ADAPTER_PATHS[opencode]=".agents/opencode OPENCODE.md"
-ADAPTER_PATHS[pi]=".agents/pi PI.md"
+ADAPTER_PATHS[claude]=".agents/adapters/claude CLAUDE.md"
+ADAPTER_PATHS[codex]=".agents/adapters/codex CODEX.md"
+ADAPTER_PATHS[opencode]=".agents/adapters/opencode OPENCODE.md"
+ADAPTER_PATHS[pi]=".agents/adapters/pi PI.md"
 
 paths=("${CORE_PATHS[@]}")
 for a in "${AGENTS[@]}"; do
@@ -267,10 +271,10 @@ for rel in "${unique_paths[@]}"; do
 done
 
 # Compatibility symlink for runtime scripts
-if [[ -e "$TARGET_DIR/.agents/runtime" ]]; then
+if [[ -e "$TARGET_DIR/.agents" ]]; then
   if [[ -L "$TARGET_DIR/.claude" ]]; then
     current_target="$(readlink "$TARGET_DIR/.claude" || true)"
-    if [[ "$current_target" != ".agents/runtime" ]]; then
+    if [[ "$current_target" != ".agents" ]]; then
       if [[ "$FORCE" == "true" ]] || confirm "Replace existing .claude symlink target '$current_target'?"; then
         rm -f "$TARGET_DIR/.claude"
       fi
@@ -282,15 +286,15 @@ if [[ -e "$TARGET_DIR/.agents/runtime" ]]; then
   fi
 
   if [[ ! -e "$TARGET_DIR/.claude" && ! -L "$TARGET_DIR/.claude" ]]; then
-    if (cd "$TARGET_DIR" && ln -s .agents/runtime .claude) 2>/dev/null; then
-      log "✓ Created compatibility symlink: .claude -> .agents/runtime"
+    if (cd "$TARGET_DIR" && ln -s .agents .claude) 2>/dev/null; then
+      log "✓ Created compatibility symlink: .claude -> .agents"
     else
       warn "Could not create symlink (.claude). Falling back to directory copy."
-      cp -a "$TARGET_DIR/.agents/runtime" "$TARGET_DIR/.claude"
+      cp -a "$TARGET_DIR/.agents" "$TARGET_DIR/.claude"
     fi
   fi
 else
-  warn "Runtime missing at .agents/runtime, skipped .claude compatibility link"
+  warn "Runtime missing at .agents, skipped .claude compatibility link"
 fi
 
 log ""

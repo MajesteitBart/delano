@@ -2,9 +2,9 @@
 
 Agent adapter layer for Delano.
 
-- `runtime/` -> shared Delano runtime assets (scripts, rules, hooks, skills)
-- `claude/` -> Claude adapter notes
-- `codex/` -> Codex adapter notes
-- `opencode/` -> OpenCode adapter notes
-- `pi/` -> Pi agent adapter notes
+- `scripts/`, `rules/`, `hooks/`, `skills/`, `logs/` -> shared Delano runtime assets
+- `adapters/claude/` -> Claude adapter notes
+- `adapters/codex/` -> Codex adapter notes
+- `adapters/opencode/` -> OpenCode adapter notes
+- `adapters/pi/` -> Pi adapter notes
 - `common/` -> shared adapter docs/policies

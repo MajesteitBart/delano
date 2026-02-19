@@ -13,7 +13,7 @@ The handbook runtime scaffold is initialized in this repository:
 
 - `.project/` (delivery truth)
 - `.agents/` (runtime + agent adapters)
-- `.claude/` (compatibility symlink to `.agents/runtime`)
+- `.claude/` (compatibility symlink to `.agents`)
 - `.delano/` (optional UI layer)
 
 Useful commands:
@@ -41,7 +41,7 @@ It asks which coding agent(s) you use (multi-select) and installs the matching D
 
 ## Skill packs
 
-Execution-ready skill contracts live in `.agents/runtime/skills/*` (available through `.claude/skills/*` too).
+Execution-ready skill contracts live in `.agents/skills/*` (available through `.claude/skills/*` too).
 Each skill includes:
 - `SKILL.md` contract
 - `references/runbook.md`

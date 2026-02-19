@@ -4,4 +4,4 @@ Codex adapter entrypoint.
 
 Read `AGENTS.md` first.
 
-Codex adapter notes: `.agents/codex/README.md`.
+Codex adapter notes: `.agents/adapters/codex/README.md`.

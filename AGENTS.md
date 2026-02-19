@@ -9,9 +9,9 @@ Delano is agent-agnostic.
 
 ## Adapter model
 
-- Shared runtime lives in `.agents/runtime/`
-- Agent-specific adapters live in `.agents/<agent>/`
-- `.claude` is a compatibility symlink to `.agents/runtime`
+- Shared runtime lives directly in `.agents/` (`scripts`, `rules`, `hooks`, `skills`, `logs`)
+- Agent-specific adapters live in `.agents/adapters/<agent>/`
+- `.claude` is a compatibility symlink to `.agents`
 - Agent entrypoint files (`CLAUDE.md`, `CODEX.md`, etc.) should stay thin and point here
 
 ## Operating rule

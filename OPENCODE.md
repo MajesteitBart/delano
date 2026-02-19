@@ -4,4 +4,4 @@ OpenCode adapter entrypoint.
 
 Read `AGENTS.md` first.
 
-OpenCode adapter notes: `.agents/opencode/README.md`.
+OpenCode adapter notes: `.agents/adapters/opencode/README.md`.
