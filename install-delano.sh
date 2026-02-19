@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="${DELANO_REPO_URL:-https://github.com/lambertvdm-design/delano.git}"
+REPO_URL="${DELANO_REPO_URL:-https://github.com/majesteitbart/delano.git}"
 TARGET_DIR="$(pwd)"
 BRANCH=""
 FORCE=false
