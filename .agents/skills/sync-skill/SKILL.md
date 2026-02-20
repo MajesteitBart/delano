@@ -1,6 +1,6 @@
 ---
 name: sync-skill
-intent: reconcile local contracts with Linear and GitHub
+description: Reconcile local contracts with Linear and GitHub state, repair mapping and status drift, and update registry files. Use when task state changes or sync drift is suspected.
 ---
 
 # sync-skill

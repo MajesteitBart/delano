@@ -1,6 +1,6 @@
 ---
 name: execution-skill
-intent: execute mapped tasks with stream discipline and evidence updates
+description: Execute mapped tasks with stream discipline, dependency safety checks, and evidence updates. Use when tasks are ready for implementation.
 ---
 
 # execution-skill

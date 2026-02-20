@@ -1,6 +1,6 @@
 ---
 name: discovery-skill
-intent: define and approve a measurable outcome and Spec
+description: Define and approve a measurable outcome and Spec. Use when a new delivery request has unclear scope, missing outcome, or missing owner.
 ---
 
 # discovery-skill

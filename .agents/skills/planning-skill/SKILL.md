@@ -1,6 +1,6 @@
 ---
 name: planning-skill
-intent: translate approved Spec into executable Delivery Plan
+description: Translate an approved Spec into an executable Delivery Plan and workstreams. Use after spec approval before task decomposition.
 ---
 
 # planning-skill

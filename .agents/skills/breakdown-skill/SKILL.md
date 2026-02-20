@@ -1,6 +1,6 @@
 ---
 name: breakdown-skill
-intent: decompose approved plan into atomic tasks
+description: Decompose an approved plan into atomic tasks with dependencies and acceptance criteria. Use when planning is complete and execution must be prepared.
 ---
 
 # breakdown-skill

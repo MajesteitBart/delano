@@ -1,6 +1,6 @@
 ---
 name: closeout-skill
-intent: close delivery loop and capture completion evidence
+description: Close the delivery loop and capture completion evidence, status updates, and handoff artifacts. Use after quality gates pass.
 ---
 
 # closeout-skill
