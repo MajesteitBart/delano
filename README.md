@@ -1,48 +1,79 @@
 # Delano
 
-Delano is being rebuilt from the ground up.
+Delano is an agent-agnostic, skill-driven delivery system.
 
-Start here:
-- [`HANDBOOK.md`](./HANDBOOK.md)
+## WHY
 
-`HANDBOOK.md` is the canonical source of truth for this repository.
+AI-assisted delivery is fast, but it easily becomes inconsistent.
 
-## Environment bootstrap
+Delano exists to keep teams fast **and** reliable by giving one shared way to move from business outcomes to specs, tasks, code, and evidence.
 
-The handbook runtime scaffold is initialized in this repository:
+It is designed to reduce:
+- execution drift between planning and implementation
+- tool-specific lock-in
+- undocumented decisions and low-trust delivery flow
 
-- `.project/` (delivery truth)
-- `.agents/` (runtime + agent adapters)
-- `.claude/` (compatibility symlink to `.agents`)
-- `.delano/` (optional UI layer)
+## WHAT
 
-Useful commands:
+Delano is a spec-first runtime for software delivery, backed by explicit file contracts and deterministic scripts.
+
+Core pieces:
+- `HANDBOOK.md` — canonical operating model and governance
+- `.project/` — delivery truth (projects, tasks, context, updates, decisions)
+- `.agents/` — shared runtime (scripts, rules, hooks, skills, adapters)
+- `.claude/` — compatibility mirror for Claude-style paths (symlink where supported, directory mirror otherwise)
+- `.delano/` — optional UI layer
+
+Supported adapters:
+- Claude Code
+- Codex CLI
+- OpenCode
+- Pi coding agent
+
+## HOW
+
+### Quick start (inside a Delano repo)
 
 ```bash
-# Validate the environment (includes skill-pack checks)
+# 1) Validate the runtime and required assets
 bash .claude/scripts/pm/validate.sh
 
-# Create a new delivery project scaffold
+# 2) Create a new delivery project scaffold
 bash .claude/scripts/pm/init.sh <slug> "<Project Name>" <owner> <lead>
 
-# Portfolio status snapshot
+# 3) See portfolio/project status
 bash .claude/scripts/pm/status.sh
+
+# 4) Get next executable tasks
+bash .claude/scripts/pm/next.sh
 ```
 
-## Installer (for other repos)
+### Daily operating loop
 
-Run the interactive installer:
+1. Keep project intent and execution synced in `.project/projects/<slug>/`.
+2. Execute work through workstreams and atomic tasks (`tasks/T-xxx.md`).
+3. Record progress/blockers in `updates/*.md`.
+4. Re-run validation before merge/handoff:
+   ```bash
+   bash .claude/scripts/pm/validate.sh
+   ```
+
+### Install Delano into another repository
+
+Run the installer from this repository:
 
 ```bash
 ./install-delano.sh
 ```
 
-It asks which coding agent(s) you use (multi-select) and installs the matching Delano adapter set from this repository.
+Non-interactive example:
 
-## Skill packs
+```bash
+./install-delano.sh --target /path/to/repo --agents claude,codex --yes
+```
 
-Execution-ready skill contracts live in `.agents/skills/*` (available through `.claude/skills/*` too).
-Each skill includes:
-- `SKILL.md` contract
-- `references/runbook.md`
-- `templates/*.md`
+### Read next
+
+- `HANDBOOK.md` for full operating semantics
+- `.claude/scripts/README.md` for runtime script inventory
+- `AGENTS.md` and adapter entrypoints (`CLAUDE.md`, `CODEX.md`, etc.) for agent-specific bootstraps
