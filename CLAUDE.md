@@ -5,4 +5,4 @@ Claude adapter entrypoint.
 Read `AGENTS.md` first.
 
 Shared runtime assets live in `.agents/`.
-The compatibility path `.claude/` points to that same location.
+The compatibility path `.claude/` mirrors that runtime (symlink where supported, directory mirror otherwise).
