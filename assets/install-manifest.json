@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "paths": [
+  "version": 2,
+  "files": [
     ".agents/adapters/claude/README.md",
     ".agents/adapters/codex/README.md",
     ".agents/adapters/opencode/README.md",
@@ -75,16 +75,46 @@
     ".agents/skills/sync-skill/templates/conflict-resolution-actions.md",
     ".agents/skills/sync-skill/templates/drift-report.md",
     ".delano/README.md",
-    ".project/context/gui-testing.md",
-    ".project/context/product-context.md",
-    ".project/context/progress.md",
-    ".project/context/project-brief.md",
-    ".project/context/project-overview.md",
-    ".project/context/project-structure.md",
-    ".project/context/project-style-guide.md",
-    ".project/context/README.md",
-    ".project/context/system-patterns.md",
-    ".project/context/tech-context.md",
+    {
+      "source": "assets/templates/context/gui-testing.md",
+      "target": ".project/context/gui-testing.md"
+    },
+    {
+      "source": "assets/templates/context/product-context.md",
+      "target": ".project/context/product-context.md"
+    },
+    {
+      "source": "assets/templates/context/progress.md",
+      "target": ".project/context/progress.md"
+    },
+    {
+      "source": "assets/templates/context/project-brief.md",
+      "target": ".project/context/project-brief.md"
+    },
+    {
+      "source": "assets/templates/context/project-overview.md",
+      "target": ".project/context/project-overview.md"
+    },
+    {
+      "source": "assets/templates/context/project-structure.md",
+      "target": ".project/context/project-structure.md"
+    },
+    {
+      "source": "assets/templates/context/project-style-guide.md",
+      "target": ".project/context/project-style-guide.md"
+    },
+    {
+      "source": "assets/templates/context/README.md",
+      "target": ".project/context/README.md"
+    },
+    {
+      "source": "assets/templates/context/system-patterns.md",
+      "target": ".project/context/system-patterns.md"
+    },
+    {
+      "source": "assets/templates/context/tech-context.md",
+      "target": ".project/context/tech-context.md"
+    },
     ".project/projects/.gitkeep",
     ".project/registry/linear-map.json",
     ".project/registry/migration-map.json",

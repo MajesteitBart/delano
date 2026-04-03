@@ -132,6 +132,7 @@ The CLI does not bundle its own shell or Python runtime.
 - it does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`
 
 The base install payload intentionally excludes top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, and `PI.md`. Those remain opt-in only.
+The installable `.project/context/` pack is seeded from generic templates during packaging; it does not ship Delano's own repo-specific context files into consumer repositories.
 
 ## Optional AGENTS.md / CLAUDE.md snippet
 
@@ -160,6 +161,7 @@ This package is deliberately narrow:
 
 - npm is the distribution surface
 - `.project` remains repo-owned after install
+- `.project/context/` installs as generic starter context that the target repo must replace with its own reality
 - `.agents` remains the runtime surface
 - wrapper commands stay thin in v1.1
 - `install-delano.sh` remains available as the legacy bridge installer

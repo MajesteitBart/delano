@@ -30,6 +30,7 @@ function readInstallManifest() {
   return {
     manifestPath,
     manifest,
+    entries: normalizeManifestEntries(manifest),
     payloadRoot: path.join(getPackageRoot(), "assets", "payload")
   };
 }
@@ -120,17 +121,17 @@ function parseInstallArgs(args) {
 }
 
 function buildInstallPlan(options) {
-  const { manifest, payloadRoot } = readInstallManifest();
-  const items = manifest.paths.map((relativePath) => {
-    const sourcePath = path.join(payloadRoot, relativePath);
+  const { manifest, entries, payloadRoot } = readInstallManifest();
+  const items = entries.map((entry) => {
+    const sourcePath = path.join(payloadRoot, entry.target);
     if (!existsSync(sourcePath)) {
-      throw new CliError(getMissingPackagedAssetMessage(relativePath), 1);
+      throw new CliError(getMissingPackagedAssetMessage(entry.target), 1);
     }
 
     return {
-      relativePath,
+      relativePath: entry.target,
       sourcePath,
-      targetPath: path.join(options.target, relativePath)
+      targetPath: path.join(options.target, entry.target)
     };
   });
 
@@ -252,12 +253,52 @@ function applyInstallPlan(plan, options) {
   console.log(`Installed ${plan.items.length} files into ${options.target}.`);
 }
 
+function normalizeManifestEntries(rawManifest) {
+  const entries = Array.isArray(rawManifest.files) ? rawManifest.files : rawManifest.paths;
+  if (!Array.isArray(entries)) {
+    throw new CliError("Install manifest is missing a files array.", 1);
+  }
+
+  const seenTargets = new Set();
+  return entries.map((entry) => {
+    const normalized = typeof entry === "string"
+      ? { source: entry, target: entry }
+      : entry;
+
+    if (!normalized || typeof normalized.source !== "string" || typeof normalized.target !== "string") {
+      throw new CliError("Install manifest entries must be strings or { source, target } objects.", 1);
+    }
+
+    validateManifestPath(normalized.source, "source");
+    validateManifestPath(normalized.target, "target");
+
+    if (seenTargets.has(normalized.target)) {
+      throw new CliError(`Install manifest target is duplicated: ${normalized.target}`, 1);
+    }
+    seenTargets.add(normalized.target);
+
+    return normalized;
+  });
+}
+
+function validateManifestPath(relativePath, fieldName) {
+  if (path.isAbsolute(relativePath)) {
+    throw new CliError(`Install manifest ${fieldName} must be relative: ${relativePath}`, 1);
+  }
+
+  const normalizedPath = path.normalize(relativePath);
+  if (normalizedPath.startsWith("..") || normalizedPath === "..") {
+    throw new CliError(`Install manifest ${fieldName} must stay inside the package root: ${relativePath}`, 1);
+  }
+}
+
 module.exports = {
   SUPPORTED_AGENTS,
   applyInstallPlan,
   buildInstallPlan,
   collectConflicts,
   confirmInstall,
+  normalizeManifestEntries,
   parseAgentList,
   parseInstallArgs,
   printConflicts,

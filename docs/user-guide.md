@@ -84,6 +84,7 @@ The base install path copies only the approved allowlist payload:
 
 It does not install top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, or `PI.md`. Those remain opt-in.
 It also does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`.
+The packaged `.project/context/` files are generic starter templates. They are seeded into the target repo during install and should be rewritten to match that repo's actual context.
 
 ## Conflict-first behavior
 
@@ -171,6 +172,7 @@ This release stays intentionally narrow:
 
 - npm is the product surface
 - `.project` remains repo-owned after install
+- `.project/context/` is starter seed data, not Delano repo state
 - `.agents` remains the canonical runtime
 - `.claude` remains compatibility only
 - `install-delano.sh` remains the legacy bridge installer

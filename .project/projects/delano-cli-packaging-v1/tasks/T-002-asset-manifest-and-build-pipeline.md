@@ -3,7 +3,7 @@ id: T-002
 name: Asset manifest and build pipeline
 status: review
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:18:28Z
+updated: 2026-04-03T18:10:00Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -36,8 +36,9 @@ Define the allowlist-driven asset manifest for the approved install payload and 
 - [x] Implementation complete
 - [x] Tests pass
 - [ ] Review complete
-- [ ] Docs updated
+- [x] Docs updated
 
 ## Evidence Log
 - 2026-04-03: Task created during breakdown for the Delano CLI packaging project.
 - 2026-04-03: Added `assets/install-manifest.json` and `scripts/build-npm-assets.mjs`, then verified `npm run build:assets` and `npm pack --dry-run` produced the expected packaged payload without top-level adapter entry docs.
+- 2026-04-03: Reworked the install manifest to map generic context template sources into `.project/context/*` install targets, updated the build/install logic to use target-aware staged assets, and added regression coverage so the npm payload no longer carries Delano repo-specific context content.

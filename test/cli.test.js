@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 
 const { commands, getGeneralHelp, resolveInvocation } = require("../src/cli");
-const { parseAgentList } = require("../src/cli/lib/install");
+const { normalizeManifestEntries, parseAgentList } = require("../src/cli/lib/install");
 const { findDelanoRoot, normalizeBashScriptPath } = require("../src/cli/lib/runtime");
 
 test("CLI exposes the planned v1 command surface", () => {
@@ -29,6 +29,30 @@ test("top-level install options are treated as install shorthand", () => {
 
 test("agent parsing normalizes values and removes duplicates", () => {
   assert.deepEqual(parseAgentList("Codex, claude ,codex"), ["codex", "claude"]);
+});
+
+test("install manifest entries support explicit source-to-target mappings", () => {
+  assert.deepEqual(
+    normalizeManifestEntries({
+      files: [
+        ".agents/README.md",
+        {
+          source: "assets/templates/context/project-brief.md",
+          target: ".project/context/project-brief.md"
+        }
+      ]
+    }),
+    [
+      {
+        source: ".agents/README.md",
+        target: ".agents/README.md"
+      },
+      {
+        source: "assets/templates/context/project-brief.md",
+        target: ".project/context/project-brief.md"
+      }
+    ]
+  );
 });
 
 test("findDelanoRoot locates the repo root from a nested path", () => {

@@ -38,3 +38,40 @@ test("npm pack excludes repo root Git config files from the payload", () => {
     fs.rmSync(tarballPath, { force: true });
   }
 });
+
+test("build:assets stages generic context templates instead of Delano repo context", () => {
+  const buildResult = spawnSync(process.execPath, ["scripts/build-npm-assets.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(buildResult.status, 0, buildResult.stderr || buildResult.stdout);
+
+  const manifestPath = path.join(repoRoot, "assets", "install-manifest.json");
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+  const contextEntry = manifest.files.find((entry) => (
+    typeof entry === "object" && entry.target === ".project/context/project-brief.md"
+  ));
+
+  assert.deepEqual(contextEntry, {
+    source: "assets/templates/context/project-brief.md",
+    target: ".project/context/project-brief.md"
+  });
+
+  const liveContextPath = path.join(repoRoot, ".project", "context", "project-brief.md");
+  const stagedContextPath = path.join(
+    repoRoot,
+    "assets",
+    "payload",
+    ".project",
+    "context",
+    "project-brief.md"
+  );
+
+  const liveContext = fs.readFileSync(liveContextPath, "utf8");
+  const stagedContext = fs.readFileSync(stagedContextPath, "utf8");
+
+  assert.match(liveContext, /Delano is both the product and the reference repository/);
+  assert.doesNotMatch(stagedContext, /Delano is both the product and the reference repository/);
+  assert.match(stagedContext, /<describe the product or operational problem this repository exists to solve>/);
+});
