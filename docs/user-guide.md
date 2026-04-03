@@ -65,6 +65,37 @@ You do not need a probe for every project. If uncertainty is already low and the
 5. Approve the spec only after the probe decision is explicit.
 6. Continue with planning, breakdown, execution, quality, and closeout.
 
+## CLI Install Path
+
+Delano now has a thin npm CLI layer for packaging and installation.
+
+Current v1 CLI facts:
+- package name: `@delano/cli`
+- binary name: `delano`
+- the package embeds the approved runtime payload; it is not a GitHub-fetch wrapper
+- wrapper commands exist for `install`, `init`, `validate`, `status`, and `next`
+
+Preferred install shape:
+
+```bash
+delano install --target /path/to/repo --yes
+```
+
+Current source-repo development shape:
+
+```bash
+npm run build:assets
+node bin/delano.js install --target /path/to/repo --yes
+```
+
+The npm base install path is conservative by default:
+- it computes the full plan before writing files
+- it aborts on conflicts unless `--force` is provided
+- it only writes the approved payload
+- it does not install top-level adapter entry docs such as `AGENTS.md` or `CLAUDE.md` by default
+
+`install-delano.sh` still exists, but it should be treated as the legacy shell-first bridge while the npm CLI matures.
+
 ## Daily Working Pattern
 
 - Keep the active project files in `.project/projects/<slug>/` up to date.
@@ -84,6 +115,17 @@ bash .agents/scripts/pm/next.sh
 ```
 
 If your environment still uses `.claude/scripts/...`, that path should behave as a compatibility mirror rather than a separate runtime.
+
+CLI wrapper equivalents:
+
+```bash
+delano validate
+delano status
+delano next
+delano init <slug> "<Project Name>" <owner> <lead>
+```
+
+These remain thin wrappers over `.agents/scripts/pm/*`; they do not replace the underlying shell/Python runtime in v1.
 
 ## Read Next
 

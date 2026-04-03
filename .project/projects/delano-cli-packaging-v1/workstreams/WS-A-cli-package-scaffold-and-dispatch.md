@@ -1,9 +1,9 @@
 ---
 name: WS-A CLI Package Scaffold and Dispatch
 owner: team
-status: planned
+status: in-progress
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:00:36Z
+updated: 2026-04-03T12:10:50Z
 ---
 
 # Workstream: WS-A CLI Package Scaffold and Dispatch

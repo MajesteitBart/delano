@@ -1,9 +1,9 @@
 ---
 id: T-004
 name: Wrapper commands for PM scripts
-status: backlog
+status: review
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:00:36Z
+updated: 2026-04-03T12:18:28Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -21,10 +21,10 @@ estimate: M
 Implement `delano init`, `delano validate`, `delano status`, and `delano next` as thin wrappers over the current `.agents/scripts/pm/*` commands.
 
 ## Acceptance Criteria
-- [ ] Each wrapper command delegates to the existing PM script instead of reimplementing its core logic.
-- [ ] The CLI resolves a usable `bash` and Python-backed runtime path in the current Windows-first environment assumptions.
-- [ ] Wrapper command exit codes and stdout/stderr behavior remain faithful enough to the current scripts for operator use.
-- [ ] Command help or usage text makes the wrapper role explicit.
+- [x] Each wrapper command delegates to the existing PM script instead of reimplementing its core logic.
+- [x] The CLI resolves a usable `bash` and Python-backed runtime path in the current Windows-first environment assumptions.
+- [x] Wrapper command exit codes and stdout/stderr behavior remain faithful enough to the current scripts for operator use.
+- [x] Command help or usage text makes the wrapper role explicit.
 
 ## Technical Notes
 
@@ -33,10 +33,11 @@ Implement `delano init`, `delano validate`, `delano status`, and `delano next` a
 - Keep write ownership inside CLI source files and avoid editing PM scripts unless wrapper compatibility forces a targeted fix.
 
 ## Definition of Done
-- [ ] Implementation complete
-- [ ] Tests pass
+- [x] Implementation complete
+- [x] Tests pass
 - [ ] Review complete
 - [ ] Docs updated
 
 ## Evidence Log
 - 2026-04-03: Task created during breakdown for the Delano CLI packaging project.
+- 2026-04-03: Implemented wrapper commands for `init`, `validate`, `status`, and `next`, with repo-root discovery and bash resolution. Smoke-tested wrappers in both the source repo and an installed scratch repo.

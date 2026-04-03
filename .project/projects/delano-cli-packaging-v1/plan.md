@@ -1,9 +1,9 @@
 ---
 name: Delano CLI Packaging v1
-status: planned
+status: in-progress
 lead: bart
 created: 2026-04-03T11:59:43Z
-updated: 2026-04-03T12:00:36Z
+updated: 2026-04-03T12:10:50Z
 linear_project_id:
 risk_level: medium
 spec_status_at_plan_time: approved

@@ -50,6 +50,27 @@ bash .agents/scripts/pm/status.sh
 bash .agents/scripts/pm/next.sh
 ```
 
+### CLI v1 (current package work)
+
+Delano now has a thin npm CLI layer with:
+- package name `@delano/cli`
+- binary name `delano`
+- embedded install assets instead of a GitHub-fetch wrapper
+- wrapper commands for `install`, `init`, `validate`, `status`, and `next`
+
+Local development examples from this repository:
+
+```bash
+# Build the packaged asset payload
+npm run build:assets
+
+# Inspect the CLI surface
+node bin/delano.js --help
+
+# Install the approved base payload into another repo or scratch target
+node bin/delano.js install --target /path/to/repo --yes
+```
+
 ### Daily operating loop
 
 1. Keep project intent and execution synced in `.project/projects/<slug>/`.
@@ -62,13 +83,32 @@ bash .agents/scripts/pm/next.sh
 
 ### Install Delano into another repository
 
-Run the installer from this repository:
+Preferred v1 path:
+
+```bash
+delano install --target /path/to/repo --yes
+```
+
+Current source-repo development path:
+
+```bash
+node bin/delano.js install --target /path/to/repo --yes
+```
+
+Base install behavior:
+- installs only the approved allowlist payload
+- aborts on existing-path conflicts unless `--force` is used
+- does not install `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, or `PI.md` by default
+
+Legacy bridge path:
 
 ```bash
 ./install-delano.sh
 ```
 
-Non-interactive example:
+The shell installer remains available for migration, but it is broader than the npm base install path and should be treated as the compatibility bridge rather than the preferred v1 behavior.
+
+Legacy non-interactive example:
 
 ```bash
 ./install-delano.sh --target /path/to/repo --agents claude,codex --yes

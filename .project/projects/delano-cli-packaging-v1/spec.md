@@ -2,9 +2,9 @@
 name: Delano CLI Packaging v1
 slug: delano-cli-packaging-v1
 owner: team
-status: approved
+status: active
 created: 2026-04-03T11:59:43Z
-updated: 2026-04-03T12:00:36Z
+updated: 2026-04-03T12:10:50Z
 outcome: Delano ships a Windows-usable v1 npm package `@delano/cli` with the `delano` binary, conservative allowlist-driven install behavior, and wrapper commands for `install`, `init`, `validate`, `status`, and `next` without replacing the existing shell/Python runtime.
 uncertainty: medium
 probe_required: false

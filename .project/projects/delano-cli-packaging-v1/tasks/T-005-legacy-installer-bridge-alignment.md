@@ -1,9 +1,9 @@
 ---
 id: T-005
 name: Legacy installer bridge alignment
-status: backlog
+status: review
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:00:36Z
+updated: 2026-04-03T12:18:28Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -21,10 +21,10 @@ estimate: S
 Keep `install-delano.sh` working as a migration bridge while aligning its messaging and role with the new npm CLI path.
 
 ## Acceptance Criteria
-- [ ] `install-delano.sh` remains usable after the CLI packaging changes land.
-- [ ] Bridge messaging clearly differentiates the legacy shell installer from the npm CLI install path.
-- [ ] No new default behavior in the shell installer contradicts the safer npm install contract.
-- [ ] Any delegation or compatibility notes are documented in the script help or surrounding docs.
+- [x] `install-delano.sh` remains usable after the CLI packaging changes land.
+- [x] Bridge messaging clearly differentiates the legacy shell installer from the npm CLI install path.
+- [x] No new default behavior in the shell installer contradicts the safer npm install contract.
+- [x] Any delegation or compatibility notes are documented in the script help or surrounding docs.
 
 ## Technical Notes
 
@@ -33,10 +33,11 @@ Keep `install-delano.sh` working as a migration bridge while aligning its messag
 - Keep the bridge role subordinate to the new CLI direction rather than creating parallel product promises.
 
 ## Definition of Done
-- [ ] Implementation complete
-- [ ] Tests pass
+- [x] Implementation complete
+- [x] Tests pass
 - [ ] Review complete
-- [ ] Docs updated
+- [x] Docs updated
 
 ## Evidence Log
 - 2026-04-03: Task created during breakdown for the Delano CLI packaging project.
+- 2026-04-03: Updated `install-delano.sh` help text and completion guidance to frame the script as the legacy shell-first bridge while `@delano/cli` becomes the preferred conflict-first install path. Verified `bash install-delano.sh --help`.

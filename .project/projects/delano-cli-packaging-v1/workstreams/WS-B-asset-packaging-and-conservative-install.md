@@ -1,9 +1,9 @@
 ---
 name: WS-B Asset Packaging and Conservative Install
 owner: team
-status: planned
+status: in-progress
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:00:36Z
+updated: 2026-04-03T12:18:28Z
 ---
 
 # Workstream: WS-B Asset Packaging and Conservative Install
