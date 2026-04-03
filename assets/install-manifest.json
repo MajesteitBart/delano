@@ -75,8 +75,6 @@
     ".agents/skills/sync-skill/templates/conflict-resolution-actions.md",
     ".agents/skills/sync-skill/templates/drift-report.md",
     ".delano/README.md",
-    ".gitattributes",
-    ".gitignore",
     ".project/context/gui-testing.md",
     ".project/context/product-context.md",
     ".project/context/progress.md",

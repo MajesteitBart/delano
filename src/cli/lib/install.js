@@ -11,7 +11,6 @@ const path = require("node:path");
 const readline = require("node:readline/promises");
 const { stdin, stdout } = require("node:process");
 
-const { getPackagedAssetRelativePath } = require("./asset-paths");
 const { CliError } = require("./errors");
 const { getPackageRoot, getPathType } = require("./runtime");
 
@@ -123,7 +122,7 @@ function parseInstallArgs(args) {
 function buildInstallPlan(options) {
   const { manifest, payloadRoot } = readInstallManifest();
   const items = manifest.paths.map((relativePath) => {
-    const sourcePath = path.join(payloadRoot, getPackagedAssetRelativePath(relativePath));
+    const sourcePath = path.join(payloadRoot, relativePath);
     if (!existsSync(sourcePath)) {
       throw new CliError(getMissingPackagedAssetMessage(relativePath), 1);
     }

@@ -39,6 +39,39 @@ delano --yes
 delano --target /path/to/repo --yes
 ```
 
+## Global npm install
+
+If you want `delano` available everywhere, install it once:
+
+```bash
+npm install -g @bvdm/delano
+```
+
+Then in any repository:
+
+```bash
+delano install --yes
+delano validate
+delano init <slug> "<Project Name>" [owner] [lead]
+```
+
+Important distinction:
+
+- `delano install` installs the Delano runtime into the repository
+- `delano validate` verifies that the runtime is correctly installed
+- `delano init` creates a delivery project after the runtime is already present
+
+`delano init` usage:
+
+```bash
+delano init <slug> "<Project Name>" [owner] [lead]
+```
+
+Defaults:
+
+- `owner` defaults to `team`
+- `lead` defaults to `owner`
+
 ## What install does
 
 The base install path copies only the approved allowlist payload:
@@ -46,12 +79,11 @@ The base install path copies only the approved allowlist payload:
 - `.agents/`
 - `.project/`
 - `.delano/README.md`
-- `.gitattributes`
-- `.gitignore`
 - `HANDBOOK.md`
 - `install-delano.sh`
 
 It does not install top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, or `PI.md`. Those remain opt-in.
+It also does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`.
 
 ## Conflict-first behavior
 
@@ -97,7 +129,7 @@ delano next -- --all
 Create a new delivery project:
 
 ```bash
-delano init <slug> "<Project Name>" <owner> <lead>
+delano init <slug> "<Project Name>" [owner] [lead]
 ```
 
 Wrapper commands map directly to:
@@ -106,7 +138,7 @@ Wrapper commands map directly to:
 bash .agents/scripts/pm/validate.sh
 bash .agents/scripts/pm/status.sh
 bash .agents/scripts/pm/next.sh --all
-bash .agents/scripts/pm/init.sh <slug> "<Project Name>" <owner> <lead>
+bash .agents/scripts/pm/init.sh <slug> "<Project Name>" [owner] [lead]
 ```
 
 ## Day-to-day workflow

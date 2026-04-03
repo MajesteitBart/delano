@@ -46,6 +46,42 @@ delano --yes
 delano --target /path/to/repo --yes
 ```
 
+## Global CLI install
+
+If you want `delano` available in every repository you work in, install it globally:
+
+```bash
+npm install -g @bvdm/delano
+```
+
+Typical flow in a repository:
+
+```bash
+cd /path/to/repo
+delano install --yes
+delano validate
+delano init <slug> "<Project Name>" [owner] [lead]
+```
+
+Command intent:
+
+- `delano install` bootstraps the Delano runtime into the current repository
+- `delano validate` checks whether the runtime and required assets are in place
+- `delano init` creates a delivery project inside a repository that already has Delano installed
+
+`delano init` usage:
+
+```bash
+delano init <slug> "<Project Name>" [owner] [lead]
+```
+
+Notes:
+
+- use kebab-case for `<slug>`
+- `owner` defaults to `team`
+- `lead` defaults to `owner`
+- this is the right command for an agent to scaffold a new delivery project after `delano install`
+
 ## How to use Delano after install
 
 If you bootstrap with one-shot `npx`, keep using `npx` for wrapper commands:
@@ -62,7 +98,7 @@ If the package is installed locally or globally, run these inside the target rep
 delano validate
 delano status
 delano next -- --all
-delano init <slug> "<Project Name>" <owner> <lead>
+delano init <slug> "<Project Name>" [owner] [lead]
 ```
 
 The wrapper commands call the existing PM scripts under `.agents/scripts/pm/`. You can also run those scripts directly:
@@ -93,8 +129,30 @@ The CLI does not bundle its own shell or Python runtime.
 - it reports each conflict as file, directory, or symlink
 - it only overwrites approved allowlist paths when `--force` is used
 - it does not touch unrelated files outside the allowlist
+- it does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`
 
 The base install payload intentionally excludes top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, and `PI.md`. Those remain opt-in only.
+
+## Optional AGENTS.md / CLAUDE.md snippet
+
+If you want explicit Delano instructions in a repo-root `AGENTS.md` or `CLAUDE.md`, copy and paste this yourself:
+
+```md
+## Delano
+
+This repository uses Delano.
+
+Canonical process and contracts live in `HANDBOOK.md`.
+Delivery state lives in `.project/`.
+Shared runtime lives in `.agents/`.
+`.claude/` is a compatibility mirror of `.agents/`, not a second runtime.
+
+When working in this repository:
+- treat `.project/` as the source of truth
+- use the Delano status model and evidence discipline from `HANDBOOK.md`
+- keep sync and quality gates aligned with the handbook
+- use `delano init <slug> "<Project Name>" [owner] [lead]` to scaffold a new delivery project when needed
+```
 
 ## v1.1 boundaries
 

@@ -1,6 +1,6 @@
 {
   "name": "@bvdm/delano",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "Thin npm CLI for the Delano delivery runtime.",
   "license": "UNLICENSED",
   "bin": {
