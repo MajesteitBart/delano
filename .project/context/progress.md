@@ -5,7 +5,7 @@
 - Synced the `.claude` compatibility mirror to the updated `.agents` runtime so canonical and fallback command paths now align.
 - Replaced the placeholder `.project/context/` files with repo-specific context for Delano as both product and reference implementation.
 - Created the `delano-cli-packaging-v1` project with an approved spec, planned delivery plan, four workstreams, and a decomposed task graph.
-- Added the first working `@delano/cli` scaffold: package metadata, `delano` bin entrypoint, command dispatch, wrapper commands, install manifest, asset build pipeline, and a conservative install flow.
+- Added the first working `@bvdm/delano` scaffold: package metadata, `delano` bin entrypoint, command dispatch, wrapper commands, install manifest, asset build pipeline, and a conservative install flow.
 
 ## Why It Changed
 - The repo had drift between written process, generated scaffolds, and executable runtime behavior around canonical paths and probe-aware delivery.

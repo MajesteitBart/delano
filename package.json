@@ -1,5 +1,5 @@
 {
-  "name": "@delano/cli",
+  "name": "@bvdm/delano",
   "version": "0.1.0",
   "description": "Thin npm CLI for the Delano delivery runtime.",
   "license": "UNLICENSED",

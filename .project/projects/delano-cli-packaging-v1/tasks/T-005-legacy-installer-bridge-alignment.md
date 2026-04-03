@@ -3,7 +3,7 @@ id: T-005
 name: Legacy installer bridge alignment
 status: review
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:18:28Z
+updated: 2026-04-03T13:52:50Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -40,4 +40,4 @@ Keep `install-delano.sh` working as a migration bridge while aligning its messag
 
 ## Evidence Log
 - 2026-04-03: Task created during breakdown for the Delano CLI packaging project.
-- 2026-04-03: Updated `install-delano.sh` help text and completion guidance to frame the script as the legacy shell-first bridge while `@delano/cli` becomes the preferred conflict-first install path. Verified `bash install-delano.sh --help`.
+- 2026-04-03: Updated `install-delano.sh` help text and completion guidance to frame the script as the legacy shell-first bridge while `@bvdm/delano` becomes the preferred conflict-first install path. Verified `bash install-delano.sh --help`.

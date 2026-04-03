@@ -4,8 +4,8 @@ slug: delano-cli-packaging-v1
 owner: team
 status: active
 created: 2026-04-03T11:59:43Z
-updated: 2026-04-03T12:10:50Z
-outcome: Delano ships a Windows-usable v1 npm package `@delano/cli` with the `delano` binary, conservative allowlist-driven install behavior, and wrapper commands for `install`, `init`, `validate`, `status`, and `next` without replacing the existing shell/Python runtime.
+updated: 2026-04-03T13:52:50Z
+outcome: Delano ships a Windows-usable v1 npm package `@bvdm/delano` with the `delano` binary, conservative allowlist-driven install behavior, and wrapper commands for `install`, `init`, `validate`, `status`, and `next` without replacing the existing shell/Python runtime.
 uncertainty: medium
 probe_required: false
 probe_status: skipped
@@ -14,7 +14,7 @@ probe_status: skipped
 # Spec: Delano CLI Packaging v1
 
 ## Executive Summary
-- Add a thin npm packaging layer around Delano's current runtime so operators can install and run Delano through `@delano/cli` instead of a GitHub-fetch shell bootstrap alone.
+- Add a thin npm packaging layer around Delano's current runtime so operators can install and run Delano through `@bvdm/delano` instead of a GitHub-fetch shell bootstrap alone.
 - Keep Delano handbook-first and file-contract-first: `.project` remains delivery truth, `.agents` remains the canonical runtime, `.claude` stays compatibility-only, and existing PM scripts remain the execution layer in v1.
 - Make installation conservative by default: compute the full plan, detect conflicts up front, and refuse to overwrite existing files unless the user explicitly opts into `--force`.
 
@@ -24,7 +24,7 @@ probe_status: skipped
 - Primary users are Delano maintainers and operators who want a versioned npm-distributed CLI, plus coding-agent users who need Delano installed into repositories without surprising file mutations.
 
 ## Outcome and Success Metrics
-- A single scoped npm package named `@delano/cli` exists and exposes the `delano` binary.
+- A single scoped npm package named `@bvdm/delano` exists and exposes the `delano` binary.
 - `delano install` materializes only the approved allowlist payload by default and aborts with a readable conflict report whenever an existing path would be overwritten without `--force`.
 - `delano init`, `delano validate`, `delano status`, and `delano next` successfully delegate to the existing PM scripts instead of reimplementing their logic.
 - The base install does not create, overwrite, or edit `AGENTS.md` or `CLAUDE.md` unless a future explicit opt-in path is implemented.
@@ -32,7 +32,7 @@ probe_status: skipped
 
 ## Scope
 ### In Scope
-- npm CLI scaffolding for `@delano/cli`
+- npm CLI scaffolding for `@bvdm/delano`
 - package asset strategy and allowlist-driven install manifest
 - conservative `delano install` behavior with `--target`, `--agents`, `--force`, and `--yes`
 - wrapper commands for `init`, `validate`, `status`, and `next`

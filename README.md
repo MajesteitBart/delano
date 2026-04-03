@@ -53,7 +53,7 @@ bash .agents/scripts/pm/next.sh
 ### CLI v1 (current package work)
 
 Delano now has a thin npm CLI layer with:
-- package name `@delano/cli`
+- package name `@bvdm/delano`
 - binary name `delano`
 - embedded install assets instead of a GitHub-fetch wrapper
 - wrapper commands for `install`, `init`, `validate`, `status`, and `next`

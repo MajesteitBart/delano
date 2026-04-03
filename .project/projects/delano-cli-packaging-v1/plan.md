@@ -3,7 +3,7 @@ name: Delano CLI Packaging v1
 status: in-progress
 lead: bart
 created: 2026-04-03T11:59:43Z
-updated: 2026-04-03T12:10:50Z
+updated: 2026-04-03T13:52:50Z
 linear_project_id:
 risk_level: medium
 spec_status_at_plan_time: approved
@@ -16,7 +16,7 @@ spec_status_at_plan_time: approved
 - Planning therefore centers on translation rather than invention: package the existing runtime safely, wrap the current PM scripts, and tighten install behavior relative to the legacy shell installer.
 
 ## Architecture Decisions
-- Ship a single scoped npm package: `@delano/cli`.
+- Ship a single scoped npm package: `@bvdm/delano`.
 - Expose a single binary: `delano`.
 - Keep the CLI implementation thin and plain-Node by default. JavaScript is preferred unless TypeScript remains nearly free in complexity.
 - Preserve the existing shell/Python PM scripts as the execution layer for `init`, `validate`, `status`, and `next`.

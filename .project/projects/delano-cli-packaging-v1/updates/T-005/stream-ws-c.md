@@ -1,5 +1,5 @@
 ---
-timestamp: 2026-04-03T12:18:28Z
+timestamp: 2026-04-03T13:52:50Z
 status: review
 task: T-005
 stream: ws-c
@@ -9,7 +9,7 @@ stream: ws-c
 
 ## Completed
 - Reframed `install-delano.sh` as the legacy shell-first bridge.
-- Added guidance that points operators toward `@delano/cli` for the conservative v1 install path.
+- Added guidance that points operators toward `@bvdm/delano` for the conservative v1 install path.
 
 ## In Progress
 - Review remains before closeout.

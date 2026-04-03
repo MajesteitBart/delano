@@ -70,7 +70,7 @@ You do not need a probe for every project. If uncertainty is already low and the
 Delano now has a thin npm CLI layer for packaging and installation.
 
 Current v1 CLI facts:
-- package name: `@delano/cli`
+- package name: `@bvdm/delano`
 - binary name: `delano`
 - the package embeds the approved runtime payload; it is not a GitHub-fetch wrapper
 - wrapper commands exist for `install`, `init`, `validate`, `status`, and `next`

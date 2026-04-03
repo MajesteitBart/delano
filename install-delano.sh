@@ -25,8 +25,8 @@ Options:
   -h, --help         Show this help
 
 Notes:
-  - This script remains the shell-first migration bridge while @delano/cli matures.
-  - Prefer 'delano install' from @delano/cli for the allowlist-driven, conflict-first v1 install path when that package flow is available.
+  - This script remains the shell-first migration bridge while @bvdm/delano matures.
+  - Prefer 'delano install' from @bvdm/delano for the allowlist-driven, conflict-first v1 install path when that package flow is available.
 USAGE
 }
 
@@ -308,4 +308,4 @@ log "Next steps:"
 log "1) Read HANDBOOK.md"
 log "2) Read AGENTS.md"
 log "3) Validate scaffold: bash .agents/scripts/pm/validate.sh"
-log "4) Prefer @delano/cli for the conservative v1 install path when you adopt the npm CLI flow."
+log "4) Prefer @bvdm/delano for the conservative v1 install path when you adopt the npm CLI flow."
