@@ -1,122 +1,124 @@
 # Delano
 
-Delano is an agent-agnostic, runtime-guided, skill-driven delivery system.
+Delano is an agent-agnostic delivery runtime. It keeps planning, execution, and evidence on disk so teams can work with different coding agents without changing the operating model every time.
 
-## WHY
+## What Delano is
 
-AI-assisted delivery is fast, but it easily becomes inconsistent.
+- `HANDBOOK.md` is the canonical operating model.
+- `.project/` is the delivery source of truth.
+- `.agents/` is the shared runtime: scripts, rules, hooks, skills, and adapters.
+- `.claude/` is a compatibility mirror of `.agents/`, not a second runtime.
+- `.delano/` is an optional UI layer.
 
-Delano exists to keep teams fast **and** reliable by giving one shared way to move from business outcomes to specs, tasks, code, and evidence.
+The npm package is intentionally thin. It distributes the approved runtime payload and wraps the existing shell-based PM scripts. It does not replace the handbook, the file contracts, or the underlying bash/Python execution layer.
 
-It is designed to reduce:
-- execution drift between planning and implementation
-- tool-specific lock-in
-- undocumented decisions and low-trust delivery flow
+## Delano CLI
 
-## WHAT
+- Package: `@bvdm/delano`
+- Binary: `delano`
+- Commands: `install`, `init`, `validate`, `status`, `next`
+- Primary v1.1 goal: bootstrap a repo safely, then stay out of the way
 
-Delano is a spec-first runtime for software delivery, backed by explicit file contracts and deterministic scripts.
+## One-command bootstrap
 
-Core pieces:
-- `HANDBOOK.md` — canonical operating model and governance
-- `.project/` — delivery truth (projects, tasks, context, updates, decisions)
-- `.agents/` — shared runtime (scripts, rules, hooks, skills, adapters)
-- `.claude/` — compatibility mirror for Claude-style paths (symlink where supported, directory mirror otherwise)
-- `.delano/` — optional UI layer
-
-Probe-aware delivery is part of the operating model: draft the spec, make the probe decision explicit, and only approve once uncertainty is retired or consciously accepted.
-
-Supported adapters:
-- Claude Code
-- Codex CLI
-- OpenCode
-- Pi coding agent
-
-## HOW
-
-### Quick start (inside a Delano repo)
+To install the approved Delano runtime into the current repository:
 
 ```bash
-# 1) Validate the runtime and required assets
+npx -y @bvdm/delano@latest --yes
+```
+
+That shorthand is equivalent to:
+
+```bash
+npx -y @bvdm/delano@latest install --yes
+```
+
+To install into a different directory:
+
+```bash
+npx -y @bvdm/delano@latest --target /path/to/repo --yes
+```
+
+If you already have the package installed locally, the same flow is:
+
+```bash
+delano --yes
+delano --target /path/to/repo --yes
+```
+
+## How to use Delano after install
+
+If you bootstrap with one-shot `npx`, keep using `npx` for wrapper commands:
+
+```bash
+npx -y @bvdm/delano@latest validate
+npx -y @bvdm/delano@latest status
+npx -y @bvdm/delano@latest next -- --all
+```
+
+If the package is installed locally or globally, run these inside the target repository:
+
+```bash
+delano validate
+delano status
+delano next -- --all
+delano init <slug> "<Project Name>" <owner> <lead>
+```
+
+The wrapper commands call the existing PM scripts under `.agents/scripts/pm/`. You can also run those scripts directly:
+
+```bash
 bash .agents/scripts/pm/validate.sh
-
-# 2) Create a new delivery project scaffold
-bash .agents/scripts/pm/init.sh <slug> "<Project Name>" <owner> <lead>
-
-# 3) See portfolio/project status
 bash .agents/scripts/pm/status.sh
-
-# 4) Get next executable tasks
-bash .agents/scripts/pm/next.sh
+bash .agents/scripts/pm/next.sh --all
 ```
 
-### CLI v1 (current package work)
+## Required dependencies
 
-Delano now has a thin npm CLI layer with:
-- package name `@bvdm/delano`
-- binary name `delano`
-- embedded install assets instead of a GitHub-fetch wrapper
-- wrapper commands for `install`, `init`, `validate`, `status`, and `next`
+Delano v1.1 assumes these tools are available:
 
-Local development examples from this repository:
+- `node` 18 or newer
+- `bash`
+- `git`
+- `python3` or compatible `python` / `py`
+
+The CLI does not bundle its own shell or Python runtime.
+
+## Install behavior
+
+`delano install` is conflict-first by default:
+
+- it computes the full install plan before writing files
+- it aborts if an approved target path already exists
+- it reports each conflict as file, directory, or symlink
+- it only overwrites approved allowlist paths when `--force` is used
+- it does not touch unrelated files outside the allowlist
+
+The base install payload intentionally excludes top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, and `PI.md`. Those remain opt-in only.
+
+## v1.1 boundaries
+
+This package is deliberately narrow:
+
+- npm is the distribution surface
+- `.project` remains repo-owned after install
+- `.agents` remains the runtime surface
+- wrapper commands stay thin in v1.1
+- `install-delano.sh` remains available as the legacy bridge installer
+
+## Local development
+
+From this repository:
 
 ```bash
-# Build the packaged asset payload
 npm run build:assets
-
-# Inspect the CLI surface
 node bin/delano.js --help
-
-# Install the approved base payload into another repo or scratch target
-node bin/delano.js install --target /path/to/repo --yes
+node bin/delano.js --yes --target ./tmp/cli-install-smoke
 ```
 
-### Daily operating loop
+## Read next
 
-1. Keep project intent and execution synced in `.project/projects/<slug>/`.
-2. Execute work through workstreams and atomic tasks (`tasks/T-xxx.md`).
-3. Record progress/blockers in `updates/*.md`.
-4. Re-run validation before merge/handoff:
-   ```bash
-   bash .agents/scripts/pm/validate.sh
-   ```
-
-### Install Delano into another repository
-
-Preferred v1 path:
-
-```bash
-delano install --target /path/to/repo --yes
-```
-
-Current source-repo development path:
-
-```bash
-node bin/delano.js install --target /path/to/repo --yes
-```
-
-Base install behavior:
-- installs only the approved allowlist payload
-- aborts on existing-path conflicts unless `--force` is used
-- does not install `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, or `PI.md` by default
-
-Legacy bridge path:
-
-```bash
-./install-delano.sh
-```
-
-The shell installer remains available for migration, but it is broader than the npm base install path and should be treated as the compatibility bridge rather than the preferred v1 behavior.
-
-Legacy non-interactive example:
-
-```bash
-./install-delano.sh --target /path/to/repo --agents claude,codex --yes
-```
-
-### Read next
-
-- `docs/user-guide.md` for the user-facing overview
-- `HANDBOOK.md` for full operating semantics
-- `.agents/scripts/README.md` for runtime script inventory
-- `AGENTS.md` and adapter entrypoints (`CLAUDE.md`, `CODEX.md`, etc.) for agent-specific bootstraps
+- `docs/user-guide.md` for the practical user flow
+- `HANDBOOK.md` for the full operating model
+- `.agents/scripts/README.md` for the runtime script inventory
+- `AGENTS.md` for adapter-neutral instructions

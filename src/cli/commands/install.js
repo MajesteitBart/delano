@@ -12,6 +12,7 @@ function getInstallHelp() {
   return [
     "Usage:",
     "  delano install [options]",
+    "  delano [options]",
     "",
     "Options:",
     "  --target <dir>     Install into the given directory. Defaults to the current working directory.",
@@ -23,7 +24,12 @@ function getInstallHelp() {
     "Behavior:",
     "  - Computes the full install plan before writing files.",
     "  - Aborts on conflicts by default.",
-    "  - Only installs the approved base payload; top-level adapter entry docs remain opt-in and are not installed in v1."
+    "  - Only installs the approved base payload; top-level adapter entry docs remain opt-in and are not installed in v1.",
+    "",
+    "Examples:",
+    "  delano install --target ../repo --yes",
+    "  delano --yes",
+    "  npx -y @bvdm/delano@latest --yes"
   ].join("\n");
 }
 

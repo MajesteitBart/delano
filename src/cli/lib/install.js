@@ -11,10 +11,19 @@ const path = require("node:path");
 const readline = require("node:readline/promises");
 const { stdin, stdout } = require("node:process");
 
+const { getPackagedAssetRelativePath } = require("./asset-paths");
 const { CliError } = require("./errors");
 const { getPackageRoot, getPathType } = require("./runtime");
 
 const SUPPORTED_AGENTS = ["claude", "codex", "opencode", "pi"];
+
+function getMissingPackagedAssetMessage(relativePath) {
+  return [
+    `Packaged asset missing for '${relativePath}'.`,
+    "If you are running from a source checkout, run 'npm run build:assets' first.",
+    "If you installed the published npm package, the package is incomplete and needs to be rebuilt and republished."
+  ].join(" ");
+}
 
 function readInstallManifest() {
   const manifestPath = path.join(getPackageRoot(), "assets", "install-manifest.json");
@@ -114,12 +123,9 @@ function parseInstallArgs(args) {
 function buildInstallPlan(options) {
   const { manifest, payloadRoot } = readInstallManifest();
   const items = manifest.paths.map((relativePath) => {
-    const sourcePath = path.join(payloadRoot, relativePath);
+    const sourcePath = path.join(payloadRoot, getPackagedAssetRelativePath(relativePath));
     if (!existsSync(sourcePath)) {
-      throw new CliError(
-        `Packaged asset missing for '${relativePath}'. Run 'npm run build:assets' before using 'delano install' from a source checkout.`,
-        1
-      );
+      throw new CliError(getMissingPackagedAssetMessage(relativePath), 1);
     }
 
     return {
@@ -257,5 +263,6 @@ module.exports = {
   parseInstallArgs,
   printConflicts,
   printPlanSummary,
-  readInstallManifest
+  readInstallManifest,
+  getMissingPackagedAssetMessage
 };

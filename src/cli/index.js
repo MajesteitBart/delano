@@ -25,6 +25,51 @@ const commands = {
   next: wrapperCommands.next
 };
 
+function isInstallShorthand(argv) {
+  if (argv.length === 0) {
+    return false;
+  }
+
+  return argv[0].startsWith("-");
+}
+
+function resolveInvocation(argv) {
+  if (argv.length === 0) {
+    return { kind: "help" };
+  }
+
+  const [commandName, ...commandArgs] = argv;
+
+  if (commandName === "-h" || commandName === "--help" || commandName === "help") {
+    return { kind: "help" };
+  }
+
+  if (commandName === "-v" || commandName === "--version" || commandName === "version") {
+    return { kind: "version" };
+  }
+
+  if (isInstallShorthand(argv)) {
+    return {
+      kind: "command",
+      commandName: "install",
+      commandArgs: argv,
+      command: commands.install
+    };
+  }
+
+  const command = commands[commandName];
+  if (!command) {
+    throw new CliError(`Unknown command: ${commandName}\n\n${getGeneralHelp()}`, 1);
+  }
+
+  return {
+    kind: "command",
+    commandName,
+    commandArgs,
+    command
+  };
+}
+
 function getPackageVersion() {
   const packageJsonPath = path.join(getPackageRoot(), "package.json");
   const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
@@ -50,36 +95,33 @@ function getGeneralHelp() {
     "  -v, --version   Show version",
     "",
     "Examples:",
-    "  delano install --target ../my-repo --yes",
+    "  delano --yes",
+    "  delano --target ../my-repo --yes",
+    "  npx -y @bvdm/delano@latest --yes",
     "  delano validate",
     "  delano next -- --all",
+    "",
+    "Shorthand:",
+    "  delano [install-options] is equivalent to delano install [install-options].",
     "",
     "Use 'delano <command> --help' for command-specific help."
   ].join("\n");
 }
 
 async function run(argv) {
-  if (argv.length === 0) {
+  const invocation = resolveInvocation(argv);
+
+  if (invocation.kind === "help") {
     console.log(getGeneralHelp());
     return 0;
   }
 
-  const [commandName, ...commandArgs] = argv;
-
-  if (commandName === "-h" || commandName === "--help" || commandName === "help") {
-    console.log(getGeneralHelp());
-    return 0;
-  }
-
-  if (commandName === "-v" || commandName === "--version" || commandName === "version") {
+  if (invocation.kind === "version") {
     console.log(getPackageVersion());
     return 0;
   }
 
-  const command = commands[commandName];
-  if (!command) {
-    throw new CliError(`Unknown command: ${commandName}\n\n${getGeneralHelp()}`, 1);
-  }
+  const { command, commandArgs } = invocation;
 
   if (commandArgs.includes("--help") || commandArgs.includes("-h")) {
     const helpText = typeof command.help === "function" ? command.help() : getGeneralHelp();
@@ -93,5 +135,6 @@ async function run(argv) {
 module.exports = {
   commands,
   getGeneralHelp,
+  resolveInvocation,
   run
 };

@@ -50,6 +50,11 @@ function resolveBash() {
   }
 
   if (process.platform === "win32") {
+    candidates.push(
+      "C:\\Program Files\\Git\\bin\\bash.exe",
+      "C:\\Program Files\\Git\\usr\\bin\\bash.exe"
+    );
+
     const whereResult = spawnSync("where.exe", ["bash"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
@@ -62,11 +67,6 @@ function resolveBash() {
         }
       }
     }
-
-    candidates.push(
-      "C:\\Program Files\\Git\\usr\\bin\\bash.exe",
-      "C:\\Program Files\\Git\\bin\\bash.exe"
-    );
   } else {
     const whichResult = spawnSync("which", ["bash"], {
       encoding: "utf8",
@@ -90,9 +90,18 @@ function resolveBash() {
   );
 }
 
+function normalizeBashScriptPath(scriptPath) {
+  if (process.platform !== "win32") {
+    return scriptPath;
+  }
+
+  return scriptPath.replace(/\\/g, "/");
+}
+
 function runBashScript(scriptPath, args, options = {}) {
   const bashPath = resolveBash();
-  const result = spawnSync(bashPath, [scriptPath, ...args], {
+  const normalizedScriptPath = normalizeBashScriptPath(scriptPath);
+  const result = spawnSync(bashPath, [normalizedScriptPath, ...args], {
     cwd: options.cwd || process.cwd(),
     stdio: "inherit",
     env: options.env || process.env
@@ -117,6 +126,7 @@ module.exports = {
   findDelanoRoot,
   getPackageRoot,
   getPathType,
+  normalizeBashScriptPath,
   resolveBash,
   runBashScript
 };
