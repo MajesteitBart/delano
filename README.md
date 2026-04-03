@@ -1,6 +1,6 @@
 # Delano
 
-Delano is an agent-agnostic, skill-driven delivery system.
+Delano is an agent-agnostic, runtime-guided, skill-driven delivery system.
 
 ## WHY
 
@@ -24,6 +24,8 @@ Core pieces:
 - `.claude/` — compatibility mirror for Claude-style paths (symlink where supported, directory mirror otherwise)
 - `.delano/` — optional UI layer
 
+Probe-aware delivery is part of the operating model: draft the spec, make the probe decision explicit, and only approve once uncertainty is retired or consciously accepted.
+
 Supported adapters:
 - Claude Code
 - Codex CLI
@@ -36,16 +38,16 @@ Supported adapters:
 
 ```bash
 # 1) Validate the runtime and required assets
-bash .claude/scripts/pm/validate.sh
+bash .agents/scripts/pm/validate.sh
 
 # 2) Create a new delivery project scaffold
-bash .claude/scripts/pm/init.sh <slug> "<Project Name>" <owner> <lead>
+bash .agents/scripts/pm/init.sh <slug> "<Project Name>" <owner> <lead>
 
 # 3) See portfolio/project status
-bash .claude/scripts/pm/status.sh
+bash .agents/scripts/pm/status.sh
 
 # 4) Get next executable tasks
-bash .claude/scripts/pm/next.sh
+bash .agents/scripts/pm/next.sh
 ```
 
 ### Daily operating loop
@@ -55,7 +57,7 @@ bash .claude/scripts/pm/next.sh
 3. Record progress/blockers in `updates/*.md`.
 4. Re-run validation before merge/handoff:
    ```bash
-   bash .claude/scripts/pm/validate.sh
+   bash .agents/scripts/pm/validate.sh
    ```
 
 ### Install Delano into another repository
@@ -74,6 +76,7 @@ Non-interactive example:
 
 ### Read next
 
+- `docs/user-guide.md` for the user-facing overview
 - `HANDBOOK.md` for full operating semantics
-- `.claude/scripts/README.md` for runtime script inventory
+- `.agents/scripts/README.md` for runtime script inventory
 - `AGENTS.md` and adapter entrypoints (`CLAUDE.md`, `CODEX.md`, etc.) for agent-specific bootstraps

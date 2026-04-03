@@ -4,7 +4,7 @@ const path = require('path');
 
 const [action = 'start', sessionId = 'unknown'] = process.argv.slice(2);
 const root = process.cwd();
-const dir = path.join(root, '.claude', 'logs');
+const dir = path.join(root, '.agents', 'logs');
 const file = path.join(dir, 'sessions.jsonl');
 fs.mkdirSync(dir, { recursive: true });
 

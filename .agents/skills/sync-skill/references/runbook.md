@@ -8,8 +8,8 @@
    - preserve existing IDs
 4. Write drift report and mapping updates.
 5. Validate:
-   - `bash .claude/scripts/pm/status.sh`
-   - `bash .claude/scripts/pm/validate.sh`
+   - `bash .agents/scripts/pm/status.sh`
+   - `bash .agents/scripts/pm/validate.sh`
 
 Exit gate:
 - No orphaned active tasks

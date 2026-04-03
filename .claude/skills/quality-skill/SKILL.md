@@ -1,6 +1,6 @@
 ---
 name: quality-skill
-intent: verify release readiness and gate closure
+description: Verify release readiness and enforce quality gates with risk-based checks and evidence capture. Use before closure or merge.
 ---
 
 # quality-skill
@@ -28,11 +28,11 @@ intent: verify release readiness and gate closure
 
 ## Allowed side effects
 - append evidence logs in task files
-- write test logs under `.claude/logs/tests/`
+- write test logs under `.agents/logs/tests/`
 
 ## Script hooks
-- `bash .claude/scripts/test-and-log.sh <command>`
-- `bash .claude/scripts/pm/validate.sh`
+- `bash .agents/scripts/test-and-log.sh <command>`
+- `bash .agents/scripts/pm/validate.sh`
 
 ## Execution assets
 - `references/runbook.md`

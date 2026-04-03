@@ -4,6 +4,28 @@ set -euo pipefail
 root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$root"
 
+python_cmd=()
+
+resolve_python_cmd() {
+  if command -v python3 >/dev/null 2>&1 && python3 -c "import sys" >/dev/null 2>&1; then
+    python_cmd=(python3)
+    return 0
+  fi
+
+  if command -v py >/dev/null 2>&1 && py -3 -c "import sys" >/dev/null 2>&1; then
+    python_cmd=(py -3)
+    return 0
+  fi
+
+  if command -v python >/dev/null 2>&1 && python -c "import sys" >/dev/null 2>&1; then
+    python_cmd=(python)
+    return 0
+  fi
+
+  echo "No usable Python runtime found (tried: python3, py -3, python)." >&2
+  exit 1
+}
+
 show_all=false
 if [[ "${1:-}" == "--all" ]]; then
   show_all=true
@@ -15,7 +37,9 @@ else
   export DELANO_NEXT_ALL=0
 fi
 
-python3 - <<'PY'
+resolve_python_cmd
+
+"${python_cmd[@]}" - <<'PY'
 import re
 from pathlib import Path
 

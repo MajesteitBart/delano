@@ -4,7 +4,7 @@ const path = require('path');
 
 const payload = process.argv[2] ? JSON.parse(process.argv[2]) : { type: 'tool_mutation' };
 const root = process.cwd();
-const dir = path.join(root, '.claude', 'logs');
+const dir = path.join(root, '.agents', 'logs');
 const file = path.join(dir, 'changes.jsonl');
 fs.mkdirSync(dir, { recursive: true });
 

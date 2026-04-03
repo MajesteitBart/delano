@@ -8,12 +8,12 @@ echo "Daily standup snapshot ($(date -u +"%Y-%m-%dT%H:%M:%SZ"))"
 echo ""
 
 echo "[Portfolio]"
-"$root/.claude/scripts/pm/status.sh"
+"$root/.agents/scripts/pm/status.sh"
 
 echo ""
 echo "[In Progress]"
-"$root/.claude/scripts/pm/in-progress.sh"
+"$root/.agents/scripts/pm/in-progress.sh"
 
 echo ""
 echo "[Blocked]"
-"$root/.claude/scripts/pm/blocked.sh"
+"$root/.agents/scripts/pm/blocked.sh"

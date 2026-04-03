@@ -8,4 +8,4 @@ Default hooks:
 - `user-prompt-logger.js`
 - `bash-worktree-fix.sh`
 
-All hooks append JSONL records in `.claude/logs/`.
+All hooks append JSONL records in `.agents/logs/`.

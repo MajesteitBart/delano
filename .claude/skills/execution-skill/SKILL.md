@@ -1,6 +1,6 @@
 ---
 name: execution-skill
-intent: execute mapped tasks with stream discipline and evidence updates
+description: Execute mapped tasks with stream discipline, dependency safety checks, and evidence updates. Use when tasks are ready for implementation.
 ---
 
 # execution-skill
@@ -32,9 +32,9 @@ intent: execute mapped tasks with stream discipline and evidence updates
 - append updates under `.project/projects/<slug>/updates/`
 
 ## Script hooks
-- `bash .claude/scripts/pm/in-progress.sh`
-- `bash .claude/scripts/pm/standup.sh`
-- `bash .claude/scripts/pm/next.sh`
+- `bash .agents/scripts/pm/in-progress.sh`
+- `bash .agents/scripts/pm/standup.sh`
+- `bash .agents/scripts/pm/next.sh`
 
 ## Execution assets
 - `references/runbook.md`

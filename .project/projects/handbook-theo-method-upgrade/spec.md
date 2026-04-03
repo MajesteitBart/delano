@@ -2,9 +2,9 @@
 name: Handbook Theo-Method Upgrade
 slug: handbook-theo-method-upgrade
 owner: team
-status: approved
+status: complete
 created: 2026-04-02T18:02:50Z
-updated: 2026-04-02T18:03:17Z
+updated: 2026-04-03T06:43:27Z
 outcome: Delano handbook, scaffolds, validator, and operator docs align on `.project` as canonical truth, `.agents` as canonical runtime, and a probe-aware delivery flow, with validation passing after the upgrade.
 uncertainty: medium
 probe_required: false
@@ -78,6 +78,8 @@ probe_status: skipped
 - The repo already matches the proposed adapter model: shared runtime in `.agents`, runtime-specific adapters under `.agents/adapters/<agent>/`, `.claude` present as a compatibility bridge, and templates under `.project/templates/`.
 - The existing handbook and several runtime docs and scripts still present `.claude` as canonical or hard-code `.claude` paths.
 - `pm/validate.sh` currently requires `python3` for dependency-cycle checking; on this Windows environment that command is missing, which causes validation to fail even when the scaffold is otherwise correct.
+- The shipped upgrade now makes `.agents` canonical across handbook, templates, runtime scripts, operator docs, hooks, and logs while retaining `.claude` as an explicit compatibility mirror.
+- Validation now passes in this Windows environment through the existing `python3` / `py -3` / `python` fallback chain, and scaffold smoke tests produce the new probe-aware contracts.
 
 ## Footguns Discovered
 - Editing `HANDBOOK.md` alone would deepen drift because README, installer output, templates, skill docs, and validator logic still teach or enforce the old path model.
@@ -85,8 +87,6 @@ probe_status: skipped
 - Adding handbook references to directories that do not exist in the repo would create fresh contract drift.
 
 ## Remaining Unknowns
-- Whether validator cycle checking should be rewritten to shell or awk, fall back to `python`, or prefer `py -3` on Windows.
-- Whether every skill and runbook should switch to `.agents` examples immediately or some should intentionally show both canonical and compatibility forms.
 - How much downstream documentation outside this repo depends on the `.claude` path examples.
 
 ## Dependencies
@@ -98,3 +98,4 @@ probe_status: skipped
 ## Approval Notes
 - `probe_required: false` for this upgrade because the supplied diff already captures the investigation and target state; no additional prototype is needed before planning.
 - Planning assumes `.project` remains canonical truth and `.claude` remains a compatibility bridge, not a second runtime source of truth.
+- Implementation completed on 2026-04-03 with validator and scaffold smoke checks passing.

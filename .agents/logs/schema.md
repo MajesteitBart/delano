@@ -37,6 +37,6 @@
   "timestamp": "ISO8601 UTC",
   "command": "string",
   "exit_code": 0,
-  "log_file": ".claude/logs/tests/<id>.log"
+  "log_file": ".agents/logs/tests/<id>.log"
 }
 ```

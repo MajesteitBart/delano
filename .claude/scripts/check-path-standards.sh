@@ -7,9 +7,15 @@ cd "$root"
 matches_file="$(mktemp)"
 trap 'rm -f "$matches_file"' EXIT
 
-if find .project .claude \
+compat_paths=()
+if [[ -e .claude || -L .claude ]]; then
+  compat_paths+=(.claude)
+fi
+
+if find .project .agents "${compat_paths[@]}" \
   -type f \
   \( -name '*.md' -o -name '*.json' -o -name '*.yaml' -o -name '*.yml' \) \
+  -not -path '.agents/logs/*' \
   -not -path '.claude/logs/*' \
   -print0 | xargs -0 grep -nE '(/home/[^[:space:]]+|/Users/[^[:space:]]+|[A-Za-z]:\\[^[:space:]]+)' > "$matches_file" 2>/dev/null; then
   echo "Absolute path violations found:"

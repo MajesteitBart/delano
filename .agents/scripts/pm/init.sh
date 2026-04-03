@@ -36,6 +36,9 @@ status: draft
 created: $now
 updated: $now
 outcome: <measurable target>
+uncertainty: <low|medium|high>
+probe_required: <true|false>
+probe_status: <pending|skipped|completed>
 ---
 
 # Spec: $name
@@ -43,6 +46,8 @@ outcome: <measurable target>
 ## Executive Summary
 
 ## Problem and Users
+
+## Outcome and Success Metrics
 
 ## Scope
 ### In Scope
@@ -52,11 +57,19 @@ outcome: <measurable target>
 
 ## Non-Functional Requirements
 
-## Success Metrics
+## Hypotheses and Unknowns
 
-## Risks and Assumptions
+## Touchpoints to Exercise
+
+## Probe Findings
+
+## Footguns Discovered
+
+## Remaining Unknowns
 
 ## Dependencies
+
+## Approval Notes
 SPEC
 
 cat > "$project_dir/plan.md" <<PLAN
@@ -67,11 +80,17 @@ lead: $lead
 created: $now
 updated: $now
 linear_project_id:
+risk_level: <low|medium|high>
+spec_status_at_plan_time: <approved|active>
 ---
 
 # Delivery Plan: $name
 
+## What Changed After Probe
+
 ## Architecture Decisions
+
+## Probe-Driven Architecture Changes
 
 ## Workstream Design
 
@@ -82,6 +101,8 @@ linear_project_id:
 ## Test Strategy
 
 ## Rollback Strategy
+
+## Remaining Delivery Risks
 PLAN
 
 cat > "$project_dir/decisions.md" <<'DECISIONS'
@@ -115,4 +136,4 @@ fi
 
 echo "Created Delano project scaffold: .project/projects/$slug"
 
-"$root/.claude/scripts/pm/validate.sh"
+"$root/.agents/scripts/pm/validate.sh"

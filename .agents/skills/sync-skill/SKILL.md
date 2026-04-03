@@ -32,8 +32,8 @@ description: Reconcile local contracts with Linear and GitHub state, repair mapp
 - update local IDs/links in task contracts
 
 ## Script hooks
-- `bash .claude/scripts/pm/status.sh`
-- `bash .claude/scripts/pm/validate.sh`
+- `bash .agents/scripts/pm/status.sh`
+- `bash .agents/scripts/pm/validate.sh`
 
 ## Execution assets
 - `references/runbook.md`

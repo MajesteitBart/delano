@@ -2,7 +2,11 @@
 
 This folder contains the script runtime described in `HANDBOOK.md`.
 
-## PM scripts (`.claude/scripts/pm/`)
+Canonical path: `.agents/scripts/...`
+
+Compatibility path: `.claude/scripts/...` when the mirror is present.
+
+## PM scripts (`.agents/scripts/pm/`)
 
 Critical path:
 - `init.sh`

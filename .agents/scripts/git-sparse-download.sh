@@ -157,5 +157,6 @@ fi
 
 # Additional info
 echo ""
-print_info "To use this as a Claude skill, copy it to .claude/skills/"
-print_info "Example: mv $TARGET_NAME .claude/skills/"
+print_info "To use this as a Delano skill, copy it to .agents/skills/"
+print_info "Compatibility mirror: .claude/skills/ when present"
+print_info "Example: mv $TARGET_NAME .agents/skills/"

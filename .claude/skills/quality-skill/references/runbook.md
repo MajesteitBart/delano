@@ -2,10 +2,10 @@
 
 1. Determine risk level (low/medium/high).
 2. Execute required tests and capture logs:
-   - `bash .claude/scripts/test-and-log.sh <test command>`
+   - `bash .agents/scripts/test-and-log.sh <test command>`
 3. Verify acceptance criteria and evidence completeness.
 4. Re-run validation:
-   - `bash .claude/scripts/pm/validate.sh`
+   - `bash .agents/scripts/pm/validate.sh`
 5. Produce gate decision summary.
 
 Exit gate:

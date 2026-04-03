@@ -1,6 +1,6 @@
 ---
 name: planning-skill
-intent: translate approved Spec into executable Delivery Plan
+description: Translate an approved Spec into an executable Delivery Plan and workstreams. Use after spec approval before task decomposition.
 ---
 
 # planning-skill
@@ -31,8 +31,8 @@ intent: translate approved Spec into executable Delivery Plan
 - create/update `workstreams/*.md`
 
 ## Script hooks
-- `bash .claude/scripts/pm/validate.sh`
-- `bash .claude/scripts/pm/status.sh`
+- `bash .agents/scripts/pm/validate.sh`
+- `bash .agents/scripts/pm/status.sh`
 
 ## Execution assets
 - `references/runbook.md`

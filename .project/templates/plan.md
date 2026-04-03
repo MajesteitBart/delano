@@ -5,11 +5,17 @@ lead: <person>
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 linear_project_id:
+risk_level: <low|medium|high>
+spec_status_at_plan_time: <approved|active>
 ---
 
 # Delivery Plan: <project-name>
 
+## What Changed After Probe
+
 ## Architecture Decisions
+
+## Probe-Driven Architecture Changes
 
 ## Workstream Design
 
@@ -20,3 +26,5 @@ linear_project_id:
 ## Test Strategy
 
 ## Rollback Strategy
+
+## Remaining Delivery Risks

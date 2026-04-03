@@ -32,9 +32,9 @@ description: Close the delivery loop and capture completion evidence, status upd
 - append completion summary and release evidence
 
 ## Script hooks
-- `bash .claude/scripts/pm/status.sh`
-- `bash .claude/scripts/query-log.sh --last 50`
-- `bash .claude/scripts/pm/validate.sh`
+- `bash .agents/scripts/pm/status.sh`
+- `bash .agents/scripts/query-log.sh --last 50`
+- `bash .agents/scripts/pm/validate.sh`
 
 ## Execution assets
 - `references/runbook.md`

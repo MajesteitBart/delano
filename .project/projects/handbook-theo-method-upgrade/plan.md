@@ -1,9 +1,9 @@
 ---
 name: Handbook Theo-Method Upgrade
-status: planned
+status: done
 lead: team
 created: 2026-04-02T18:02:50Z
-updated: 2026-04-02T18:03:17Z
+updated: 2026-04-03T06:43:27Z
 linear_project_id:
 risk_level: medium
 spec_status_at_plan_time: approved
@@ -55,6 +55,4 @@ spec_status_at_plan_time: approved
 - Preserve `.claude` compatibility behavior throughout rollback; do not strand consumers on a half-migrated path model.
 
 ## Remaining Delivery Risks
-- Validator portability could delay sign-off even if handbook and templates are correct.
-- Shared skill and runbook references are numerous; missing a few would leave user-facing drift.
-- Changing canonical path language without a disciplined grep and verification pass could leave contradictory onboarding guidance in the repo.
+- External docs outside this repository may still use legacy `.claude` examples and will need separate follow-up if they are operator-facing.

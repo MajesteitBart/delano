@@ -25,7 +25,7 @@ for (let i = 0; i < rest.length; i++) {
 }
 
 const root = process.cwd();
-const logDir = path.join(root, '.claude', 'logs');
+const logDir = path.join(root, '.agents', 'logs');
 const logFile = path.join(logDir, 'changes.jsonl');
 fs.mkdirSync(logDir, { recursive: true });
 fs.appendFileSync(logFile, JSON.stringify(event) + '\n', 'utf8');

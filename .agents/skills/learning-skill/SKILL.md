@@ -32,8 +32,8 @@ description: Distill reusable decisions and lessons into project memory and impr
 - append to project context/progress docs
 
 ## Script hooks
-- `bash .claude/scripts/query-log.sh --last 200`
-- `bash .claude/scripts/pm/status.sh`
+- `bash .agents/scripts/query-log.sh --last 200`
+- `bash .agents/scripts/pm/status.sh`
 
 ## Execution assets
 - `references/runbook.md`

@@ -32,9 +32,9 @@ description: Execute mapped tasks with stream discipline, dependency safety chec
 - append updates under `.project/projects/<slug>/updates/`
 
 ## Script hooks
-- `bash .claude/scripts/pm/in-progress.sh`
-- `bash .claude/scripts/pm/standup.sh`
-- `bash .claude/scripts/pm/next.sh`
+- `bash .agents/scripts/pm/in-progress.sh`
+- `bash .agents/scripts/pm/standup.sh`
+- `bash .agents/scripts/pm/next.sh`
 
 ## Execution assets
 - `references/runbook.md`

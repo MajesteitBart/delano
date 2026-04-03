@@ -1,6 +1,6 @@
 ---
 name: learning-skill
-intent: distill reusable decisions and lessons into project memory
+description: Distill reusable decisions and lessons into project memory and improvement actions. Use at milestones, closeout, or recurring failure patterns.
 ---
 
 # learning-skill
@@ -32,8 +32,8 @@ intent: distill reusable decisions and lessons into project memory
 - append to project context/progress docs
 
 ## Script hooks
-- `bash .claude/scripts/query-log.sh --last 200`
-- `bash .claude/scripts/pm/status.sh`
+- `bash .agents/scripts/query-log.sh --last 200`
+- `bash .agents/scripts/pm/status.sh`
 
 ## Execution assets
 - `references/runbook.md`

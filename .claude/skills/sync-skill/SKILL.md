@@ -1,6 +1,6 @@
 ---
 name: sync-skill
-intent: reconcile local contracts with Linear and GitHub
+description: Reconcile local contracts with Linear and GitHub state, repair mapping and status drift, and update registry files. Use when task state changes or sync drift is suspected.
 ---
 
 # sync-skill
@@ -32,8 +32,8 @@ intent: reconcile local contracts with Linear and GitHub
 - update local IDs/links in task contracts
 
 ## Script hooks
-- `bash .claude/scripts/pm/status.sh`
-- `bash .claude/scripts/pm/validate.sh`
+- `bash .agents/scripts/pm/status.sh`
+- `bash .agents/scripts/pm/validate.sh`
 
 ## Execution assets
 - `references/runbook.md`

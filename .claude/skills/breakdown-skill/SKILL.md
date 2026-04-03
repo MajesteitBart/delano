@@ -1,6 +1,6 @@
 ---
 name: breakdown-skill
-intent: decompose approved plan into atomic tasks
+description: Decompose an approved plan into atomic tasks with dependencies and acceptance criteria. Use when planning is complete and execution must be prepared.
 ---
 
 # breakdown-skill
@@ -30,9 +30,9 @@ intent: decompose approved plan into atomic tasks
 - create/update `.project/projects/<slug>/tasks/*.md`
 
 ## Script hooks
-- `bash .claude/scripts/pm/validate.sh`
-- `bash .claude/scripts/pm/next.sh`
-- `bash .claude/scripts/pm/blocked.sh`
+- `bash .agents/scripts/pm/validate.sh`
+- `bash .agents/scripts/pm/next.sh`
+- `bash .agents/scripts/pm/blocked.sh`
 
 ## Execution assets
 - `references/runbook.md`

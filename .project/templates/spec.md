@@ -6,6 +6,9 @@ status: draft
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 outcome: <measurable target>
+uncertainty: <low|medium|high>
+probe_required: <true|false>
+probe_status: <pending|skipped|completed>
 ---
 
 # Spec: <project-name>
@@ -13,6 +16,8 @@ outcome: <measurable target>
 ## Executive Summary
 
 ## Problem and Users
+
+## Outcome and Success Metrics
 
 ## Scope
 ### In Scope
@@ -22,8 +27,16 @@ outcome: <measurable target>
 
 ## Non-Functional Requirements
 
-## Success Metrics
+## Hypotheses and Unknowns
 
-## Risks and Assumptions
+## Touchpoints to Exercise
+
+## Probe Findings
+
+## Footguns Discovered
+
+## Remaining Unknowns
 
 ## Dependencies
+
+## Approval Notes

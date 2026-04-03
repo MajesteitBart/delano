@@ -1,9 +1,9 @@
 ---
 name: WS-A Handbook Model Alignment
 owner: team
-status: planned
+status: done
 created: 2026-04-02T18:03:17Z
-updated: 2026-04-02T18:03:17Z
+updated: 2026-04-03T06:43:27Z
 ---
 
 # Workstream: WS-A Handbook Model Alignment

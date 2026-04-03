@@ -3,7 +3,7 @@
 ## First Edition, v3
 
 Version: 3.1  
-Last updated: 2026-02-19
+Last updated: 2026-04-03
 
 ---
 
@@ -48,7 +48,7 @@ If you are reading this for implementation, start with Sections 4, 8, 9, 11, 17,
 
 ## 1) Purpose and design principles
 
-Delano is an **agent-agnostic, skill-driven, spec-first delivery system**.
+Delano is an **agent-agnostic, runtime-guided, skill-driven, spec-first delivery system**.
 
 Its core objective is:
 
@@ -56,7 +56,7 @@ Its core objective is:
 
 ### 1.1 Primary flow
 
-**Outcome -> Spec -> Delivery Project -> Workstreams -> Tasks -> Linear Issues -> PRs -> Release -> Learnings**
+**Outcome -> Draft Spec -> Probe Decision -> Approved Spec -> Delivery Project -> Workstreams -> Tasks -> Linear Issues -> PRs -> Release -> Learnings**
 
 ### 1.2 Design principles
 
@@ -118,6 +118,7 @@ Delano is not:
 
 - **Outcome**: measurable business result
 - **Spec**: product and delivery intent for one outcome
+- **Prototype Probe**: time-boxed learning loop used to retire material uncertainty before spec approval
 - **Delivery Project**: bounded implementation scope
 - **Workstream**: coherent implementation slice
 - **Task**: atomic engineering unit
@@ -134,8 +135,10 @@ Delano is not:
 This model keeps the strongest existing Delano patterns:
 
 - local markdown truth in `.project`
+- canonical shared runtime in `.agents`
 - deterministic script execution
 - explicit rules and guardrails
+- probe-first learning when uncertainty is material
 - compatibility with Linear-native execution
 
 ---
@@ -250,12 +253,17 @@ Not default because it weakens planning, milestone visibility, and structured go
   registry/
     linear-map.json
 
-.claude/
+.agents/
+  adapters/
+    <agent>/
+  common/
   skills/
   scripts/
   rules/
   hooks/
   logs/
+
+.claude/     # compatibility mirror of .agents
 
 .delano/     # optional UI layer
 ```
@@ -263,7 +271,8 @@ Not default because it weakens planning, milestone visibility, and structured go
 ### 5.2 Boundary policy
 
 - `.project` is delivery truth.
-- `.claude` is runtime behavior and enforcement.
+- `.agents` is canonical runtime behavior and enforcement.
+- `.claude` is a compatibility mirror or symlink of `.agents`, never an independent source of truth.
 - `.delano` is optional presentation, never source of truth.
 
 ### 5.3 Interoperability requirements
@@ -272,6 +281,7 @@ A coding agent is Delano-compatible if it can:
 
 - read and write markdown contracts
 - execute shell scripts
+- operate against the canonical `.agents` runtime or a supported compatibility mirror
 - interact with Linear and GitHub interfaces
 - honor rule constraints
 - produce structured execution updates
@@ -290,18 +300,26 @@ status: draft|approved|active|complete|canceled
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 outcome: <measurable target>
+uncertainty: low|medium|high
+probe_required: true|false
+probe_status: pending|skipped|completed
 ```
 
 Required sections:
 
 - Executive summary
 - Problem and users
+- Outcome and success metrics
 - Scope and non-goals
 - Functional requirements
 - Non-functional requirements
-- Success metrics
-- Risks and assumptions
+- Hypotheses and unknowns
+- Touchpoints to exercise
+- Probe findings
+- Footguns discovered
+- Remaining unknowns
 - Dependencies
+- Approval notes
 
 ### 6.2 `plan.md` contract
 
@@ -312,16 +330,21 @@ lead: <person>
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 linear_project_id: <id>
+risk_level: low|medium|high
+spec_status_at_plan_time: approved|active
 ```
 
 Required sections:
 
+- What changed after probe
 - Architecture decisions
+- Probe-driven architecture changes
 - Workstream design
 - Milestone strategy
 - Rollout strategy
 - Test strategy
 - Rollback strategy
+- Remaining delivery risks
 
 ### 6.3 `tasks/*.md` contract
 
@@ -353,6 +376,7 @@ Required sections:
 
 - `created` immutable
 - `updated` real UTC system timestamp
+- probe decision explicit before spec approval
 - dependency graph acyclic before execution
 - no absolute path leakage in shared output
 
@@ -375,6 +399,11 @@ Expanded states solve execution ambiguity:
 `draft -> approved -> active -> complete`  
 optional terminal: `canceled`
 
+Probe decision rule while spec is `draft`:
+
+- `probe_required: false` allows approval once other discovery gates pass
+- `probe_required: true` requires a Prototype Probe and recorded findings before approval
+
 #### Delivery Project
 
 `planned -> in-progress -> done`  
@@ -390,6 +419,8 @@ optional branches: `blocked`, `canceled`
 - No `in-progress` with unmet hard dependencies.
 - No `done` without evidence completion.
 - No project `done` with unresolved required tasks.
+- No spec `approved` without explicit probe decision fields.
+- No spec `approved` with unresolved required probe findings.
 - No spec `complete` without outcome review.
 
 ### 7.4 Review semantics
@@ -461,7 +492,7 @@ failure_behavior:
   - stop on circular dependency
   - return ambiguity report
 script_hooks:
-  - bash .claude/scripts/pm/validate.sh
+  - bash .agents/scripts/pm/validate.sh
 ```
 
 #### Example: sync-skill
@@ -484,8 +515,8 @@ failure_behavior:
   - dry-run when uncertainty detected
   - emit conflict resolution actions
 script_hooks:
-  - bash .claude/scripts/pm/status.sh
-  - bash .claude/scripts/pm/validate.sh
+  - bash .agents/scripts/pm/status.sh
+  - bash .agents/scripts/pm/validate.sh
 ```
 
 ### 8.4 Annotated script catalog
@@ -548,17 +579,18 @@ Hooks should handle:
 
 This section explicitly links workflow stages to runtime components.
 
-### Team fast-spike rule (optional)
+### Prototype Probe (conditional)
 
-Use this only when uncertainty is high and speed is critical.
+Use this when uncertainty is material and approval would otherwise be speculative.
 
 Constraints:
 
-- spike is time-boxed (typically <= 1 day)
+- probe is time-boxed (typically <= 1 day)
 - starts CLI-first where feasible
-- no production merge directly from spike output
+- no production merge directly from probe output
 - before continuation, fold findings back into `spec.md` and `plan.md`
-- convert spike insights into normal task contracts before full execution
+- record touched surfaces, findings, and footguns in the spec
+- convert probe insights into normal task contracts before full execution
 
 This keeps rapid learning without weakening team governance.
 
@@ -566,7 +598,7 @@ This keeps rapid learning without weakening team governance.
 
 **Goal**
 
-- define and approve a measurable outcome and Spec
+- define a measurable outcome, draft the Spec, and make the probe decision explicit
 
 **Entry criteria**
 
@@ -579,15 +611,44 @@ This keeps rapid learning without weakening team governance.
 
 **Exit artifacts**
 
-- approved `spec.md`
+- drafted `spec.md` with uncertainty and probe decision recorded
 
 **Gate**
 
 - measurable success criteria
 - explicit non-goals
 - dependency assumptions documented
+- uncertainty rated and probe decision explicit
 
-### Stage B: Planning
+### Stage B: Prototype Probe
+
+**Goal**
+
+- retire or bound material uncertainty before spec approval
+
+**Entry criteria**
+
+- `spec.md` is still `draft`
+- `probe_required: true`
+
+**Primary components**
+
+- discovery artifacts from `spec.md`
+- targeted prototype commands or narrow experiments
+- `pm/validate.sh` if probe findings mutate contracts
+
+**Exit artifacts**
+
+- updated draft `spec.md`
+- probe findings and approval recommendation
+
+**Gate**
+
+- probe findings recorded
+- touched surfaces and footguns explicit
+- approval recommendation clear
+
+### Stage C: Planning
 
 **Goal**
 
@@ -612,7 +673,7 @@ This keeps rapid learning without weakening team governance.
 - architecture decisions justified
 - rollout and rollback paths defined
 
-### Stage C: Breakdown
+### Stage D: Breakdown
 
 **Goal**
 
@@ -636,7 +697,7 @@ This keeps rapid learning without weakening team governance.
 - task size, ownership, and acceptance criteria complete
 - dependency graph acyclic
 
-### Stage D: Synchronization
+### Stage E: Synchronization
 
 **Goal**
 
@@ -661,7 +722,7 @@ This keeps rapid learning without weakening team governance.
 - no orphaned active tasks
 - status and dependency parity pass
 
-### Stage E: Execution
+### Stage F: Execution
 
 **Goal**
 
@@ -686,7 +747,7 @@ This keeps rapid learning without weakening team governance.
 - updates current
 - stream boundaries respected
 
-### Stage F: Quality
+### Stage G: Quality
 
 **Goal**
 
@@ -710,7 +771,7 @@ This keeps rapid learning without weakening team governance.
 - required quality checks pass
 - acceptance criteria complete
 
-### Stage G: Closeout
+### Stage H: Closeout
 
 **Goal**
 
@@ -966,6 +1027,12 @@ This section is designed for live planning and execution meetings.
 - Which constraints are fixed and which are negotiable?
 - Which assumptions are riskiest if wrong?
 
+### Probe decision
+
+- What uncertainty would make approval speculative if left unresolved?
+- What is the smallest probe that could retire that uncertainty?
+- What evidence would justify skipping the probe?
+
 ## 15.2 Planning framework
 
 ### Architecture fit
@@ -979,6 +1046,8 @@ This section is designed for live planning and execution meetings.
 - What external dependency can most likely block delivery?
 - Which dependency should be validated first?
 - What fallback exists if a critical dependency fails?
+- Which probe finding changed the architecture or rollout plan?
+- What uncertainty remains after the probe and how is it being managed?
 
 ### Sequencing
 
@@ -1034,7 +1103,8 @@ This section is designed for live planning and execution meetings.
 #### Stage-specific control points
 
 - Discovery: approve success metrics and non-goals
-- Planning: validate outcome-to-plan alignment
+- Discovery: approve success metrics, non-goals, and the probe decision
+- Planning: validate outcome-to-plan alignment and post-probe changes
 - Breakdown: reject ambiguous acceptance criteria
 - Synchronization: confirm cross-tool parity for active scope
 - Closeout: require outcome review, not only output completion
@@ -1056,7 +1126,7 @@ This section is designed for live planning and execution meetings.
 
 #### Stage-specific control points
 
-- Planning: approve architecture tradeoffs and reversibility notes
+- Planning: approve architecture tradeoffs, reversibility notes, and probe adequacy
 - Breakdown: validate dependency graph and conflict zones
 - Execution: enforce stream discipline and integration points
 - Quality: enforce test depth by risk tier
@@ -1074,7 +1144,7 @@ This section is designed for live planning and execution meetings.
 
 1. pick dependency-safe task from ready queue
 2. execute within stream scope
-3. update evidence and status continuously
+3. update evidence, status, and probe findings continuously when applicable
 4. run required quality checks before handoff
 
 #### Stage-specific control points
@@ -1105,6 +1175,9 @@ status: draft
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 outcome: <measurable target>
+uncertainty: <low|medium|high>
+probe_required: <true|false>
+probe_status: <pending|skipped|completed>
 ---
 
 # Spec: <project-name>
@@ -1112,6 +1185,8 @@ outcome: <measurable target>
 ## Executive Summary
 
 ## Problem and Users
+
+## Outcome and Success Metrics
 
 ## Scope
 ### In Scope
@@ -1121,11 +1196,19 @@ outcome: <measurable target>
 
 ## Non-Functional Requirements
 
-## Success Metrics
+## Hypotheses and Unknowns
 
-## Risks and Assumptions
+## Touchpoints to Exercise
+
+## Probe Findings
+
+## Footguns Discovered
+
+## Remaining Unknowns
 
 ## Dependencies
+
+## Approval Notes
 ```
 
 ### 17.2 Delivery plan template (`plan.md`)
@@ -1138,11 +1221,17 @@ lead: <person>
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 linear_project_id:
+risk_level: <low|medium|high>
+spec_status_at_plan_time: <approved|active>
 ---
 
 # Delivery Plan: <project-name>
 
+## What Changed After Probe
+
 ## Architecture Decisions
+
+## Probe-Driven Architecture Changes
 
 ## Workstream Design
 
@@ -1153,6 +1242,8 @@ linear_project_id:
 ## Test Strategy
 
 ## Rollback Strategy
+
+## Remaining Delivery Risks
 ```
 
 ### 17.3 Workstream template
@@ -1307,8 +1398,9 @@ This section covers migration from older layouts such as:
 
 1. keep existing folders intact
 2. create new canonical structure under `.project/projects/<slug>/`
-3. map old PRD/Epic/Task artifacts into Spec/Plan/Task contracts
-4. maintain old-to-new references in a migration index file
+3. normalize runtime references so `.agents` is canonical and `.claude` remains compatibility-only
+4. map old PRD/Epic/Task artifacts into Spec/Plan/Task contracts
+5. maintain old-to-new references in a migration index file
 
 ### 18.3 Step-by-step migration
 
@@ -1326,8 +1418,8 @@ For each active epic scope:
 
 #### Step 3: map legacy artifacts
 
-- legacy PRD content -> `spec.md`
-- legacy epic content -> `plan.md`
+- legacy PRD content -> `spec.md` with uncertainty and probe fields populated
+- legacy epic content -> `plan.md` with probe delta and risk fields populated
 - legacy task files -> `tasks/*.md` with preserved IDs and links
 
 #### Step 4: map statuses
@@ -1345,7 +1437,7 @@ Add migration mapping to:
 
 #### Step 6: validation and dry-run sync
 
-Run validation and dry-run sync before mutating remote state.
+Run `bash .agents/scripts/pm/validate.sh` and a dry-run sync before mutating remote state.
 
 ### 18.4 Migration acceptance criteria
 

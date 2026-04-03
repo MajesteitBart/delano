@@ -53,5 +53,5 @@ for project_dir in .project/projects/*; do
 done
 
 if [[ $project_count -eq 0 ]]; then
-  echo "No projects found. Create one with: .claude/scripts/pm/init.sh <slug> <project-name>"
+  echo "No projects found. Create one with: .agents/scripts/pm/init.sh <slug> <project-name>"
 fi

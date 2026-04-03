@@ -1,6 +1,6 @@
 ---
 name: discovery-skill
-intent: define and approve a measurable outcome and Spec
+description: Define and approve a measurable outcome and Spec. Use when a new delivery request has unclear scope, missing outcome, or missing owner.
 ---
 
 # discovery-skill
@@ -35,8 +35,8 @@ intent: define and approve a measurable outcome and Spec
 - update `spec.md`
 
 ## Script hooks
-- `bash .claude/scripts/pm/init.sh <slug> "<Project Name>" <owner> <lead>`
-- `bash .claude/scripts/pm/validate.sh`
+- `bash .agents/scripts/pm/init.sh <slug> "<Project Name>" <owner> <lead>`
+- `bash .agents/scripts/pm/validate.sh`
 
 ## Execution assets
 - `references/runbook.md`

@@ -68,11 +68,18 @@ echo "================="
 check_required_path ".project/projects"
 check_required_path ".project/context"
 check_required_path ".project/registry/linear-map.json"
-check_required_path ".claude/scripts/pm"
-check_required_path ".claude/rules"
-check_required_path ".claude/hooks"
-check_required_path ".claude/logs"
-check_required_path ".claude/skills"
+check_required_path ".agents/scripts/pm"
+check_required_path ".agents/rules"
+check_required_path ".agents/hooks"
+check_required_path ".agents/logs"
+check_required_path ".agents/skills"
+
+if [[ -e ".claude" || -L ".claude" ]]; then
+  echo "✅ Compatibility runtime present: .claude"
+else
+  echo "⚠️ Compatibility runtime missing: .claude (canonical .agents is sufficient)"
+  warnings=$((warnings + 1))
+fi
 
 if resolve_python_cmd; then
   echo "✅ Python runtime: ${python_cmd[*]}"
@@ -97,7 +104,7 @@ echo ""
 echo "Required skills"
 echo "---------------"
 for skill in "${required_skills[@]}"; do
-  skill_dir=".claude/skills/$skill"
+  skill_dir=".agents/skills/$skill"
   skill_file="$skill_dir/SKILL.md"
 
   if [[ -f "$skill_file" ]]; then
@@ -157,7 +164,7 @@ for project_dir in .project/projects/*; do
       echo "  ❌ spec.md missing frontmatter"
       errors=$((errors + 1))
     fi
-    for key in name slug owner status created updated outcome; do
+    for key in name slug owner status created updated outcome uncertainty probe_required probe_status; do
       val="$(fm_get "$spec" "$key")"
       if [[ -z "$val" ]]; then
         echo "  ❌ spec.md missing key: $key"
@@ -179,7 +186,7 @@ for project_dir in .project/projects/*; do
       echo "  ❌ plan.md missing frontmatter"
       errors=$((errors + 1))
     fi
-    for key in name status lead created updated linear_project_id; do
+    for key in name status lead created updated linear_project_id risk_level spec_status_at_plan_time; do
       val="$(fm_get "$plan" "$key")"
       if [[ -z "$val" && "$key" != "linear_project_id" ]]; then
         echo "  ❌ plan.md missing key: $key"
@@ -271,9 +278,15 @@ done
 path_tmp="$(mktemp)"
 trap 'rm -f "$path_tmp"' EXIT
 
-if find .project .claude \
+compat_paths=()
+if [[ -e .claude || -L .claude ]]; then
+  compat_paths+=(.claude)
+fi
+
+if find .project .agents "${compat_paths[@]}" \
   -type f \
   \( -name '*.md' -o -name '*.json' -o -name '*.yaml' -o -name '*.yml' \) \
+  -not -path '.agents/logs/*' \
   -not -path '.claude/logs/*' \
   -print0 | xargs -0 grep -nE '(/home/|/Users/|[A-Za-z]:\\)' >"$path_tmp" 2>/dev/null; then
   echo ""

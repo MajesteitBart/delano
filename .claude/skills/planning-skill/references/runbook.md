@@ -5,9 +5,9 @@
 3. Define initial workstreams from `.project/templates/workstream.md`.
 4. Add milestone, rollout, rollback, and test strategies.
 5. Validate:
-   - `bash .claude/scripts/pm/validate.sh`
+   - `bash .agents/scripts/pm/validate.sh`
 6. Snapshot:
-   - `bash .claude/scripts/pm/status.sh`
+   - `bash .agents/scripts/pm/status.sh`
 
 Exit gate:
 - Architecture decisions justified

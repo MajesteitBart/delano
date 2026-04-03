@@ -21,7 +21,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-LOG_FILE=".claude/logs/changes.jsonl"
+LOG_FILE=".agents/logs/changes.jsonl"
 [[ -f "$LOG_FILE" ]] || { echo "No log file: $LOG_FILE"; exit 0; }
 
 node - "$LOG_FILE" "$type_filter" "$actor_filter" "$since_filter" "$last_n" "$pretty" <<'NODE'
