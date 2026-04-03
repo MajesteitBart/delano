@@ -10,7 +10,7 @@ AGENTS_RAW=""
 
 usage() {
   cat <<USAGE
-Delano installer (interactive by default)
+Delano legacy installer bridge (interactive by default)
 
 Usage:
   $0 [options]
@@ -23,6 +23,10 @@ Options:
   --force            Overwrite existing files without prompting
   --yes              Assume yes for prompts
   -h, --help         Show this help
+
+Notes:
+  - This script remains the shell-first migration bridge while @bvdm/delano matures.
+  - Prefer 'delano install' from @bvdm/delano for the allowlist-driven, conflict-first v1 install path when that package flow is available.
 USAGE
 }
 
@@ -203,6 +207,7 @@ log "Installing Delano from: $REPO_URL"
 log "Branch: $BRANCH"
 log "Target: $TARGET_DIR"
 log "Agents: ${AGENTS[*]}"
+log "Mode: legacy bridge installer"
 log ""
 
 tmp="$(mktemp -d)"
@@ -303,3 +308,4 @@ log "Next steps:"
 log "1) Read HANDBOOK.md"
 log "2) Read AGENTS.md"
 log "3) Validate scaffold: bash .agents/scripts/pm/validate.sh"
+log "4) Prefer @bvdm/delano for the conservative v1 install path when you adopt the npm CLI flow."

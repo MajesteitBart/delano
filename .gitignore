@@ -13,3 +13,8 @@
 # Local Claude overrides
 .claude/settings.local.json
 .agents/settings.local.json
+
+# Node/npm local artifacts
+node_modules/
+assets/payload/
+*.tgz
