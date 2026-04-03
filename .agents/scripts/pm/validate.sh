@@ -41,6 +41,27 @@ is_iso_utc() {
   [[ "$ts" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
 }
 
+python_cmd=()
+
+resolve_python_cmd() {
+  if command -v python3 >/dev/null 2>&1 && python3 -c "import sys" >/dev/null 2>&1; then
+    python_cmd=(python3)
+    return 0
+  fi
+
+  if command -v py >/dev/null 2>&1 && py -3 -c "import sys" >/dev/null 2>&1; then
+    python_cmd=(py -3)
+    return 0
+  fi
+
+  if command -v python >/dev/null 2>&1 && python -c "import sys" >/dev/null 2>&1; then
+    python_cmd=(python)
+    return 0
+  fi
+
+  return 1
+}
+
 echo "Delano validation"
 echo "================="
 
@@ -52,6 +73,13 @@ check_required_path ".claude/rules"
 check_required_path ".claude/hooks"
 check_required_path ".claude/logs"
 check_required_path ".claude/skills"
+
+if resolve_python_cmd; then
+  echo "✅ Python runtime: ${python_cmd[*]}"
+else
+  echo "❌ Python runtime not found (tried: python3, py -3, python)"
+  errors=$((errors + 1))
+fi
 
 # Required skill contracts
 required_skills=(
@@ -184,7 +212,8 @@ for project_dir in .project/projects/*; do
   done
 
   # dependency cycle check for this project
-  python3 - "$project_dir" <<'PY' || errors=$((errors + 1))
+  if [[ ${#python_cmd[@]} -gt 0 ]]; then
+    "${python_cmd[@]}" - "$project_dir" <<'PY' || errors=$((errors + 1))
 import sys, re
 from pathlib import Path
 
@@ -232,8 +261,9 @@ def dfs(node, stack):
 
 for t in tasks:
     dfs(t, [])
-print('  ✅ dependency graph acyclic')
+print('  [ok] dependency graph acyclic')
 PY
+  fi
 
 done
 
