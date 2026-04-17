@@ -91,6 +91,7 @@ fi
 # Required skill contracts
 required_skills=(
   discovery-skill
+  prototype-skill
   planning-skill
   breakdown-skill
   sync-skill

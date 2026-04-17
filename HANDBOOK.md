@@ -633,6 +633,7 @@ This keeps rapid learning without weakening team governance.
 
 **Primary components**
 
+- skill: `prototype-skill`
 - discovery artifacts from `spec.md`
 - targeted prototype commands or narrow experiments
 - `pm/validate.sh` if probe findings mutate contracts
