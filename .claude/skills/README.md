@@ -9,11 +9,15 @@ Core workflow skills:
 - `planning-skill`
 - `breakdown-skill`
 - `sync-skill`
-- `manage-context`
 - `execution-skill`
 - `quality-skill`
 - `closeout-skill`
 - `learning-skill`
+
+Utility skills:
+
+- `manage-context`
+- `onboarding`
 
 Each skill defines:
 - intent and trigger context

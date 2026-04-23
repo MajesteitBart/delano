@@ -54,6 +54,8 @@
     ".agents/skills/manage-context/SKILL.md",
     ".agents/skills/manage-context/templates/context-debt-report.md",
     ".agents/skills/manage-context/templates/context-refresh-summary.md",
+    ".agents/skills/onboarding/references/agents-md-best-practices.md",
+    ".agents/skills/onboarding/SKILL.md",
     ".agents/skills/discovery-skill/references/runbook.md",
     ".agents/skills/discovery-skill/SKILL.md",
     ".agents/skills/discovery-skill/templates/clarification-questions.md",

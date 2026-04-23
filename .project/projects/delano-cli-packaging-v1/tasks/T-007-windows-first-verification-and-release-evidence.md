@@ -3,7 +3,7 @@ id: T-007
 name: Windows-first verification and release evidence
 status: review
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:18:28Z
+updated: 2026-04-17T15:29:10Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -41,3 +41,4 @@ Verify the packaged CLI and wrapper commands in the current Windows-first enviro
 ## Evidence Log
 - 2026-04-03: Task created during breakdown for the Delano CLI packaging project.
 - 2026-04-03: Verified `npm run build:assets`, `npm test`, `node bin/delano.js --help`, `node bin/delano.js status`, install success/conflict/force flows against `tmp/cli-install-smoke`, non-forceable parent blockers against `tmp/cli-parent-blocker`, wrapper commands in the installed scratch repo, and `npm pack --dry-run`. Confirmed the installed payload omits `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, and `PI.md`.
+- 2026-04-17: Bumped `@bvdm/delano` from `0.1.5` to `0.1.6`, ran `bash .agents/scripts/test-and-log.sh npm test` (log: `.agents/logs/tests/20260417T152814Z.log`), ran `bash .agents/scripts/pm/validate.sh`, rebuilt assets with `npm run build:assets`, confirmed `node bin/delano.js --version` returned `0.1.6`, and verified `npm pack --dry-run` produced `bvdm-delano-0.1.6.tgz` with 128 files. `npm publish --access public` rebuilt the tarball successfully but failed with `E404` for `@bvdm/delano`, indicating missing npm auth or publish permission for the `@bvdm` scope.

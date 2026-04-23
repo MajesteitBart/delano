@@ -50,6 +50,7 @@ npm install -g @bvdm/delano
 Then in any repository:
 
 ```bash
+delano onboarding
 delano install --yes
 delano validate
 delano init <slug> "<Project Name>" [owner] [lead]
@@ -111,9 +112,18 @@ The wrapper commands still execute the existing shell/Python runtime.
 
 ## First commands after install
 
+Recommended first step:
+
+```bash
+delano onboarding
+```
+
+`delano onboarding` searches upward for `AGENTS.md`, asks for explicit approval before it analyzes anything, and prints recommendations using the packaged onboarding skill rubric. It never edits `AGENTS.md` on its own.
+
 If you used one-shot `npx` for bootstrap, you can keep using `npx`:
 
 ```bash
+npx -y @bvdm/delano@latest onboarding --approve-agents-analysis
 npx -y @bvdm/delano@latest validate
 npx -y @bvdm/delano@latest status
 npx -y @bvdm/delano@latest next -- --all
@@ -122,6 +132,7 @@ npx -y @bvdm/delano@latest next -- --all
 If the package is installed locally or globally, inside the installed repo:
 
 ```bash
+delano onboarding
 delano validate
 delano status
 delano next -- --all
@@ -145,11 +156,12 @@ bash .agents/scripts/pm/init.sh <slug> "<Project Name>" [owner] [lead]
 ## Day-to-day workflow
 
 1. Install or validate the runtime.
-2. Create a project scaffold with `delano init`.
-3. Draft the spec in `.project/projects/<slug>/spec.md`.
-4. Make the probe decision explicit before approving the spec.
-5. Work through plans, workstreams, tasks, updates, and quality evidence.
-6. Re-run `delano validate` before handoff or merge.
+2. Run `delano onboarding` and explicitly approve the `AGENTS.md` review if you want it.
+3. Create a project scaffold with `delano init`.
+4. Draft the spec in `.project/projects/<slug>/spec.md`.
+5. Make the probe decision explicit before approving the spec.
+6. Work through plans, workstreams, tasks, updates, and quality evidence.
+7. Re-run `delano validate` before handoff or merge.
 
 ## Probe-aware delivery
 
