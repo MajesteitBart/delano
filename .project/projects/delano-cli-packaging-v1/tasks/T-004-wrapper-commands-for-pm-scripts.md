@@ -1,9 +1,10 @@
 ---
 id: T-004
 name: Wrapper commands for PM scripts
-status: review
+status: done
+workstream: WS-C
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:18:28Z
+updated: 2026-04-28T22:08:32Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -35,9 +36,10 @@ Implement `delano init`, `delano validate`, `delano status`, and `delano next` a
 ## Definition of Done
 - [x] Implementation complete
 - [x] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
 - 2026-04-03: Task created during breakdown for the Delano CLI packaging project.
 - 2026-04-03: Implemented wrapper commands for `init`, `validate`, `status`, and `next`, with repo-root discovery and bash resolution. Smoke-tested wrappers in both the source repo and an installed scratch repo.
+- 2026-04-28: Marked done after operator confirmation and final package verification rerun.

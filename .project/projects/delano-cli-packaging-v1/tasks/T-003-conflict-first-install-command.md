@@ -1,9 +1,10 @@
 ---
 id: T-003
 name: Conflict-first install command
-status: review
+status: done
+workstream: WS-B
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:18:28Z
+updated: 2026-04-28T22:08:32Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -36,9 +37,10 @@ Implement `delano install` so it computes the full write plan first, reports con
 ## Definition of Done
 - [x] Implementation complete
 - [x] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
 - 2026-04-03: Task created during breakdown for the Delano CLI packaging project.
 - 2026-04-03: Implemented conflict-first `delano install` with allowlist-driven planning, sorted conflict reports, safe force behavior, and parent-path blocker detection. Smoke-tested first install, conflict failure, force reinstall, and non-forceable parent blockers.
+- 2026-04-28: Marked done after operator confirmation and final package verification rerun.

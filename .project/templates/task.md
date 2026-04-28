@@ -2,6 +2,7 @@
 id: T-001
 name: <task-title>
 status: ready
+workstream: WS-A
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 linear_issue_id:

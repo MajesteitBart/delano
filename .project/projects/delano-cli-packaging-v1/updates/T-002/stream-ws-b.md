@@ -1,6 +1,6 @@
 ---
-timestamp: 2026-04-03T18:10:00Z
-status: review
+timestamp: 2026-04-28T22:08:32Z
+status: done
 task: T-002
 stream: ws-b
 ---
@@ -16,10 +16,10 @@ stream: ws-b
 - Added regression coverage and docs for template-based context seeding.
 
 ## In Progress
-- Review remains before closeout.
+- None.
 
 ## Blockers
 - None.
 
 ## Next Actions
-- Keep the manifest under review as follow-on install and docs work lands.
+- Closed by project closeout.

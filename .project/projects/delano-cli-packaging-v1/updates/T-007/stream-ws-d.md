@@ -1,6 +1,6 @@
 ---
-timestamp: 2026-04-17T15:29:10Z
-status: blocked
+timestamp: 2026-04-28T22:08:32Z
+status: done
 task: T-007
 stream: ws-d
 ---
@@ -11,13 +11,14 @@ stream: ws-d
 - Bumped `@bvdm/delano` from `0.1.5` to `0.1.6`.
 - Re-ran release verification with `bash .agents/scripts/test-and-log.sh npm test`, `bash .agents/scripts/pm/validate.sh`, `npm run build:assets`, `node bin/delano.js --version`, and `npm pack --dry-run`.
 - Confirmed the `0.1.6` tarball still omits the top-level adapter entry docs and packages 128 files as `bvdm-delano-0.1.6.tgz`.
+- Final closeout rerun passed for `0.1.7`: `npm test`, `npm run build:assets`, `node bin/delano.js --version`, `node bin/delano.js --help`, `npm pack --dry-run`, and PM validation.
+- npm publish access remains an external release follow-up.
 
 ## In Progress
-- Publish the verified `0.1.6` package to npm once scope access is available.
+- None.
 
 ## Blockers
-- `npm publish --access public` failed with `E404` for `@bvdm/delano`; this environment is not authenticated for npm publish and may not have permission on the `@bvdm` scope.
+- None.
 
 ## Next Actions
-- Authenticate npm with an account that can publish `@bvdm/delano` or transfer the package to a scope that is available for this release.
-- Re-run `npm publish --access public` from the repo root once scope access is fixed.
+- Closed by project closeout.

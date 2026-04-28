@@ -1,9 +1,10 @@
 ---
 id: T-001
 name: CLI package scaffold and dispatch
-status: review
+status: done
+workstream: WS-A
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T13:52:50Z
+updated: 2026-04-28T22:08:32Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -35,10 +36,11 @@ Create the initial npm package structure for `@bvdm/delano`, including `package.
 ## Definition of Done
 - [x] Implementation complete
 - [x] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
 - 2026-04-03: Task created during breakdown for the Delano CLI packaging project.
 - 2026-04-03: Added `package.json`, `bin/delano.js`, the `src/cli/` command-dispatch tree, and shared runtime helpers. Verified global help and command routing with `npm test` and `node bin/delano.js --help`.
 - 2026-04-03: Renamed the published package identifier to `@bvdm/delano`.
+- 2026-04-28: Marked done after operator confirmation and final package verification rerun.

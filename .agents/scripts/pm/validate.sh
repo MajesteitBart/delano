@@ -41,6 +41,16 @@ is_iso_utc() {
   [[ "$ts" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
 }
 
+contains_value() {
+  local needle="$1"
+  shift
+  local item
+  for item in "$@"; do
+    [[ "$item" == "$needle" ]] && return 0
+  done
+  return 1
+}
+
 python_cmd=()
 
 resolve_python_cmd() {
@@ -203,6 +213,15 @@ for project_dir in .project/projects/*; do
     done
   fi
 
+  workstream_ids=()
+  for workstream in "$project_dir"/workstreams/*.md; do
+    [[ -f "$workstream" ]] || continue
+    workstream_file="$(basename "$workstream" .md)"
+    if [[ "$workstream_file" =~ ^(WS-[A-Za-z0-9]+) ]]; then
+      workstream_ids+=("${BASH_REMATCH[1]}")
+    fi
+  done
+
   for task in "$project_dir"/tasks/*.md; do
     [[ -f "$task" ]] || continue
     if ! has_frontmatter "$task"; then
@@ -210,13 +229,23 @@ for project_dir in .project/projects/*; do
       errors=$((errors + 1))
       continue
     fi
-    for key in id name status created updated linear_issue_id github_issue github_pr depends_on conflicts_with parallel priority estimate; do
+    for key in id name status workstream created updated linear_issue_id github_issue github_pr depends_on conflicts_with parallel priority estimate; do
       val="$(fm_get "$task" "$key")"
       if [[ -z "$val" && ! "$key" =~ ^(linear_issue_id|github_issue|github_pr|depends_on|conflicts_with)$ ]]; then
         echo "  ❌ $(basename "$task") missing key: $key"
         errors=$((errors + 1))
       fi
     done
+    task_workstream="$(fm_get "$task" "workstream")"
+    if [[ -n "$task_workstream" ]]; then
+      if [[ ! "$task_workstream" =~ ^WS-[A-Za-z0-9]+$ ]]; then
+        echo "  ❌ $(basename "$task") workstream must use canonical form like WS-A"
+        errors=$((errors + 1))
+      elif ! contains_value "$task_workstream" "${workstream_ids[@]}"; then
+        echo "  ❌ $(basename "$task") workstream does not match a project workstream: $task_workstream"
+        errors=$((errors + 1))
+      fi
+    fi
   done
 
   # dependency cycle check for this project

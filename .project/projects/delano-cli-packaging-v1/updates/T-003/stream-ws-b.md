@@ -1,6 +1,6 @@
 ---
-timestamp: 2026-04-03T12:18:28Z
-status: review
+timestamp: 2026-04-28T22:08:32Z
+status: done
 task: T-003
 stream: ws-b
 ---
@@ -13,10 +13,10 @@ stream: ws-b
 - Verified first install, conflict abort, force reinstall, and parent-path blocker behavior in scratch targets.
 
 ## In Progress
-- Review and operator-facing documentation remain before closeout.
+- None.
 
 ## Blockers
 - None.
 
 ## Next Actions
-- Fold install behavior into the remaining docs and release-verification work.
+- Closed by project closeout.
