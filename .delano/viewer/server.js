@@ -122,6 +122,12 @@ function codeFromFilename(rel, prefix) {
   return match ? match[1] : null;
 }
 
+function normalizeWorkstreamId(value) {
+  if (!value) return null;
+  const normalized = String(value).trim().toUpperCase();
+  return /^WS-[A-Z0-9]+$/.test(normalized) ? normalized : null;
+}
+
 function csvArray(value) {
   if (Array.isArray(value)) return value.map(String).filter(Boolean);
   if (!value) return [];
@@ -142,7 +148,7 @@ function docMeta(file) {
     project: projectSlugFor(rel),
     role,
     artifactRole: role,
-    workstreamId: role === 'workstream' ? codeFromFilename(rel, 'WS') : null,
+    workstreamId: role === 'workstream' ? codeFromFilename(rel, 'WS') : (role === 'task' ? normalizeWorkstreamId(frontmatter.workstream) : null),
     taskId: role === 'task' ? frontmatter.id || codeFromFilename(rel, 'T') : null,
     dependsOn: role === 'task' ? csvArray(frontmatter.depends_on) : [],
     updated: frontmatter.updated || frontmatter.timestamp || stat.mtime.toISOString(),
@@ -166,8 +172,13 @@ function overlapScore(a, b) {
 function relateTasksToWorkstreams(projectDocs) {
   const workstreams = projectDocs.filter((doc) => doc.role === 'workstream');
   const tasks = projectDocs.filter((doc) => doc.role === 'task');
+  const wsById = new Map(workstreams.map((ws) => [ws.workstreamId, ws]));
   const wsWords = new Map(workstreams.map((ws) => [ws.path, words(`${ws.workstreamId} ${ws.title} ${ws.snippet}`)]));
   for (const task of tasks) {
+    if (task.workstreamId && wsById.has(task.workstreamId)) {
+      task.workstreamPath = wsById.get(task.workstreamId).path;
+      continue;
+    }
     const taskWords = words(`${task.taskId} ${task.title} ${task.snippet}`);
     let best = null;
     for (const ws of workstreams) {
@@ -205,33 +216,47 @@ function loadIndex() {
   const projectSlugs = fs.existsSync(path.join(projectRoot, 'projects'))
     ? fs.readdirSync(path.join(projectRoot, 'projects'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort()
     : [];
-  const projects = [
+  const fixed = [
     {
       slug: 'context',
-      title: 'Project Context',
+      title: 'Project',
       status: null,
+      created: null,
+      pinned: true,
       docs: docs.filter((doc) => doc.path.startsWith('context/')).map((doc) => doc.path),
     },
     {
       slug: 'templates',
-      title: 'Contract Templates',
+      title: 'Templates',
       status: null,
+      created: null,
+      pinned: true,
       docs: docs.filter((doc) => doc.path.startsWith('templates/')).map((doc) => doc.path),
     },
-    ...projectSlugs.map((slug) => {
-      const projectDocs = docs.filter((doc) => doc.path.startsWith(`projects/${slug}/`));
-      const spec = projectDocs.find((doc) => doc.path.endsWith('/spec.md'));
-      const plan = projectDocs.find((doc) => doc.path.endsWith('/plan.md'));
-      const outline = projectOutline(projectDocs);
-      return {
-        slug,
-        title: spec?.frontmatter.name || plan?.frontmatter.name || slug.replace(/-/g, ' '),
-        status: spec?.frontmatter.status || plan?.frontmatter.status || null,
-        docs: projectDocs.map((doc) => doc.path),
-        outline,
-      };
-    }),
   ];
+  const projectEntries = projectSlugs.map((slug) => {
+    const projectDocs = docs.filter((doc) => doc.path.startsWith(`projects/${slug}/`));
+    const spec = projectDocs.find((doc) => doc.path.endsWith('/spec.md'));
+    const plan = projectDocs.find((doc) => doc.path.endsWith('/plan.md'));
+    const outline = projectOutline(projectDocs);
+    return {
+      slug,
+      title: spec?.frontmatter.name || plan?.frontmatter.name || slug.replace(/-/g, ' '),
+      status: spec?.frontmatter.status || plan?.frontmatter.status || null,
+      created: spec?.frontmatter.created || plan?.frontmatter.created || null,
+      pinned: false,
+      docs: projectDocs.map((doc) => doc.path),
+      outline,
+    };
+  });
+  // Sort non-pinned project entries by `created` desc; entries without `created` keep their relative order at the end.
+  projectEntries.sort((a, b) => {
+    if (!a.created && !b.created) return 0;
+    if (!a.created) return 1;
+    if (!b.created) return -1;
+    return String(b.created).localeCompare(String(a.created));
+  });
+  const projects = [...fixed, ...projectEntries];
   return { repo: path.basename(repoRoot), generatedAt: new Date().toISOString(), projects, docs };
 }
 
@@ -257,20 +282,34 @@ function commandExists(command) {
 }
 
 function openTarget(target, file) {
+  const isWin = process.platform === 'win32';
+  const isMac = process.platform === 'darwin';
+
   if (target === 'code') {
     if (!commandExists('code')) return { ok: false, error: 'VS Code CLI `code` was not found on PATH.' };
-    spawn('code', ['-g', file], { detached: true, stdio: 'ignore' }).unref();
+    // On Windows the CLI is `code.cmd`; spawn requires shell:true to resolve PATHEXT.
+    spawn('code', ['-g', file], { detached: true, stdio: 'ignore', shell: isWin }).unref();
     return { ok: true, target, opened: file };
   }
 
   if (target === 'explorer') {
     const dir = path.dirname(file);
-    const explorer = '/mnt/c/Windows/explorer.exe';
-    if (fs.existsSync(explorer)) {
-      spawn(explorer, [windowsPath(dir)], { detached: true, stdio: 'ignore' }).unref();
+
+    // Native Windows: launch explorer.exe directly with the directory.
+    if (isWin) {
+      spawn('explorer.exe', [dir], { detached: true, stdio: 'ignore' }).unref();
       return { ok: true, target, opened: dir };
     }
-    const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
+
+    // WSL: explorer.exe is reachable through the mounted Windows path.
+    const wslExplorer = '/mnt/c/Windows/explorer.exe';
+    if (fs.existsSync(wslExplorer)) {
+      spawn(wslExplorer, [windowsPath(dir)], { detached: true, stdio: 'ignore' }).unref();
+      return { ok: true, target, opened: dir };
+    }
+
+    // macOS / Linux fall back to `open` / `xdg-open`.
+    const opener = isMac ? 'open' : 'xdg-open';
     if (!commandExists(opener)) return { ok: false, error: `System opener \`${opener}\` was not found.` };
     spawn(opener, [dir], { detached: true, stdio: 'ignore' }).unref();
     return { ok: true, target, opened: dir };
@@ -280,14 +319,31 @@ function openTarget(target, file) {
 }
 
 function sendStatic(res, pathname) {
+  if (pathname === '/favicon.ico') {
+    res.writeHead(204, { 'cache-control': 'max-age=86400' });
+    res.end();
+    return;
+  }
   const file = pathname === '/' ? path.join(publicRoot, 'index.html') : path.join(publicRoot, pathname);
   const resolved = path.resolve(file);
   if (!isInside(publicRoot, resolved) || !fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
     res.writeHead(404); res.end('Not found'); return;
   }
-  const ext = path.extname(resolved);
-  const type = ext === '.js' ? 'text/javascript' : ext === '.css' ? 'text/css' : 'text/html';
-  res.writeHead(200, { 'content-type': `${type}; charset=utf-8` });
+  const ext = path.extname(resolved).toLowerCase();
+  const mimeMap = {
+    '.js': 'text/javascript',
+    '.css': 'text/css',
+    '.svg': 'image/svg+xml',
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.ico': 'image/x-icon',
+  };
+  const isText = ext === '.js' || ext === '.css' || ext === '.svg' || ext === '' || ext === '.html';
+  const type = mimeMap[ext] || 'text/html';
+  const headers = isText ? { 'content-type': `${type}; charset=utf-8` } : { 'content-type': type };
+  res.writeHead(200, headers);
   res.end(fs.readFileSync(resolved));
 }
 

@@ -1,9 +1,10 @@
 ---
 id: T-006
 name: Operator docs and adoption guidance
-status: review
+status: done
+workstream: WS-D
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:18:28Z
+updated: 2026-04-28T22:08:32Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -35,9 +36,10 @@ Update operator-facing documentation so the npm CLI install path, wrapper comman
 ## Definition of Done
 - [x] Implementation complete
 - [x] Tests pass
-- [ ] Review complete
+- [x] Review complete
 - [x] Docs updated
 
 ## Evidence Log
 - 2026-04-03: Task created during breakdown for the Delano CLI packaging project.
 - 2026-04-03: Updated `README.md` and `docs/user-guide.md` to document the npm CLI surface, conservative install behavior, wrapper commands, and the legacy role of `install-delano.sh`.
+- 2026-04-28: Marked done after operator confirmation and final package verification rerun.

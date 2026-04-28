@@ -1,9 +1,9 @@
 ---
 name: Delano CLI Packaging v1
-status: in-progress
+status: done
 lead: bart
 created: 2026-04-03T11:59:43Z
-updated: 2026-04-03T13:52:50Z
+updated: 2026-04-28T22:08:32Z
 linear_project_id:
 risk_level: medium
 spec_status_at_plan_time: approved
@@ -63,4 +63,4 @@ spec_status_at_plan_time: approved
 - Packaged-asset drift could cause the CLI to install too much or too little if the allowlist is not treated as canonical.
 - Windows shell discovery and subprocess behavior may be slightly different from Unix-like environments even with `bash` available.
 - Wrapper commands may expose existing PM-script output quirks that users interpret as CLI bugs.
-- Bridge guidance could become confusing if `install-delano.sh` and `delano install` are not documented with clear roles.
+- Publishing to npm still depends on an account with access to the `@bvdm` scope; this is external to local implementation and verification.

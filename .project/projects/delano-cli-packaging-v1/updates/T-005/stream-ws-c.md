@@ -1,6 +1,6 @@
 ---
-timestamp: 2026-04-03T13:52:50Z
-status: review
+timestamp: 2026-04-28T22:08:32Z
+status: done
 task: T-005
 stream: ws-c
 ---
@@ -12,10 +12,10 @@ stream: ws-c
 - Added guidance that points operators toward `@bvdm/delano` for the conservative v1 install path.
 
 ## In Progress
-- Review remains before closeout.
+- None.
 
 ## Blockers
 - None.
 
 ## Next Actions
-- Keep the bridge wording aligned with any later packaging behavior changes.
+- Closed by project closeout.

@@ -201,7 +201,7 @@ Recommended naming:
 
 Operational rule:
 
-- Every task issue must carry one workstream identifier.
+- Every task issue must carry one workstream identifier in task frontmatter (`workstream: WS-A`) and the corresponding Linear workstream label (`ws-a`).
 
 #### 4.2.5 Task -> Issue
 
@@ -352,6 +352,7 @@ Required sections:
 id: T-001
 name: <task-title>
 status: backlog|ready|in-progress|review|done|blocked|canceled
+workstream: WS-A
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 linear_issue_id: <id-or-empty>
@@ -1278,6 +1279,7 @@ updated: <ISO8601 UTC>
 id: T-001
 name: <task-title>
 status: ready
+workstream: WS-A
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 linear_issue_id:

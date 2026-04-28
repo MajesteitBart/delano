@@ -2,9 +2,9 @@
 name: Delano CLI Packaging v1
 slug: delano-cli-packaging-v1
 owner: team
-status: active
+status: complete
 created: 2026-04-03T11:59:43Z
-updated: 2026-04-03T13:52:50Z
+updated: 2026-04-28T22:08:32Z
 outcome: Delano ships a Windows-usable v1 npm package `@bvdm/delano` with the `delano` binary, conservative allowlist-driven install behavior, and wrapper commands for `install`, `init`, `validate`, `status`, and `next` without replacing the existing shell/Python runtime.
 uncertainty: medium
 probe_required: false
@@ -97,7 +97,7 @@ probe_status: skipped
 ## Remaining Unknowns
 - The cleanest manifest shape for describing packaged assets, optional agent docs, and future upgrade metadata.
 - How much shared logic should be extracted between `delano install` and the legacy `install-delano.sh` bridge.
-- Whether any PM-script output normalization is worth doing in this scope or should be deferred to later runtime cleanup.
+- Whether npm publish access for the `@bvdm` scope is available from this environment; local package verification is complete, but publishing remains an external account/scope permission follow-up.
 
 ## Dependencies
 - Node and npm for packaging and CLI execution

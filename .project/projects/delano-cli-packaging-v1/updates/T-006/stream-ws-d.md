@@ -1,6 +1,6 @@
 ---
-timestamp: 2026-04-03T12:18:28Z
-status: review
+timestamp: 2026-04-28T22:08:32Z
+status: done
 task: T-006
 stream: ws-d
 ---
@@ -13,10 +13,10 @@ stream: ws-d
 - Documented the legacy bridge role of `install-delano.sh`.
 
 ## In Progress
-- Review remains before closeout.
+- None.
 
 ## Blockers
 - None.
 
 ## Next Actions
-- Keep docs in sync if the release packaging flow changes.
+- Closed by project closeout.

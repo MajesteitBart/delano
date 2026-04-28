@@ -2,8 +2,9 @@
 id: T-001
 name: Handbook model alignment
 status: done
+workstream: WS-A
 created: 2026-04-03T06:43:27Z
-updated: 2026-04-03T06:43:27Z
+updated: 2026-04-28T22:04:22Z
 linear_issue_id:
 github_issue:
 github_pr:

@@ -1,6 +1,6 @@
 ---
-timestamp: 2026-04-03T12:18:28Z
-status: review
+timestamp: 2026-04-28T22:08:32Z
+status: done
 task: T-001
 stream: ws-a
 ---
@@ -14,10 +14,10 @@ stream: ws-a
 - Verified the scaffold with `npm test`, `node bin/delano.js --help`, and wrapper-command smoke tests.
 
 ## In Progress
-- Review and follow-on documentation work remain before the task can be closed as `done`.
+- None.
 
 ## Blockers
 - None.
 
 ## Next Actions
-- Fold the scaffold review into the remaining docs and verification stream work.
+- Closed by project closeout.

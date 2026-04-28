@@ -1,9 +1,9 @@
 ---
 name: WS-C Wrapper Commands and Legacy Bridge
 owner: team
-status: in-progress
+status: done
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-03T12:18:28Z
+updated: 2026-04-28T22:08:32Z
 ---
 
 # Workstream: WS-C Wrapper Commands and Legacy Bridge
