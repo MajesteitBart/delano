@@ -21,6 +21,7 @@
   "scripts": {
     "build:assets": "node scripts/build-npm-assets.mjs",
     "prepack": "npm run build:assets",
-    "test": "node --test"
+    "test": "node --test",
+    "viewer": "node .delano/viewer/server.js"
   }
 }

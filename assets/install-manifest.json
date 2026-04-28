@@ -85,6 +85,10 @@
     ".agents/skills/sync-skill/templates/conflict-resolution-actions.md",
     ".agents/skills/sync-skill/templates/drift-report.md",
     ".delano/README.md",
+    ".delano/viewer/server.js",
+    ".delano/viewer/public/app.js",
+    ".delano/viewer/public/index.html",
+    ".delano/viewer/public/styles.css",
     {
       "source": "assets/templates/context/gui-testing.md",
       "target": ".project/context/gui-testing.md"
