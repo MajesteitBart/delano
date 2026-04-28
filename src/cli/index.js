@@ -3,6 +3,7 @@ const path = require("node:path");
 
 const { CliError } = require("./lib/errors");
 const { getPackageRoot } = require("./lib/runtime");
+const { getOnboardingHelp, runOnboarding } = require("./commands/onboarding");
 const { runInstall, getInstallHelp } = require("./commands/install");
 const { createWrapperCommand } = require("./commands/wrapper");
 
@@ -14,6 +15,11 @@ const wrapperCommands = {
 };
 
 const commands = {
+  onboarding: {
+    description: "Analyze AGENTS.md with the approval-first onboarding skill.",
+    run: runOnboarding,
+    help: getOnboardingHelp
+  },
   install: {
     description: "Install the approved Delano runtime payload into a target repository.",
     run: runInstall,
@@ -84,6 +90,7 @@ function getGeneralHelp() {
     "  delano <command> [options]",
     "",
     "Commands:",
+    "  onboarding Analyze AGENTS.md with the approval-first onboarding skill",
     "  install    Install the approved Delano runtime payload",
     "  init       Run .agents/scripts/pm/init.sh in the current Delano repo",
     "  validate   Run .agents/scripts/pm/validate.sh in the current Delano repo",
@@ -95,6 +102,8 @@ function getGeneralHelp() {
     "  -v, --version   Show version",
     "",
     "Examples:",
+    "  delano onboarding",
+    "  delano onboarding --approve-agents-analysis",
     "  delano --yes",
     "  delano --target ../my-repo --yes",
     "  npx -y @bvdm/delano@latest --yes",
@@ -103,6 +112,9 @@ function getGeneralHelp() {
     "",
     "Shorthand:",
     "  delano [install-options] is equivalent to delano install [install-options].",
+    "",
+    "Recommended first step after install:",
+    "  Run 'delano onboarding' to review AGENTS.md. The command requires explicit approval before analysis.",
     "",
     "Use 'delano <command> --help' for command-specific help."
   ].join("\n");

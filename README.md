@@ -16,7 +16,7 @@ The npm package is intentionally thin. It distributes the approved runtime paylo
 
 - Package: `@bvdm/delano`
 - Binary: `delano`
-- Commands: `install`, `init`, `validate`, `status`, `next`
+- Commands: `onboarding`, `install`, `init`, `validate`, `status`, `next`
 - Primary v1.1 goal: bootstrap a repo safely, then stay out of the way
 
 ## One-command bootstrap
@@ -84,9 +84,18 @@ Notes:
 
 ## How to use Delano after install
 
+Recommended first step:
+
+```bash
+delano onboarding
+```
+
+`delano onboarding` searches upward for `AGENTS.md`, asks for explicit approval before it analyzes anything, and prints recommendations using the packaged onboarding skill rubric. It does not edit `AGENTS.md` on its own.
+
 If you bootstrap with one-shot `npx`, keep using `npx` for wrapper commands:
 
 ```bash
+npx -y @bvdm/delano@latest onboarding --approve-agents-analysis
 npx -y @bvdm/delano@latest validate
 npx -y @bvdm/delano@latest status
 npx -y @bvdm/delano@latest next -- --all
@@ -95,6 +104,7 @@ npx -y @bvdm/delano@latest next -- --all
 If the package is installed locally or globally, run these inside the target repository:
 
 ```bash
+delano onboarding
 delano validate
 delano status
 delano next -- --all
@@ -133,6 +143,7 @@ The CLI does not bundle its own shell or Python runtime.
 
 The base install payload intentionally excludes top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, and `PI.md`. Those remain opt-in only.
 The installable `.project/context/` pack is seeded from generic templates during packaging; it does not ship Delano's own repo-specific context files into consumer repositories.
+After install, the recommended first step is `delano onboarding`, which requires explicit approval before it reviews `AGENTS.md`.
 
 ## Optional AGENTS.md / CLAUDE.md snippet
 

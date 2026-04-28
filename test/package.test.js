@@ -52,11 +52,15 @@ test("build:assets stages generic context templates instead of Delano repo conte
   const contextEntry = manifest.files.find((entry) => (
     typeof entry === "object" && entry.target === ".project/context/project-brief.md"
   ));
+  const onboardingEntry = manifest.files.find((entry) => (
+    entry === ".agents/skills/onboarding/SKILL.md"
+  ));
 
   assert.deepEqual(contextEntry, {
     source: "assets/templates/context/project-brief.md",
     target: ".project/context/project-brief.md"
   });
+  assert.equal(onboardingEntry, ".agents/skills/onboarding/SKILL.md");
 
   const liveContextPath = path.join(repoRoot, ".project", "context", "project-brief.md");
   const stagedContextPath = path.join(
@@ -67,6 +71,15 @@ test("build:assets stages generic context templates instead of Delano repo conte
     "context",
     "project-brief.md"
   );
+  const stagedOnboardingSkillPath = path.join(
+    repoRoot,
+    "assets",
+    "payload",
+    ".agents",
+    "skills",
+    "onboarding",
+    "SKILL.md"
+  );
 
   const liveContext = fs.readFileSync(liveContextPath, "utf8");
   const stagedContext = fs.readFileSync(stagedContextPath, "utf8");
@@ -74,4 +87,5 @@ test("build:assets stages generic context templates instead of Delano repo conte
   assert.match(liveContext, /Delano is both the product and the reference repository/);
   assert.doesNotMatch(stagedContext, /Delano is both the product and the reference repository/);
   assert.match(stagedContext, /<describe the product or operational problem this repository exists to solve>/);
+  assert.equal(fs.existsSync(stagedOnboardingSkillPath), true);
 });

@@ -4,14 +4,16 @@ const path = require("node:path");
 
 const { commands, getGeneralHelp, resolveInvocation } = require("../src/cli");
 const { normalizeManifestEntries, parseAgentList } = require("../src/cli/lib/install");
+const { ANALYSIS_APPROVAL_FLAG, analyzeAgentsContent, parseOnboardingArgs } = require("../src/cli/lib/onboarding");
 const { findDelanoRoot, normalizeBashScriptPath } = require("../src/cli/lib/runtime");
 
 test("CLI exposes the planned v1 command surface", () => {
-  assert.deepEqual(Object.keys(commands).sort(), ["init", "install", "next", "status", "validate"]);
+  assert.deepEqual(Object.keys(commands).sort(), ["init", "install", "next", "onboarding", "status", "validate"]);
 });
 
 test("general help mentions the install and wrapper commands", () => {
   const helpText = getGeneralHelp();
+  assert.match(helpText, /\bonboarding\b/);
   assert.match(helpText, /\binstall\b/);
   assert.match(helpText, /\bvalidate\b/);
   assert.match(helpText, /\bnext\b/);
@@ -25,6 +27,28 @@ test("top-level install options are treated as install shorthand", () => {
     commandArgs: ["--target", "../repo", "--yes"],
     command: commands.install
   });
+});
+
+test("onboarding args support explicit approval and target overrides", () => {
+  assert.deepEqual(parseOnboardingArgs([ANALYSIS_APPROVAL_FLAG, "--target", "..\\repo"]), {
+    approveAnalysis: true,
+    target: path.resolve("..\\repo")
+  });
+});
+
+test("onboarding analysis reports missing workflow and safety guidance", () => {
+  const review = analyzeAgentsContent([
+    "## Canonical truth",
+    "- `HANDBOOK.md`",
+    "- `.project/`",
+    "",
+    "## Adapter model",
+    "- `.agents/`"
+  ].join("\n"));
+
+  assert.ok(review.strengths.length > 0);
+  assert.ok(review.gaps.some((gap) => gap.includes("first-turn workflow")));
+  assert.ok(review.gaps.some((gap) => gap.includes("approval boundaries")));
 });
 
 test("agent parsing normalizes values and removes duplicates", () => {

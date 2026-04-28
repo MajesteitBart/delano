@@ -19,3 +19,5 @@ node_modules/
 assets/payload/
 *.tgz
 tmp/
+
+pack-output.json

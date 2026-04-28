@@ -251,6 +251,7 @@ function applyInstallPlan(plan, options) {
 
   console.log("");
   console.log(`Installed ${plan.items.length} files into ${options.target}.`);
+  console.log("Recommended next step: run 'delano onboarding' to review AGENTS.md. The command asks for explicit approval before analysis.");
 }
 
 function normalizeManifestEntries(rawManifest) {
