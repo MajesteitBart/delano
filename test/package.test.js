@@ -178,3 +178,13 @@ test("status transition validation rejects blocked transitions without owner and
   assert.match(checkResult.stderr, /blocked_owner/);
   assert.match(checkResult.stderr, /blocked_check_back/);
 });
+
+test("evidence map validation covers done task acceptance criteria", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-evidence-map.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Evidence map check passed/);
+});
