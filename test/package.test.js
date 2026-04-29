@@ -208,3 +208,17 @@ test("sync schemas define drift taxonomy and local mapping contract", () => {
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Sync schema check passed/);
 });
+
+
+test("local sync map reader normalizes project and task references", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-local-sync-map.mjs", "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  const parsed = JSON.parse(checkResult.stdout);
+  assert.equal(parsed.sync_map.schema_version, 1);
+  assert.ok(parsed.sync_map.projects.some((project) => project.slug === "delano-operational-sync"));
+  assert.ok(parsed.sync_map.projects.some((project) => project.tasks.some((task) => task.local_id === "T-002")));
+});

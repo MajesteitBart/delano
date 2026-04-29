@@ -505,6 +505,48 @@ if [[ -n "$sync_schema_check" ]]; then
   fi
 fi
 
+local_sync_map_check=""
+if [[ -f .agents/scripts/check-local-sync-map.mjs ]]; then
+  local_sync_map_check=".agents/scripts/check-local-sync-map.mjs"
+elif [[ -f scripts/check-local-sync-map.mjs ]]; then
+  local_sync_map_check="scripts/check-local-sync-map.mjs"
+fi
+
+if [[ -n "$local_sync_map_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$local_sync_map_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for local sync map check"
+    errors=$((errors + 1))
+  fi
+fi
+
+local_sync_map_check=""
+if [[ -f .agents/scripts/read-local-sync-map.mjs ]]; then
+  local_sync_map_check=".agents/scripts/read-local-sync-map.mjs"
+elif [[ -f scripts/read-local-sync-map.mjs ]]; then
+  local_sync_map_check="scripts/read-local-sync-map.mjs"
+fi
+
+if [[ -n "$local_sync_map_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$local_sync_map_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for local sync map check"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

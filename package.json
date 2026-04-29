@@ -31,6 +31,7 @@
     "check:status-transitions": "node scripts/check-status-transitions.mjs",
     "check:evidence-map": "node scripts/check-evidence-map.mjs",
     "check:strict-fixtures": "node scripts/check-strict-fixtures.mjs",
-    "check:sync-schemas": "node scripts/check-sync-schemas.mjs"
+    "check:sync-schemas": "node scripts/check-sync-schemas.mjs",
+    "check:local-sync-map": "node scripts/read-local-sync-map.mjs"
   }
 }
