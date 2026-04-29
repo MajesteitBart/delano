@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "status": "draft",
+  "purpose": "Defines local validation rules for Delano task status readiness and blocked-state hygiene.",
+  "task_rules": [
+    {
+      "id": "ready-dependencies-done",
+      "status": "ready",
+      "description": "A ready task must not depend on a local task that is not done.",
+      "requires": ["all local depends_on task statuses are done"]
+    },
+    {
+      "id": "in-progress-dependencies-done",
+      "status": "in-progress",
+      "description": "An in-progress task must not start while local dependencies remain unresolved.",
+      "requires": ["all local depends_on task statuses are done"]
+    },
+    {
+      "id": "done-dependencies-done",
+      "status": "done",
+      "description": "A done task must not close over unresolved local dependencies.",
+      "requires": ["all local depends_on task statuses are done"]
+    },
+    {
+      "id": "blocked-owner-check-back",
+      "status": "blocked",
+      "description": "A blocked task must name who owns unblocking and when to check back.",
+      "requires": ["blocked_owner", "blocked_check_back"]
+    }
+  ]
+}

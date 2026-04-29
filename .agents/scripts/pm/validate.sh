@@ -421,6 +421,27 @@ if [[ -n "$operating_modes_check" ]]; then
   fi
 fi
 
+status_transition_check=""
+if [[ -f .agents/scripts/check-status-transitions.mjs ]]; then
+  status_transition_check=".agents/scripts/check-status-transitions.mjs"
+elif [[ -f scripts/check-status-transitions.mjs ]]; then
+  status_transition_check="scripts/check-status-transitions.mjs"
+fi
+
+if [[ -n "$status_transition_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$status_transition_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for status transition check"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

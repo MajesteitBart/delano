@@ -137,3 +137,44 @@ test("operating modes contract covers modes 0 through 4", () => {
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Operating modes check passed/);
 });
+
+test("status transition validation catches unresolved task states", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-status-transitions.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Status transition check passed/);
+});
+
+test("status transition validation rejects unresolved proposed transitions", () => {
+  const checkResult = spawnSync(process.execPath, [
+    "scripts/check-status-transitions.mjs",
+    "--validate-transition",
+    "ready",
+    "--dependency-statuses",
+    "ready,done"
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr, /cannot transition to ready with unresolved dependency status: ready/);
+});
+
+test("status transition validation rejects blocked transitions without owner and check-back", () => {
+  const checkResult = spawnSync(process.execPath, [
+    "scripts/check-status-transitions.mjs",
+    "--validate-transition",
+    "blocked"
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr, /blocked_owner/);
+  assert.match(checkResult.stderr, /blocked_check_back/);
+});
