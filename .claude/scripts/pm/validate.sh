@@ -442,6 +442,27 @@ if [[ -n "$status_transition_check" ]]; then
   fi
 fi
 
+evidence_map_check=""
+if [[ -f .agents/scripts/check-evidence-map.mjs ]]; then
+  evidence_map_check=".agents/scripts/check-evidence-map.mjs"
+elif [[ -f scripts/check-evidence-map.mjs ]]; then
+  evidence_map_check="scripts/check-evidence-map.mjs"
+fi
+
+if [[ -n "$evidence_map_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$evidence_map_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for evidence map check"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"
