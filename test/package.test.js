@@ -292,3 +292,32 @@ test("Linear issue inspection accepts local-only snapshots", () => {
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Linear issue inspection passed/);
 });
+
+test("dry-run drift report emits typed non-mutating recommendations", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/build-drift-report.mjs", "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  const parsed = JSON.parse(checkResult.stdout);
+  assert.equal(parsed.schema_version, 1);
+  assert.equal(parsed.mode, "dry-run");
+  assert.equal(parsed.apply_posture, "never-apply-without-explicit-approval");
+  for (const drift of parsed.drift) {
+    assert.match(drift.drift_type, /^(mapping-drift|status-drift|dependency-drift|orphan-drift)$/);
+    assert.equal(drift.apply_posture, "dry-run-plan-first");
+  }
+});
+
+test("dry-run drift report emits typed non-mutating repair recommendations", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/build-drift-report.mjs", "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  const report = JSON.parse(checkResult.stdout);
+  assert.equal(report.mode, "dry-run");
+  assert.equal(report.summary.repair_count, report.repair_recommendations.length);
+});

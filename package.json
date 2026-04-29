@@ -35,6 +35,7 @@
     "check:local-sync-map": "node scripts/read-local-sync-map.mjs",
     "check:github-sync": "node scripts/check-github-sync.mjs",
     "check:github-status": "node scripts/check-github-status-inspection.mjs",
-    "check:linear-inspection": "node scripts/check-linear-issue-inspection.mjs"
+    "check:linear-inspection": "node scripts/check-linear-issue-inspection.mjs",
+    "check:drift-report": "node scripts/build-drift-report.mjs"
   }
 }

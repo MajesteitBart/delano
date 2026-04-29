@@ -631,6 +631,27 @@ if [[ -n "$linear_issue_check" ]]; then
   fi
 fi
 
+drift_report_check=""
+if [[ -f .agents/scripts/build-drift-report.mjs ]]; then
+  drift_report_check=".agents/scripts/build-drift-report.mjs"
+elif [[ -f scripts/build-drift-report.mjs ]]; then
+  drift_report_check="scripts/build-drift-report.mjs"
+fi
+
+if [[ -n "$drift_report_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$drift_report_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for dry-run drift report"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"
