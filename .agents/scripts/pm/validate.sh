@@ -721,6 +721,22 @@ if [[ -n "$lease_conflict_check" ]]; then
   fi
 fi
 
+next_task_check=""
+if [[ -f .agents/scripts/select-next-task.mjs ]]; then
+  next_task_check=".agents/scripts/select-next-task.mjs"
+elif [[ -f scripts/select-next-task.mjs ]]; then
+  next_task_check="scripts/select-next-task.mjs"
+fi
+
+if [[ -n "$next_task_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$next_task_check" --project delano-multi-agent-execution --stream default; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for next task selection check"; errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

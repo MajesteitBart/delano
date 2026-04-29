@@ -358,3 +358,12 @@ test("lease conflict check blocks overlapping exclusive zones", () => {
   const conflict = spawnSync(process.execPath, ["scripts/check-lease-conflicts.mjs", "--state", state, "--zone", "scripts/lease-manager.mjs", "--mode", "shared"], { cwd: repoRoot, encoding: "utf8" });
   assert.equal(conflict.status, 2, conflict.stderr || conflict.stdout);
 });
+
+
+test("next task selection is stream aware", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/select-next-task.mjs", "--project", "delano-multi-agent-execution", "--stream", "delta-prairie", "--json"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  const result = JSON.parse(checkResult.stdout);
+  assert.equal(result.stream, "delta-prairie");
+  assert.ok(Object.hasOwn(result, "candidate_count"));
+});

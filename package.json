@@ -40,6 +40,7 @@
     "check:repair-plan": "node scripts/plan-sync-repairs.mjs",
     "check:lease-contracts": "node scripts/check-lease-contracts.mjs",
     "check:lease-manager": "node scripts/lease-manager.mjs self-test",
-    "check:lease-conflicts": "node scripts/check-lease-conflicts.mjs --zone scripts/lease-manager.mjs --mode exclusive"
+    "check:lease-conflicts": "node scripts/check-lease-conflicts.mjs --zone scripts/lease-manager.mjs --mode exclusive",
+    "check:next-task": "node scripts/select-next-task.mjs --project delano-multi-agent-execution --stream default"
   }
 }
