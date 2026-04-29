@@ -341,3 +341,10 @@ test("lease contract defines lifecycle fields", () => {
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Lease contract check passed/);
 });
+
+
+test("lease manager acquires inspects and releases leases", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "self-test"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Lease manager self-test passed/);
+});

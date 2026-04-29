@@ -689,6 +689,22 @@ if [[ -n "$lease_contract_check" ]]; then
   fi
 fi
 
+lease_manager_check=""
+if [[ -f .agents/scripts/lease-manager.mjs ]]; then
+  lease_manager_check=".agents/scripts/lease-manager.mjs"
+elif [[ -f scripts/lease-manager.mjs ]]; then
+  lease_manager_check="scripts/lease-manager.mjs"
+fi
+
+if [[ -n "$lease_manager_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$lease_manager_check" self-test; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for lease manager check"; errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"
