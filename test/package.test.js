@@ -348,3 +348,13 @@ test("lease manager acquires inspects and releases leases", () => {
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Lease manager self-test passed/);
 });
+
+
+test("lease conflict check blocks overlapping exclusive zones", () => {
+  const tmp = require("node:fs").mkdtempSync(require("node:path").join(require("node:os").tmpdir(), "delano-conflict-"));
+  const state = require("node:path").join(tmp, "leases.json");
+  const acquire = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "acquire", "--state", state, "--owner", "test", "--project", "delano-multi-agent-execution", "--task", "T-003", "--zone", "scripts/lease-manager.mjs", "--mode", "exclusive"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(acquire.status, 0, acquire.stderr || acquire.stdout);
+  const conflict = spawnSync(process.execPath, ["scripts/check-lease-conflicts.mjs", "--state", state, "--zone", "scripts/lease-manager.mjs", "--mode", "shared"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(conflict.status, 2, conflict.stderr || conflict.stdout);
+});

@@ -187,6 +187,7 @@
     ".agents/schemas/sync/drift-report.schema.json",
     ".agents/schemas/leases/lease.schema.json",
     ".agents/scripts/check-lease-contracts.mjs",
-    ".agents/scripts/lease-manager.mjs"
+    ".agents/scripts/lease-manager.mjs",
+    ".agents/scripts/check-lease-conflicts.mjs"
   ]
 }

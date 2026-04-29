@@ -705,6 +705,22 @@ if [[ -n "$lease_manager_check" ]]; then
   fi
 fi
 
+lease_conflict_check=""
+if [[ -f .agents/scripts/check-lease-conflicts.mjs ]]; then
+  lease_conflict_check=".agents/scripts/check-lease-conflicts.mjs"
+elif [[ -f scripts/check-lease-conflicts.mjs ]]; then
+  lease_conflict_check="scripts/check-lease-conflicts.mjs"
+fi
+
+if [[ -n "$lease_conflict_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$lease_conflict_check" --zone scripts/lease-manager.mjs --mode exclusive; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for lease conflict check"; errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"
