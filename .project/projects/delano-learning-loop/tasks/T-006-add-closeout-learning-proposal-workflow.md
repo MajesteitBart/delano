@@ -41,3 +41,5 @@ Require closeouts to propose specific rule, skill, schema, or fixture updates wi
 - 2026-04-28T23:14:00Z: Task created from roadmap review; implementation evidence pending.
 
 - 2026-04-30T02:38:00Z: Inspected validation-wired eval state after `8694b87`. Added `scripts/propose-closeout-learning.mjs` to generate summary-only, dry-run closeout learning proposals with no mutation path; mirrored to `.agents` and `.claude`, wired `check:closeout-learning` into PM validation and tests, and staged it in npm payload. Validation passed: `npm run check:closeout-learning`, `bash .agents/scripts/pm/validate.sh`, and `npm test`.
+
+- 2026-04-30T02:42:00Z: Inspected closeout skill state after eval wiring. Added `closeout-learning-proposal` schema and closeout template requiring proposed rule, skill, schema, or fixture updates to remain proposed until reviewed before adoption; updated closeout skill/runbook/checklist, mirrored to `.claude`, wired `check:closeout-learning` into validation and tests, and staged package assets. Validation passed: `npm run check:closeout-learning`, `bash .agents/scripts/pm/validate.sh`, and `npm test`.

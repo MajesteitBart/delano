@@ -476,3 +476,9 @@ test("closeout learning proposal is dry-run only", () => {
   assert.equal(proposal.mode, "dry-run-proposal");
   assert.equal(proposal.apply_posture, "proposal-only-no-mutation");
 });
+
+test("closeout learning proposals require review before adoption", () => {
+  const result = spawnSync(process.execPath, ["scripts/check-closeout-learning-proposals.mjs"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Closeout learning proposal workflow check passed/);
+});
