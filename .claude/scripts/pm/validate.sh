@@ -484,6 +484,27 @@ if [[ -n "$strict_fixtures_check" ]]; then
   fi
 fi
 
+sync_schema_check=""
+if [[ -f .agents/scripts/check-sync-schemas.mjs ]]; then
+  sync_schema_check=".agents/scripts/check-sync-schemas.mjs"
+elif [[ -f scripts/check-sync-schemas.mjs ]]; then
+  sync_schema_check="scripts/check-sync-schemas.mjs"
+fi
+
+if [[ -n "$sync_schema_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$sync_schema_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for sync schema check"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

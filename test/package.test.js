@@ -198,3 +198,13 @@ test("strict validation fixtures include valid and invalid project cases", () =>
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Strict fixture check passed/);
 });
+
+test("sync schemas define drift taxonomy and local mapping contract", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-sync-schemas.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Sync schema check passed/);
+});
