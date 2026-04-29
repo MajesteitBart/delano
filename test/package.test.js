@@ -321,3 +321,16 @@ test("dry-run drift report emits typed non-mutating repair recommendations", () 
   assert.equal(report.mode, "dry-run");
   assert.equal(report.summary.repair_count, report.repair_recommendations.length);
 });
+
+
+test("repair planning blocks apply without explicit token", () => {
+  const planResult = spawnSync(process.execPath, ["scripts/plan-sync-repairs.mjs", "--json"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(planResult.status, 0, planResult.stderr || planResult.stdout);
+  const plan = JSON.parse(planResult.stdout);
+  assert.equal(plan.apply_gate.status, "blocked");
+  assert.equal(plan.summary.mutation_count, 0);
+
+  const applyResult = spawnSync(process.execPath, ["scripts/plan-sync-repairs.mjs", "--apply"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(applyResult.status, 2, applyResult.stderr || applyResult.stdout);
+  assert.match(applyResult.stderr, /Refusing apply/);
+});

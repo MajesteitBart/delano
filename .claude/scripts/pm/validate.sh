@@ -652,6 +652,27 @@ if [[ -n "$drift_report_check" ]]; then
   fi
 fi
 
+repair_plan_check=""
+if [[ -f .agents/scripts/plan-sync-repairs.mjs ]]; then
+  repair_plan_check=".agents/scripts/plan-sync-repairs.mjs"
+elif [[ -f scripts/plan-sync-repairs.mjs ]]; then
+  repair_plan_check="scripts/plan-sync-repairs.mjs"
+fi
+
+if [[ -n "$repair_plan_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$repair_plan_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for sync repair planning"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

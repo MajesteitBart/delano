@@ -11,19 +11,20 @@ const localOnlyMode = process.argv.includes("--local-only") || (!process.argv.in
 const githubSnapshotPath = readOption("--github-snapshot") || path.join(repoRoot, ".agents", "fixtures", "github", "status-snapshot.json");
 const linearSnapshotPath = readOption("--linear-snapshot") || path.join(repoRoot, ".agents", "fixtures", "linear", "issue-snapshot.json");
 
-const syncMap = readLocalSyncMap(repoRoot);
-const githubSnapshot = localOnlyMode ? { repositories: [] } : readJson(githubSnapshotPath, { repositories: [] });
-const linearSnapshot = localOnlyMode ? { issues: [] } : readJson(linearSnapshotPath, { issues: [] });
-const report = buildDriftReport(syncMap, githubSnapshot, linearSnapshot, { localOnlyMode });
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const syncMap = readLocalSyncMap(repoRoot);
+  const githubSnapshot = localOnlyMode ? { repositories: [] } : readJson(githubSnapshotPath, { repositories: [] });
+  const linearSnapshot = localOnlyMode ? { issues: [] } : readJson(linearSnapshotPath, { issues: [] });
+  const report = buildDriftReport(syncMap, githubSnapshot, linearSnapshot, { localOnlyMode });
 
-if (jsonMode) {
-  console.log(JSON.stringify(report, null, 2));
-} else {
-  console.log(`Dry-run drift report produced ${report.summary.drift_count} drift item(s) from ${report.summary.task_count} task(s).`);
-  console.log(`Mode: ${report.mode}; apply posture: ${report.apply_posture}.`);
-  for (const drift of report.drift) console.log(`- ${drift.severity}: ${drift.target} ${drift.summary}`);
+  if (jsonMode) {
+    console.log(JSON.stringify(report, null, 2));
+  } else {
+    console.log(`Dry-run drift report produced ${report.summary.drift_count} drift item(s) from ${report.summary.tasks} task(s).`);
+    console.log(`Mode: ${report.mode}; apply posture: ${report.apply_posture}.`);
+    for (const drift of report.drift) console.log(`- ${drift.severity}: ${drift.target} ${drift.summary}`);
+  }
 }
-
 export function buildDriftReport(syncMap, githubSnapshot = {}, linearSnapshot = {}, options = {}) {
   const githubIndex = indexGithubSnapshot(githubSnapshot);
   const linearIndex = new Map((linearSnapshot.issues || []).map((issue) => [String(issue.id), issue]));

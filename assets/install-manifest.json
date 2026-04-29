@@ -40,6 +40,7 @@
     ".agents/fixtures/linear/issue-snapshot.json",
     ".agents/scripts/check-linear-issue-inspection.mjs",
     ".agents/scripts/build-drift-report.mjs",
+    ".agents/scripts/plan-sync-repairs.mjs",
     ".agents/scripts/fix-path-standards.sh",
     ".agents/scripts/git-sparse-download.sh",
     ".agents/scripts/log-event.js",
