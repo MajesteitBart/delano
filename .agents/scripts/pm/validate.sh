@@ -673,6 +673,22 @@ if [[ -n "$repair_plan_check" ]]; then
   fi
 fi
 
+lease_contract_check=""
+if [[ -f .agents/scripts/check-lease-contracts.mjs ]]; then
+  lease_contract_check=".agents/scripts/check-lease-contracts.mjs"
+elif [[ -f scripts/check-lease-contracts.mjs ]]; then
+  lease_contract_check="scripts/check-lease-contracts.mjs"
+fi
+
+if [[ -n "$lease_contract_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$lease_contract_check"; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for lease contract check"; errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

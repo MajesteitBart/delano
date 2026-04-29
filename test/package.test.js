@@ -334,3 +334,10 @@ test("repair planning blocks apply without explicit token", () => {
   assert.equal(applyResult.status, 2, applyResult.stderr || applyResult.stdout);
   assert.match(applyResult.stderr, /Refusing apply/);
 });
+
+
+test("lease contract defines lifecycle fields", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-lease-contracts.mjs"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Lease contract check passed/);
+});

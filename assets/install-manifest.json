@@ -184,6 +184,8 @@
     ".agents/validation-fixtures/strict/manifest.json",
     ".agents/validation-fixtures/strict/valid/minimal-project/task.md",
     ".agents/fixtures/github/status-snapshot.json",
-    ".agents/schemas/sync/drift-report.schema.json"
+    ".agents/schemas/sync/drift-report.schema.json",
+    ".agents/schemas/leases/lease.schema.json",
+    ".agents/scripts/check-lease-contracts.mjs"
   ]
 }
