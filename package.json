@@ -23,6 +23,7 @@
     "prepack": "npm run build:assets",
     "test": "node --test",
     "viewer": "node .delano/viewer/server.js",
-    "check:package-manifest": "node scripts/check-package-manifest-drift.mjs"
+    "check:package-manifest": "node scripts/check-package-manifest-drift.mjs",
+    "check:agent-entry-docs": "node scripts/check-agent-entry-docs.mjs"
   }
 }

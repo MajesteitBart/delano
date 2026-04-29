@@ -351,6 +351,20 @@ if [[ -f scripts/check-package-manifest-drift.mjs ]]; then
   fi
 fi
 
+if [[ -f scripts/check-agent-entry-docs.mjs ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node scripts/check-agent-entry-docs.mjs; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for agent entry doc check"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

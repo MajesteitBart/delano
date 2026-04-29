@@ -98,4 +98,13 @@ test("package manifest and generated payload stay in sync", () => {
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Package\/manifest drift check passed/);
 });
+test("agent entry docs keep operational handoff guidance", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-agent-entry-docs.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Agent entry doc check passed/);
+});
 
