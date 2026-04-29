@@ -22,6 +22,7 @@
     "build:assets": "node scripts/build-npm-assets.mjs",
     "prepack": "npm run build:assets",
     "test": "node --test",
-    "viewer": "node .delano/viewer/server.js"
+    "viewer": "node .delano/viewer/server.js",
+    "check:package-manifest": "node scripts/check-package-manifest-drift.mjs"
   }
 }

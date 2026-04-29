@@ -89,3 +89,13 @@ test("build:assets stages generic context templates instead of Delano repo conte
   assert.match(stagedContext, /<describe the product or operational problem this repository exists to solve>/);
   assert.equal(fs.existsSync(stagedOnboardingSkillPath), true);
 });
+test("package manifest and generated payload stay in sync", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-package-manifest-drift.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Package\/manifest drift check passed/);
+});
+

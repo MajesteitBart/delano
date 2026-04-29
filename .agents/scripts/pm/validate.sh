@@ -337,6 +337,20 @@ if [[ -x .agents/scripts/check-log-safety.sh ]]; then
   fi
 fi
 
+if [[ -f scripts/check-package-manifest-drift.mjs ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node scripts/check-package-manifest-drift.mjs; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for package/manifest drift check"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"
