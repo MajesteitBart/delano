@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delano.local/schemas/leases/lease.schema.json",
+  "title": "Delano multi-agent path lease",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "lease_id", "owner", "mode", "paths", "created_at", "expires_at", "status"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "lease_id": { "type": "string", "pattern": "^lease-[0-9TZ._-]+-[a-z0-9-]+$" },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent_id", "stream"],
+      "properties": {
+        "agent_id": { "type": "string", "minLength": 1 },
+        "stream": { "type": "string", "minLength": 1 },
+        "task": { "type": "string" }
+      }
+    },
+    "mode": { "enum": ["shared", "exclusive"] },
+    "paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "not": { "pattern": "^/" } } },
+    "created_at": { "type": "string" },
+    "expires_at": { "type": "string" },
+    "released_at": { "type": "string" },
+    "status": { "enum": ["active", "expired", "released"] },
+    "release_reason": { "type": "string" }
+  }
+}
