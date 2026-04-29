@@ -1,0 +1,10 @@
+import { spawnSync } from "node:child_process";
+const status = spawnSync("git", ["status", "--porcelain"], { encoding: "utf8" });
+const branch = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { encoding: "utf8" });
+const upstream = spawnSync("git", ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], { encoding: "utf8" });
+const issues = [];
+if (status.status !== 0) issues.push("git status failed");
+if (branch.status !== 0 || !branch.stdout.trim()) issues.push("branch could not be resolved");
+const result = { schema_version: 1, branch: branch.stdout.trim(), upstream: upstream.status === 0 ? upstream.stdout.trim() : "", dirty: Boolean(status.stdout.trim()), issues };
+if (process.argv.includes("--json")) console.log(JSON.stringify(result, null, 2)); else console.log(`Worktree health: ${issues.length ? "issues" : "ok"}; dirty=${result.dirty}; branch=${result.branch}.`);
+if (issues.length) process.exit(1);

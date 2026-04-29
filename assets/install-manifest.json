@@ -189,6 +189,7 @@
     ".agents/scripts/check-lease-contracts.mjs",
     ".agents/scripts/lease-manager.mjs",
     ".agents/scripts/check-lease-conflicts.mjs",
-    ".agents/scripts/select-next-task.mjs"
+    ".agents/scripts/select-next-task.mjs",
+    ".agents/scripts/check-worktree-health.mjs"
   ]
 }

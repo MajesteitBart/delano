@@ -367,3 +367,12 @@ test("next task selection is stream aware", () => {
   assert.equal(result.stream, "delta-prairie");
   assert.ok(Object.hasOwn(result, "candidate_count"));
 });
+
+
+test("worktree health reports branch and dirty state", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-worktree-health.mjs", "--json"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  const result = JSON.parse(checkResult.stdout);
+  assert.ok(result.branch);
+  assert.equal(typeof result.dirty, "boolean");
+});

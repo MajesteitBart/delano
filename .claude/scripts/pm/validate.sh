@@ -737,6 +737,22 @@ if [[ -n "$next_task_check" ]]; then
   fi
 fi
 
+worktree_health_check=""
+if [[ -f .agents/scripts/check-worktree-health.mjs ]]; then
+  worktree_health_check=".agents/scripts/check-worktree-health.mjs"
+elif [[ -f scripts/check-worktree-health.mjs ]]; then
+  worktree_health_check="scripts/check-worktree-health.mjs"
+fi
+
+if [[ -n "$worktree_health_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$worktree_health_check"; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for worktree health check"; errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"
