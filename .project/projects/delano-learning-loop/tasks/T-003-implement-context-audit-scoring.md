@@ -41,3 +41,5 @@ Classify context files as real, placeholder, stale, missing required commands, o
 - 2026-04-28T23:14:00Z: Task created from roadmap review; implementation evidence pending.
 
 - 2026-04-30T02:17:00Z: Inspected learning metrics state after `04e83f1`. Added `scripts/audit-context-scoring.mjs` to classify required context paths as real, placeholder, stale, missing, or not applicable; mirrored to `.agents` and `.claude`, wired `check:context-audit` into PM validation and tests, and staged it in npm payload. Validation passed: `npm run check:context-audit`, `bash .agents/scripts/pm/validate.sh`, and `npm test`.
+
+- 2026-04-30T02:18:00Z: Inspected learning-loop state after project metrics summary. Added `scripts/audit-context-files.mjs` to score `.project/context` markdown as real, placeholder, stale, missing required commands, or not applicable with repo-relative evidence only; mirrored to `.agents` and `.claude`, wired `check:context-audit` into PM validation and tests, and staged it in npm payload. Validation passed: `npm run check:context-audit`, `bash .agents/scripts/pm/validate.sh`, and `npm test`.

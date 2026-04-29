@@ -436,3 +436,20 @@ test("context audit scoring classifies required context", () => {
   assert.ok(audit.score > 0);
   assert.equal(audit.summary.missing, 0);
 });
+
+test("context audit scores project context files", () => {
+  const result = spawnSync(process.execPath, ["scripts/audit-context-files.mjs", "--json"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(result.stdout);
+  assert.ok(report.file_count > 0);
+  assert.ok(report.files.every((entry) => entry.path.startsWith(".project/context/")));
+  assert.ok(report.files.every((entry) => ["real", "placeholder", "stale", "missing_required_commands", "not_applicable"].includes(entry.classification)));
+  assert.ok(report.files.every((entry) => typeof entry.score === "number"));
+});
+
+
+test("skill output eval fixtures cover valid and invalid cases", () => {
+  const result = spawnSync(process.execPath, ["scripts/check-skill-output-evals.mjs"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Skill output eval check passed/);
+});
