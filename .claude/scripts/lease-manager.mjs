@@ -54,12 +54,15 @@ function release(statePath, leaseId, reason, handoff) {
   const state = readState(statePath);
   const lease = state.leases.find((item) => item.lease_id === leaseId);
   if (!lease) throw Object.assign(new Error(`Lease not found: ${leaseId}`), { exitCode: 1 });
+  if (!handoff.trim()) {
+    throw Object.assign(new Error("--handoff is required and must summarize changed work, evidence, blockers, lease state, and next safe action."), { exitCode: 1 });
+  }
   lease.status = "released";
   lease.released_at = new Date().toISOString();
   lease.release_reason = reason;
-  if (handoff) lease.handoff_summary = handoff;
+  lease.handoff_summary = handoff.trim();
   writeState(statePath, state);
-  return { message: `Released ${leaseId}.`, lease };
+  return { message: `Released ${leaseId} with handoff summary.`, lease };
 }
 
 function selfTest() {

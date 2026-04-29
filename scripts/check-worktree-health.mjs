@@ -73,7 +73,7 @@ function parseWorktrees(text) {
     }
     const [key, ...rest] = line.split(" ");
     const value = rest.join(" ");
-    if (key === "worktree") current = { path: normalizePath(value), branch: "", head: "", bare: false, detached: false };
+    if (key === "worktree") current = { path: safeWorktreePath(value), branch: "", head: "", bare: false, detached: false };
     else if (!current) continue;
     else if (key === "HEAD") current.head = value;
     else if (key === "branch") current.branch = value.replace(/^refs\/heads\//, "");
@@ -85,6 +85,13 @@ function parseWorktrees(text) {
 }
 function parseStaleWorktrees(text) {
   return text.split("\n").map((line) => line.trim()).filter(Boolean).map((line) => normalizePath(line.replace(/^Removing worktrees\//, "worktrees/")));
+}
+function safeWorktreePath(value) {
+  const absolute = path.resolve(String(value || ""));
+  const cwd = path.resolve(process.cwd());
+  if (absolute === cwd) return ".";
+  if (absolute.startsWith(`${cwd}${path.sep}`)) return normalizePath(path.relative(cwd, absolute));
+  return `external:${path.basename(absolute)}`;
 }
 function normalizePath(value) {
   return String(value || "").replaceAll(path.sep, "/");

@@ -350,6 +350,22 @@ test("lease manager acquires inspects and releases leases", () => {
 });
 
 
+
+
+test("lease release requires handoff summary", () => {
+  const fs = require("node:fs");
+  const os = require("node:os");
+  const path = require("node:path");
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "delano-handoff-"));
+  const state = path.join(tmp, "leases.json");
+  const acquire = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "acquire", "--state", state, "--owner", "test", "--project", "delano-multi-agent-execution", "--task", "T-006", "--zone", "scripts/lease-manager.mjs", "--mode", "exclusive"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(acquire.status, 0, acquire.stderr || acquire.stdout);
+  const leaseId = JSON.parse(fs.readFileSync(state, "utf8")).leases[0].lease_id;
+  const release = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "release", "--state", state, "--lease-id", leaseId], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(release.status, 1, release.stderr || release.stdout);
+  assert.match(release.stderr, /--handoff is required/);
+});
+
 test("lease conflict check blocks overlapping exclusive zones", () => {
   const tmp = require("node:fs").mkdtempSync(require("node:path").join(require("node:os").tmpdir(), "delano-conflict-"));
   const state = require("node:path").join(tmp, "leases.json");
@@ -369,10 +385,13 @@ test("next task selection is stream aware", () => {
 });
 
 
-test("worktree health reports branch and dirty state", () => {
+test("worktree health reports branch, dirty state, worktrees, and risky shared files", () => {
   const checkResult = spawnSync(process.execPath, ["scripts/check-worktree-health.mjs", "--json"], { cwd: repoRoot, encoding: "utf8" });
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   const result = JSON.parse(checkResult.stdout);
   assert.ok(result.branch);
   assert.equal(typeof result.dirty, "boolean");
+  assert.ok(Array.isArray(result.worktrees));
+  assert.ok(Array.isArray(result.stale_worktrees));
+  assert.ok(Array.isArray(result.risky_shared_files));
 });
