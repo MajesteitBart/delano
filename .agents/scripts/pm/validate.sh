@@ -854,6 +854,22 @@ if [[ -n "$skill_eval_check" ]]; then
   fi
 fi
 
+closeout_learning_check=""
+if [[ -f .agents/scripts/propose-closeout-learning.mjs ]]; then
+  closeout_learning_check=".agents/scripts/propose-closeout-learning.mjs"
+elif [[ -f scripts/propose-closeout-learning.mjs ]]; then
+  closeout_learning_check="scripts/propose-closeout-learning.mjs"
+fi
+
+if [[ -n "$closeout_learning_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$closeout_learning_check" --json >/dev/null; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for closeout learning proposal"; errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

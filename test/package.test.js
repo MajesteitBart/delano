@@ -467,3 +467,12 @@ test("validation wires skill output evals", () => {
   const validate = require("node:fs").readFileSync(require("node:path").join(repoRoot, ".agents", "scripts", "pm", "validate.sh"), "utf8");
   assert.match(validate, /check-skill-output-evals\.mjs/);
 });
+
+
+test("closeout learning proposal is dry-run only", () => {
+  const result = spawnSync(process.execPath, ["scripts/propose-closeout-learning.mjs", "--json"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const proposal = JSON.parse(result.stdout);
+  assert.equal(proposal.mode, "dry-run-proposal");
+  assert.equal(proposal.apply_posture, "proposal-only-no-mutation");
+});

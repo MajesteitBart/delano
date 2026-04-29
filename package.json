@@ -47,6 +47,7 @@
     "check:handoff-summaries": "node scripts/check-handoff-summaries.mjs --self-test",
     "check:project-metrics": "node scripts/summarize-project-metrics.mjs --json",
     "check:context-audit": "node scripts/check-context-audit.mjs",
-    "check:skill-output-evals": "node scripts/check-skill-output-evals.mjs"
+    "check:skill-output-evals": "node scripts/check-skill-output-evals.mjs",
+    "check:closeout-learning": "node scripts/propose-closeout-learning.mjs --json"
   }
 }
