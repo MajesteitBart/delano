@@ -127,3 +127,13 @@ test("artifact schemas are present for scoped artifacts", () => {
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Artifact schema check passed/);
 });
+
+test("operating modes contract covers modes 0 through 4", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-operating-modes.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Operating modes check passed/);
+});

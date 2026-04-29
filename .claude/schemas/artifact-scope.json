@@ -23,7 +23,8 @@
       "optional_fields": [
         "source_review",
         "external_reference",
-        "target_version"
+        "target_version",
+        "operating_mode"
       ],
       "enum_fields": {
         "status": [
@@ -64,7 +65,8 @@
         "spec_status_at_plan_time"
       ],
       "optional_fields": [
-        "target_version"
+        "target_version",
+        "operating_mode"
       ],
       "enum_fields": {
         "status": [
@@ -98,7 +100,8 @@
       ],
       "optional_fields": [
         "id",
-        "child_project"
+        "child_project",
+        "operating_mode"
       ],
       "enum_fields": {
         "status": [
@@ -134,7 +137,9 @@
         "priority",
         "estimate"
       ],
-      "optional_fields": [],
+      "optional_fields": [
+        "operating_mode"
+      ],
       "enum_fields": {
         "status": [
           "ready",

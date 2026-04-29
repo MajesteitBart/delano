@@ -400,6 +400,27 @@ if [[ -n "$artifact_schema_check" ]]; then
   fi
 fi
 
+operating_modes_check=""
+if [[ -f .agents/scripts/check-operating-modes.mjs ]]; then
+  operating_modes_check=".agents/scripts/check-operating-modes.mjs"
+elif [[ -f scripts/check-operating-modes.mjs ]]; then
+  operating_modes_check="scripts/check-operating-modes.mjs"
+fi
+
+if [[ -n "$operating_modes_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$operating_modes_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for operating modes check"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"
