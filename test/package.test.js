@@ -427,3 +427,12 @@ test("project metrics summary is privacy safe", () => {
   assert.equal(summary.privacy, "summary-only");
   assert.equal(typeof summary.event_count, "number");
 });
+
+
+test("context audit scoring classifies required context", () => {
+  const result = spawnSync(process.execPath, ["scripts/audit-context-scoring.mjs", "--json"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const audit = JSON.parse(result.stdout);
+  assert.ok(audit.score > 0);
+  assert.equal(audit.summary.missing, 0);
+});

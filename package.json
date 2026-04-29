@@ -45,6 +45,7 @@
     "check:worktree-health": "node scripts/check-worktree-health.mjs",
     "check:delivery-metrics": "node scripts/check-delivery-metrics.mjs",
     "check:handoff-summaries": "node scripts/check-handoff-summaries.mjs --self-test",
-    "check:project-metrics": "node scripts/summarize-project-metrics.mjs --json"
+    "check:project-metrics": "node scripts/summarize-project-metrics.mjs --json",
+    "check:context-audit": "node scripts/audit-context-scoring.mjs"
   }
 }

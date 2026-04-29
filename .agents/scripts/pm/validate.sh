@@ -822,6 +822,22 @@ if [[ -n "$project_metrics_check" ]]; then
   fi
 fi
 
+context_audit_check=""
+if [[ -f .agents/scripts/audit-context-scoring.mjs ]]; then
+  context_audit_check=".agents/scripts/audit-context-scoring.mjs"
+elif [[ -f scripts/audit-context-scoring.mjs ]]; then
+  context_audit_check="scripts/audit-context-scoring.mjs"
+fi
+
+if [[ -n "$context_audit_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$context_audit_check"; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for context audit scoring"; errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

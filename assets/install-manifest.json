@@ -197,6 +197,7 @@
     ".agents/scripts/check-delivery-metrics.mjs",
     ".agents/schemas/metrics/delivery-events.schema.json",
     ".agents/logs/delivery-metrics.md",
-    ".agents/scripts/summarize-project-metrics.mjs"
+    ".agents/scripts/summarize-project-metrics.mjs",
+    ".agents/scripts/audit-context-scoring.mjs"
   ]
 }
