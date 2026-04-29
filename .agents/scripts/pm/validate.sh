@@ -838,6 +838,22 @@ if [[ -n "$context_audit_check" ]]; then
   fi
 fi
 
+skill_eval_check=""
+if [[ -f .agents/scripts/check-skill-output-evals.mjs ]]; then
+  skill_eval_check=".agents/scripts/check-skill-output-evals.mjs"
+elif [[ -f scripts/check-skill-output-evals.mjs ]]; then
+  skill_eval_check="scripts/check-skill-output-evals.mjs"
+fi
+
+if [[ -n "$skill_eval_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$skill_eval_check"; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for skill output evals"; errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

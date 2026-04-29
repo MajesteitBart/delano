@@ -453,3 +453,17 @@ test("skill output eval fixtures cover valid and invalid cases", () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /Skill output eval check passed/);
 });
+
+test("context audit scores required context files", () => {
+  const result = spawnSync(process.execPath, ["scripts/check-context-audit.mjs", "--json"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.blocking_count, 0);
+  assert.ok(report.summary.real >= 1);
+});
+
+
+test("validation wires skill output evals", () => {
+  const validate = require("node:fs").readFileSync(require("node:path").join(repoRoot, ".agents", "scripts", "pm", "validate.sh"), "utf8");
+  assert.match(validate, /check-skill-output-evals\.mjs/);
+});
