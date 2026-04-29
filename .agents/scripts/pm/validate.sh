@@ -379,6 +379,27 @@ if [[ -f scripts/check-artifact-scope.mjs ]]; then
   fi
 fi
 
+artifact_schema_check=""
+if [[ -f .agents/scripts/check-artifact-schemas.mjs ]]; then
+  artifact_schema_check=".agents/scripts/check-artifact-schemas.mjs"
+elif [[ -f scripts/check-artifact-schemas.mjs ]]; then
+  artifact_schema_check="scripts/check-artifact-schemas.mjs"
+fi
+
+if [[ -n "$artifact_schema_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$artifact_schema_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for artifact schema check"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

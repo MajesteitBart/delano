@@ -25,6 +25,7 @@
     "viewer": "node .delano/viewer/server.js",
     "check:package-manifest": "node scripts/check-package-manifest-drift.mjs",
     "check:agent-entry-docs": "node scripts/check-agent-entry-docs.mjs",
-    "check:artifact-scope": "node scripts/check-artifact-scope.mjs"
+    "check:artifact-scope": "node scripts/check-artifact-scope.mjs",
+    "check:artifact-schemas": "node scripts/check-artifact-schemas.mjs"
   }
 }

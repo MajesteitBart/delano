@@ -117,3 +117,13 @@ test("artifact scope contract matches current project artifacts", () => {
   assert.match(checkResult.stdout, /Artifact scope check passed/);
 });
 
+
+test("artifact schemas are present for scoped artifacts", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-artifact-schemas.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Artifact schema check passed/);
+});
