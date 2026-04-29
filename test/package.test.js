@@ -395,3 +395,10 @@ test("worktree health reports branch, dirty state, worktrees, and risky shared f
   assert.ok(Array.isArray(result.stale_worktrees));
   assert.ok(Array.isArray(result.risky_shared_files));
 });
+
+
+test("delivery metric event schema is validated", () => {
+  const result = spawnSync(process.execPath, ["scripts/check-delivery-metric-events.mjs"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Delivery metric event schema check passed/);
+});

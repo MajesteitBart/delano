@@ -42,6 +42,8 @@
     "check:lease-manager": "node scripts/lease-manager.mjs self-test",
     "check:lease-conflicts": "node scripts/check-lease-conflicts.mjs --zone scripts/lease-manager.mjs --mode exclusive",
     "check:next-task": "node scripts/select-next-task.mjs --project delano-multi-agent-execution --stream default",
-    "check:worktree-health": "node scripts/check-worktree-health.mjs"
+    "check:worktree-health": "node scripts/check-worktree-health.mjs",
+    "check:delivery-metrics": "node scripts/check-delivery-metric-events.mjs",
+    "check:handoff-summaries": "node scripts/check-handoff-summaries.mjs --self-test"
   }
 }

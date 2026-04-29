@@ -753,6 +753,38 @@ if [[ -n "$worktree_health_check" ]]; then
   fi
 fi
 
+delivery_metrics_check=""
+if [[ -f .agents/scripts/check-delivery-metric-events.mjs ]]; then
+  delivery_metrics_check=".agents/scripts/check-delivery-metric-events.mjs"
+elif [[ -f scripts/check-delivery-metric-events.mjs ]]; then
+  delivery_metrics_check="scripts/check-delivery-metric-events.mjs"
+fi
+
+if [[ -n "$delivery_metrics_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$delivery_metrics_check"; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for delivery metrics check"; errors=$((errors + 1))
+  fi
+fi
+
+handoff_summary_check=""
+if [[ -f .agents/scripts/check-handoff-summaries.mjs ]]; then
+  handoff_summary_check=".agents/scripts/check-handoff-summaries.mjs"
+elif [[ -f scripts/check-handoff-summaries.mjs ]]; then
+  handoff_summary_check="scripts/check-handoff-summaries.mjs"
+fi
+
+if [[ -n "$handoff_summary_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$handoff_summary_check" --self-test; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for handoff summary check"; errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"
