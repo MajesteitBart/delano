@@ -40,6 +40,7 @@
     ".agents/schemas/artifacts/update.schema.json",
     ".agents/schemas/artifacts/workstream.schema.json",
     ".agents/schemas/evidence-map.json",
+    ".agents/schemas/learning/closeout-learning-proposal.schema.json",
     ".agents/schemas/learning/delivery-metric-event.schema.json",
     ".agents/schemas/leases/lease.schema.json",
     ".agents/schemas/metrics/delivery-events.schema.json",
@@ -52,6 +53,7 @@
     ".agents/scripts/audit-context-scoring.mjs",
     ".agents/scripts/build-drift-report.mjs",
     ".agents/scripts/check-artifact-schemas.mjs",
+    ".agents/scripts/check-closeout-learning-proposals.mjs",
     ".agents/scripts/check-context-audit.mjs",
     ".agents/scripts/check-delivery-metric-events.mjs",
     ".agents/scripts/check-delivery-metrics.mjs",
@@ -88,6 +90,7 @@
     ".agents/scripts/pm/standup.sh",
     ".agents/scripts/pm/status.sh",
     ".agents/scripts/pm/validate.sh",
+    ".agents/scripts/propose-closeout-learning.mjs",
     ".agents/scripts/query-log.sh",
     ".agents/scripts/read-local-sync-map.mjs",
     ".agents/scripts/select-next-task.mjs",
@@ -102,6 +105,8 @@
     ".agents/skills/closeout-skill/SKILL.md",
     ".agents/skills/closeout-skill/references/runbook.md",
     ".agents/skills/closeout-skill/templates/closure-checklist.md",
+    ".agents/skills/closeout-skill/templates/learning-proposal.md",
+    ".agents/skills/closeout-skill/templates/learning-proposals.md",
     ".agents/skills/closeout-skill/templates/outcome-review.md",
     ".agents/skills/discovery-skill/SKILL.md",
     ".agents/skills/discovery-skill/references/runbook.md",
@@ -202,7 +207,6 @@
       "source": "assets/templates/context/tech-context.md",
       "target": ".project/context/tech-context.md"
     },
-    "install-delano.sh",
-    ".agents/scripts/propose-closeout-learning.mjs"
+    "install-delano.sh"
   ]
 }
