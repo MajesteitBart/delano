@@ -6,6 +6,7 @@
     ".agents/adapters/opencode/README.md",
     ".agents/adapters/pi/README.md",
     ".agents/common/README.md",
+    ".agents/common/log-safety.js",
     ".agents/hooks/bash-worktree-fix.sh",
     ".agents/hooks/post-tool-logger.js",
     ".agents/hooks/README.md",
