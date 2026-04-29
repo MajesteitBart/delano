@@ -188,3 +188,13 @@ test("evidence map validation covers done task acceptance criteria", () => {
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Evidence map check passed/);
 });
+
+test("strict validation fixtures include valid and invalid project cases", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-strict-fixtures.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Strict fixture check passed/);
+});

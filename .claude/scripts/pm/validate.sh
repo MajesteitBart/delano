@@ -463,6 +463,27 @@ if [[ -n "$evidence_map_check" ]]; then
   fi
 fi
 
+strict_fixtures_check=""
+if [[ -f .agents/scripts/check-strict-fixtures.mjs ]]; then
+  strict_fixtures_check=".agents/scripts/check-strict-fixtures.mjs"
+elif [[ -f scripts/check-strict-fixtures.mjs ]]; then
+  strict_fixtures_check="scripts/check-strict-fixtures.mjs"
+fi
+
+if [[ -n "$strict_fixtures_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$strict_fixtures_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for strict fixtures check"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

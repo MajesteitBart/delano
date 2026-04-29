@@ -29,6 +29,7 @@
     "check:artifact-schemas": "node scripts/check-artifact-schemas.mjs",
     "check:operating-modes": "node scripts/check-operating-modes.mjs",
     "check:status-transitions": "node scripts/check-status-transitions.mjs",
-    "check:evidence-map": "node scripts/check-evidence-map.mjs"
+    "check:evidence-map": "node scripts/check-evidence-map.mjs",
+    "check:strict-fixtures": "node scripts/check-strict-fixtures.mjs"
   }
 }

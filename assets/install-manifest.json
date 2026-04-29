@@ -30,6 +30,7 @@
     ".agents/scripts/check-operating-modes.mjs",
     ".agents/scripts/check-status-transitions.mjs",
     ".agents/scripts/check-evidence-map.mjs",
+    ".agents/scripts/check-strict-fixtures.mjs",
     ".agents/scripts/fix-path-standards.sh",
     ".agents/scripts/git-sparse-download.sh",
     ".agents/scripts/log-event.js",
@@ -161,6 +162,14 @@
     ".project/templates/task.md",
     ".project/templates/workstream.md",
     "HANDBOOK.md",
-    "install-delano.sh"
+    "install-delano.sh",
+    ".agents/validation-fixtures/strict/invalid/broken-dependencies/dependency.md",
+    ".agents/validation-fixtures/strict/invalid/broken-dependencies/task.md",
+    ".agents/validation-fixtures/strict/invalid/invalid-transition/task.md",
+    ".agents/validation-fixtures/strict/invalid/missing-evidence/task.md",
+    ".agents/validation-fixtures/strict/invalid/path-leak/task.md",
+    ".agents/validation-fixtures/strict/invalid/stale-context/context.md",
+    ".agents/validation-fixtures/strict/manifest.json",
+    ".agents/validation-fixtures/strict/valid/minimal-project/task.md"
   ]
 }
