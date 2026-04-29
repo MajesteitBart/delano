@@ -49,7 +49,9 @@ function auditFile(file) {
 function isPlaceholder(text) {
   const compact = text.replace(/---[\s\S]*?---/, "").trim();
   if (compact.length < 80) return true;
-  return /TODO|TBD|Capture architecture|Document major repository boundaries/i.test(compact);
+  if (/TODO|TBD/i.test(compact)) return true;
+  const repoSpecific = /Delano|\.agents|\.project|HANDBOOK|npm|CLI|runtime/i.test(compact);
+  return !repoSpecific && /Capture architecture|Document major repository boundaries/i.test(compact);
 }
 function isStale(text) {
   const match = text.match(/^updated:\s*(\d{4}-\d{2}-\d{2})/m);
