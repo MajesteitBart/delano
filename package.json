@@ -24,6 +24,7 @@
     "test": "node --test",
     "viewer": "node .delano/viewer/server.js",
     "check:package-manifest": "node scripts/check-package-manifest-drift.mjs",
-    "check:agent-entry-docs": "node scripts/check-agent-entry-docs.mjs"
+    "check:agent-entry-docs": "node scripts/check-agent-entry-docs.mjs",
+    "check:artifact-scope": "node scripts/check-artifact-scope.mjs"
   }
 }

@@ -365,6 +365,20 @@ if [[ -f scripts/check-agent-entry-docs.mjs ]]; then
   fi
 fi
 
+if [[ -f scripts/check-artifact-scope.mjs ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node scripts/check-artifact-scope.mjs; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for artifact scope check"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

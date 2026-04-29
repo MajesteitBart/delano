@@ -41,6 +41,8 @@
     ".agents/scripts/pm/validate.sh",
     ".agents/scripts/query-log.sh",
     ".agents/scripts/README.md",
+    ".agents/schemas/artifact-scope.json",
+    ".agents/schemas/README.md",
     ".agents/scripts/test-and-log.sh",
     ".agents/skills/.gitkeep",
     ".agents/skills/breakdown-skill/references/runbook.md",
