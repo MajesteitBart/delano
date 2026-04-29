@@ -2,13 +2,13 @@
 name: Delano vNext Runtime Upgrade
 slug: delano-vnext-runtime-upgrade
 owner: bart
-status: planned
+status: complete
 created: 2026-04-29T21:57:00Z
-updated: 2026-04-29T21:57:00Z
+updated: 2026-04-30T02:52:00Z
 outcome: Ship Delano v0.2 as a contract-verified, privacy-safe, agent-agnostic delivery runtime rather than only a handbook-led process.
 uncertainty: medium
 probe_required: true
-probe_status: pending
+probe_status: completed
 target_version: 0.2.0
 source_review: /mnt/c/Obsidian/BartsVault/Development/Delano/Review by 5.5 Pro.md
 external_reference: https://developers.openai.com/api/docs/guides/prompt-guidance
@@ -130,9 +130,29 @@ This means v0.2 should improve `AGENTS.md`, adapter docs, and skill trigger crit
 
 ## Acceptance Criteria
 
-- [ ] This version project links the review findings to concrete child delivery projects.
-- [ ] Each child project has spec, plan, workstreams, tasks, and clear evidence expectations.
-- [ ] v0.2 release readiness can be checked with local commands.
-- [ ] Agent instruction updates follow outcome-first prompt guidance while retaining commands and safety boundaries.
-- [ ] Trust/safety fixes land before sync/apply-capable automation.
-- [ ] Final closeout states exactly what is included in v0.2 and what moves to later versions.
+- [x] This version project links the review findings to concrete child delivery projects.
+- [x] Each child project has spec, plan, workstreams, tasks, and clear evidence expectations.
+- [x] v0.2 release readiness can be checked with local commands.
+- [x] Agent instruction updates follow outcome-first prompt guidance while retaining commands and safety boundaries.
+- [x] Trust/safety fixes land before sync/apply-capable automation.
+- [x] Final closeout states exactly what is included in v0.2 and what moves to later versions.
+
+
+## v0.2 Closeout Scope
+
+Included in v0.2:
+- Privacy-safe prompt/log defaults and path-output safety.
+- Package manifest/payload drift validation.
+- Artifact schemas, operating modes, status-transition validation, evidence mapping, and strict fixtures.
+- Dry-run local/GitHub/Linear sync inspection, drift reporting, and apply-gated repair planning.
+- Lease lifecycle, conflict-zone validation, stream-aware task selection, handoff checks, and worktree health.
+- Delivery metric events, project metrics summaries, context audit scoring, skill-output eval fixtures, validation wiring, and reviewed closeout learning proposals.
+- Compact root/adapter agent instructions with shared operational rules in `AGENTS.md`.
+
+Deferred beyond v0.2:
+- Remote GitHub/Linear writes without explicit apply gates.
+- Dashboard-first or enterprise portfolio surfaces.
+- Formal release automation and CI publishing.
+- Broader state-machine orchestration beyond targeted validators.
+
+Release gates are documented in `release-gates.md`.

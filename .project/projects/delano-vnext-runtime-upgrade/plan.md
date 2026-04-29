@@ -1,9 +1,9 @@
 ---
 name: Delano vNext Runtime Upgrade
-status: planned
+status: done
 lead: bart
 created: 2026-04-29T21:57:00Z
-updated: 2026-04-29T21:57:00Z
+updated: 2026-04-30T02:52:00Z
 linear_project_id:
 risk_level: medium
 spec_status_at_plan_time: planned
@@ -99,3 +99,26 @@ Required probes before full implementation:
 - Validator strictness may expose existing artifact debt that needs migration.
 - Linear API behavior may require a dedicated probe before reliable sync.
 - Prompt docs can become too verbose if guidance is copied instead of distilled.
+
+
+## Executed v0.2 Sequence
+
+1. **Trust and safety runtime** (`delano-trust-safety-runtime`) completed first so logging, hook output, package drift, and agent entry handoff were privacy-safe before deeper automation.
+2. **Contract enforcement** (`delano-contract-enforcement`) completed second so schemas, modes, transitions, evidence maps, and strict fixtures became the local enforcement baseline.
+3. **Operational sync** (`delano-operational-sync`) completed third as dry-run-only mapping, GitHub/Linear inspection, drift reports, and apply-gated repair planning.
+4. **Multi-agent execution** (`delano-multi-agent-execution`) completed fourth with leases, conflict checks, stream-aware task selection, handoff summaries, and worktree health checks.
+5. **Learning loop** (`delano-learning-loop`) completed fifth with delivery metrics, project summaries, context audits, skill-output eval fixtures, validation wiring, and reviewed closeout learning proposals.
+
+Risky parallelism was avoided until trust/safety and contract gates existed. After that point, operational sync, lease coordination, and learning-loop checks stayed local-first and dry-run/read-only unless explicitly gated.
+
+## v0.2 Release Gates
+
+Release readiness is tracked in `release-gates.md`. The required local command sequence is:
+
+```bash
+npm run build:assets
+bash .agents/scripts/pm/validate.sh
+npm test
+```
+
+The release candidate is blocked if any gate fails, if evidence is missing for done work, or if the working tree has unexplained changes.

@@ -1,10 +1,10 @@
 ---
 id: T-003
 name: Integrate prompt guidance into agent instructions
-status: ready
+status: done
 workstream: WS-A
 created: 2026-04-29T21:57:00Z
-updated: 2026-04-29T21:57:00Z
+updated: 2026-04-30T02:52:00Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -22,10 +22,10 @@ estimate: M
 Update root and adapter instructions to follow current OpenAI prompt guidance: short, outcome-first, operationally explicit, and not duplicated across adapters.
 
 ## Acceptance Criteria
-- [ ] `AGENTS.md` gives first-turn workflow, source-of-truth map, commands, completion rule, and safety boundaries.
-- [ ] Adapter docs explain only adapter-specific behavior and point back to shared contracts.
-- [ ] Instructions include validation/evidence rules and stopping conditions.
-- [ ] Instructions avoid copying long prompt-guidance prose into the repo.
+- [x] `AGENTS.md` gives first-turn workflow, source-of-truth map, commands, completion rule, and safety boundaries.
+- [x] Adapter docs explain only adapter-specific behavior and point back to shared contracts.
+- [x] Instructions include validation/evidence rules and stopping conditions.
+- [x] Instructions avoid copying long prompt-guidance prose into the repo.
 
 ## Technical Notes
 
@@ -36,9 +36,9 @@ Relevant guidance to distill:
 - Avoid legacy prompt bloat.
 
 ## Definition of Done
-- [ ] Agent docs updated.
-- [ ] No duplicated large prompt blocks across adapters.
-- [ ] Docs reviewed for clarity and command accuracy.
+- [x] Agent docs updated.
+- [x] No duplicated large prompt blocks across adapters.
+- [x] Docs reviewed for clarity and command accuracy.
 
 ## Evidence Log
-- Pending.
+- 2026-04-30T02:52:00Z: Verified root and adapter instruction updates: `AGENTS.md` now gives first-turn workflow, source-of-truth map, commands, completion rule, validation/evidence rules, stopping/safety boundaries; `CODEX.md`, `CLAUDE.md`, `OPENCODE.md`, and `PI.md` remain thin adapter pointers. Validation passed: agent entry doc check via `bash .agents/scripts/pm/validate.sh`; `npm test`.
