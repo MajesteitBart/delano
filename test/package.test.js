@@ -402,3 +402,28 @@ test("delivery metric event schema is validated", () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /Delivery metric event schema check passed/);
 });
+
+test("delivery metric event contract is privacy-safe", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-delivery-metric-events.mjs"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Delivery metric event contract check passed/);
+});
+
+test("delivery metric events are metadata-only and privacy-safe", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-delivery-metrics.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Delivery metric event check passed/);
+});
+
+
+test("project metrics summary is privacy safe", () => {
+  const result = spawnSync(process.execPath, ["scripts/summarize-project-metrics.mjs", "--json"], { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const summary = JSON.parse(result.stdout);
+  assert.equal(summary.privacy, "summary-only");
+  assert.equal(typeof summary.event_count, "number");
+});

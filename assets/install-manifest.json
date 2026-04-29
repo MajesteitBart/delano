@@ -193,6 +193,10 @@
       "source": "assets/templates/context/tech-context.md",
       "target": ".project/context/tech-context.md"
     },
-    "install-delano.sh"
+    "install-delano.sh",
+    ".agents/scripts/check-delivery-metrics.mjs",
+    ".agents/schemas/metrics/delivery-events.schema.json",
+    ".agents/logs/delivery-metrics.md",
+    ".agents/scripts/summarize-project-metrics.mjs"
   ]
 }

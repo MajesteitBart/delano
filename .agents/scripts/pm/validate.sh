@@ -785,6 +785,43 @@ if [[ -n "$handoff_summary_check" ]]; then
   fi
 fi
 
+delivery_metrics_check=""
+if [[ -f .agents/scripts/check-delivery-metrics.mjs ]]; then
+  delivery_metrics_check=".agents/scripts/check-delivery-metrics.mjs"
+elif [[ -f scripts/check-delivery-metrics.mjs ]]; then
+  delivery_metrics_check="scripts/check-delivery-metrics.mjs"
+fi
+
+if [[ -n "$delivery_metrics_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$delivery_metrics_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for delivery metric event check"
+    errors=$((errors + 1))
+  fi
+fi
+
+project_metrics_check=""
+if [[ -f .agents/scripts/summarize-project-metrics.mjs ]]; then
+  project_metrics_check=".agents/scripts/summarize-project-metrics.mjs"
+elif [[ -f scripts/summarize-project-metrics.mjs ]]; then
+  project_metrics_check="scripts/summarize-project-metrics.mjs"
+fi
+
+if [[ -n "$project_metrics_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$project_metrics_check" --json >/dev/null; then true; else errors=$((errors + 1)); fi
+  else
+    echo "❌ Node runtime not found for project metrics summary"; errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"
