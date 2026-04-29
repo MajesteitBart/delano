@@ -50,6 +50,13 @@ else
   echo "✅ Raw prompt schema is not documented as default"
 fi
 
+if grep -q 'echo .*\$root' .agents/hooks/bash-worktree-fix.sh; then
+  echo "❌ bash-worktree-fix.sh prints the absolute repository root"
+  errors=$((errors + 1))
+else
+  echo "✅ bash-worktree-fix.sh prints a placeholder instead of the absolute root"
+fi
+
 if [[ $errors -gt 0 ]]; then
   exit 1
 fi
