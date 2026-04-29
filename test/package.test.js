@@ -222,3 +222,17 @@ test("local sync map reader normalizes project and task references", () => {
   assert.ok(parsed.sync_map.projects.some((project) => project.slug === "delano-operational-sync"));
   assert.ok(parsed.sync_map.projects.some((project) => project.tasks.some((task) => task.local_id === "T-002")));
 });
+
+
+test("GitHub sync inspection normalizes issue and PR refs", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/inspect-github-sync.mjs", "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  const parsed = JSON.parse(checkResult.stdout);
+  assert.equal(parsed.schema_version, 1);
+  assert.equal(parsed.mode, "local-dry-run");
+  assert.ok(parsed.projects.some((project) => project.github_repo === "MajesteitBart/delano"));
+});

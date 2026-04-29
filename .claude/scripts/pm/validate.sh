@@ -547,6 +547,27 @@ if [[ -n "$local_sync_map_check" ]]; then
   fi
 fi
 
+github_sync_check=""
+if [[ -f .agents/scripts/inspect-github-sync.mjs ]]; then
+  github_sync_check=".agents/scripts/inspect-github-sync.mjs"
+elif [[ -f scripts/inspect-github-sync.mjs ]]; then
+  github_sync_check="scripts/inspect-github-sync.mjs"
+fi
+
+if [[ -n "$github_sync_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$github_sync_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for GitHub sync inspection"
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"

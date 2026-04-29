@@ -34,6 +34,7 @@
     ".agents/scripts/check-sync-schemas.mjs",
     ".agents/scripts/read-local-sync-map.mjs",
     ".agents/scripts/check-local-sync-map.mjs",
+    ".agents/scripts/inspect-github-sync.mjs",
     ".agents/scripts/fix-path-standards.sh",
     ".agents/scripts/git-sparse-download.sh",
     ".agents/scripts/log-event.js",
