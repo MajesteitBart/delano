@@ -33,6 +33,8 @@
     "check:strict-fixtures": "node scripts/check-strict-fixtures.mjs",
     "check:sync-schemas": "node scripts/check-sync-schemas.mjs",
     "check:local-sync-map": "node scripts/read-local-sync-map.mjs",
-    "check:github-sync": "node scripts/inspect-github-sync.mjs"
+    "check:github-sync": "node scripts/check-github-sync.mjs",
+    "check:github-status": "node scripts/check-github-status-inspection.mjs",
+    "check:linear-inspection": "node scripts/check-linear-issue-inspection.mjs"
   }
 }

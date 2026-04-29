@@ -33,8 +33,12 @@
     ".agents/scripts/check-strict-fixtures.mjs",
     ".agents/scripts/check-sync-schemas.mjs",
     ".agents/scripts/read-local-sync-map.mjs",
+    ".agents/scripts/check-github-status-inspection.mjs",
     ".agents/scripts/check-local-sync-map.mjs",
+    ".agents/scripts/check-github-sync.mjs",
     ".agents/scripts/inspect-github-sync.mjs",
+    ".agents/fixtures/linear/issue-snapshot.json",
+    ".agents/scripts/check-linear-issue-inspection.mjs",
     ".agents/scripts/fix-path-standards.sh",
     ".agents/scripts/git-sparse-download.sh",
     ".agents/scripts/log-event.js",
@@ -176,6 +180,7 @@
     ".agents/validation-fixtures/strict/invalid/path-leak/task.md",
     ".agents/validation-fixtures/strict/invalid/stale-context/context.md",
     ".agents/validation-fixtures/strict/manifest.json",
-    ".agents/validation-fixtures/strict/valid/minimal-project/task.md"
+    ".agents/validation-fixtures/strict/valid/minimal-project/task.md",
+    ".agents/fixtures/github/status-snapshot.json"
   ]
 }

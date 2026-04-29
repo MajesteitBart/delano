@@ -526,6 +526,27 @@ if [[ -n "$local_sync_map_check" ]]; then
   fi
 fi
 
+github_sync_check=""
+if [[ -f .agents/scripts/check-github-sync.mjs ]]; then
+  github_sync_check=".agents/scripts/check-github-sync.mjs"
+elif [[ -f scripts/check-github-sync.mjs ]]; then
+  github_sync_check="scripts/check-github-sync.mjs"
+fi
+
+if [[ -n "$github_sync_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$github_sync_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for GitHub sync inspection"
+    errors=$((errors + 1))
+  fi
+fi
+
 local_sync_map_check=""
 if [[ -f .agents/scripts/read-local-sync-map.mjs ]]; then
   local_sync_map_check=".agents/scripts/read-local-sync-map.mjs"
@@ -564,6 +585,48 @@ if [[ -n "$github_sync_check" ]]; then
     fi
   else
     echo "❌ Node runtime not found for GitHub sync inspection"
+    errors=$((errors + 1))
+  fi
+fi
+
+github_status_check=""
+if [[ -f .agents/scripts/check-github-status-inspection.mjs ]]; then
+  github_status_check=".agents/scripts/check-github-status-inspection.mjs"
+elif [[ -f scripts/check-github-status-inspection.mjs ]]; then
+  github_status_check="scripts/check-github-status-inspection.mjs"
+fi
+
+if [[ -n "$github_status_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$github_status_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for GitHub status inspection"
+    errors=$((errors + 1))
+  fi
+fi
+
+linear_issue_check=""
+if [[ -f .agents/scripts/check-linear-issue-inspection.mjs ]]; then
+  linear_issue_check=".agents/scripts/check-linear-issue-inspection.mjs"
+elif [[ -f scripts/check-linear-issue-inspection.mjs ]]; then
+  linear_issue_check="scripts/check-linear-issue-inspection.mjs"
+fi
+
+if [[ -n "$linear_issue_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$linear_issue_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for Linear issue inspection"
     errors=$((errors + 1))
   fi
 fi

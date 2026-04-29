@@ -223,6 +223,41 @@ test("local sync map reader normalizes project and task references", () => {
   assert.ok(parsed.sync_map.projects.some((project) => project.tasks.some((task) => task.local_id === "T-002")));
 });
 
+test("GitHub sync inspection compares local issue and PR refs to fixture state", () => {
+  const tmpDir = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "delano-github-sync-"));
+  const syncMapPath = path.join(tmpDir, "sync-map.json");
+  const statePath = path.join(tmpDir, "github-state.json");
+  fs.writeFileSync(syncMapPath, JSON.stringify({
+    schema_version: 1,
+    projects: [{
+      slug: "sample-project",
+      local_path: ".project/projects/sample-project",
+      github_repo: "acme/widgets",
+      tasks: [{ local_id: "T-001", github_issue: "#12", github_pr: "#34" }]
+    }]
+  }));
+  fs.writeFileSync(statePath, JSON.stringify({
+    source: "fixture",
+    repositories: {
+      "acme/widgets": {
+        issues: { "12": { state: "OPEN", url: "https://github.com/acme/widgets/issues/12" } },
+        pull_requests: { "34": { state: "MERGED", url: "https://github.com/acme/widgets/pull/34" } }
+      }
+    }
+  }));
+
+  const checkResult = spawnSync(process.execPath, ["scripts/check-github-sync.mjs", "--sync-map", syncMapPath, "--github-state", statePath, "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  const parsed = JSON.parse(checkResult.stdout);
+  assert.equal(parsed.summary.checked_refs, 2);
+  assert.equal(parsed.summary.drift_count, 0);
+  assert.deepEqual(parsed.inspections.map((inspection) => inspection.external_state).sort(), ["MERGED", "OPEN"]);
+});
+
 
 test("GitHub sync inspection normalizes issue and PR refs", () => {
   const checkResult = spawnSync(process.execPath, ["scripts/inspect-github-sync.mjs", "--json"], {
@@ -235,4 +270,25 @@ test("GitHub sync inspection normalizes issue and PR refs", () => {
   assert.equal(parsed.schema_version, 1);
   assert.equal(parsed.mode, "local-dry-run");
   assert.ok(parsed.projects.some((project) => project.github_repo === "MajesteitBart/delano"));
+});
+
+test("github status inspection uses local mock snapshot without remote calls", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-github-status-inspection.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /GitHub status inspection passed/);
+});
+
+
+test("Linear issue inspection accepts local-only snapshots", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-linear-issue-inspection.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Linear issue inspection passed/);
 });
