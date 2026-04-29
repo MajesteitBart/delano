@@ -24,6 +24,7 @@
     ".agents/rules/test-execution.md",
     ".agents/rules/worktree-operations.md",
     ".agents/scripts/check-path-standards.sh",
+    ".agents/scripts/check-log-safety.sh",
     ".agents/scripts/fix-path-standards.sh",
     ".agents/scripts/git-sparse-download.sh",
     ".agents/scripts/log-event.js",

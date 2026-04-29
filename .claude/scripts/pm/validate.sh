@@ -298,6 +298,15 @@ else
   echo "✅ No absolute path leakage in tracked docs and contracts"
 fi
 
+if [[ -x .agents/scripts/check-log-safety.sh ]]; then
+  echo ""
+  if .agents/scripts/check-log-safety.sh; then
+    true
+  else
+    errors=$((errors + 1))
+  fi
+fi
+
 echo ""
 echo "Summary"
 echo "-------"
