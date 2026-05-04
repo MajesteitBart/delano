@@ -27,5 +27,6 @@ Operational:
 - `query-log.sh`
 - `test-and-log.sh`
 - `check-path-standards.sh`
+- `check-text-safety.mjs`
 - `fix-path-standards.sh`
 - `git-sparse-download.sh`

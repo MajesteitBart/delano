@@ -6,7 +6,7 @@ created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 linear_project_id:
 risk_level: <low|medium|high>
-spec_status_at_plan_time: <approved|active>
+spec_status_at_plan_time: <planned|active|complete|deferred>
 ---
 
 # Delivery Plan: <project-name>

@@ -4,4 +4,5 @@ set -euo pipefail
 # Ensure shell starts in repository root when invoked from nested worktree paths.
 root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$root"
-echo "worktree context set: $root"
+repo_name="$(basename "$root")"
+echo "worktree context set: <repo-root> ($repo_name)"

@@ -17,11 +17,13 @@ description: Close the delivery loop and capture completion evidence, status upd
 - closure update
 - completion summary
 - updated status in contracts/registry
+- learning proposals for any rule, skill, schema, or fixture changes discovered during closeout
 
 ## Quality checks
 - required tasks resolved
 - evidence package complete
 - outcome review captured
+- learning proposals are reviewed before adoption
 
 ## Failure behavior
 - block closure when evidence is incomplete
@@ -40,3 +42,4 @@ description: Close the delivery loop and capture completion evidence, status upd
 - `references/runbook.md`
 - `templates/outcome-review.md`
 - `templates/closure-checklist.md`
+- `templates/learning-proposal.md`

@@ -17,7 +17,7 @@ if find .project .agents "${compat_paths[@]}" \
   \( -name '*.md' -o -name '*.json' -o -name '*.yaml' -o -name '*.yml' \) \
   -not -path '.agents/logs/*' \
   -not -path '.claude/logs/*' \
-  -print0 | xargs -0 grep -nE '(/home/[^[:space:]]+|/Users/[^[:space:]]+|[A-Za-z]:\\[^[:space:]]+)' > "$matches_file" 2>/dev/null; then
+  -print0 | xargs -0 grep -nE '(/home/[^[:space:]]+|/Users/[^[:space:]]+|/mnt/[A-Za-z]/[^[:space:]]+|[A-Za-z]:\\[^[:space:]]+)' > "$matches_file" 2>/dev/null; then
   echo "Absolute path violations found:"
   cat "$matches_file"
   exit 1

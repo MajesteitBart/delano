@@ -1,0 +1,34 @@
+name: Validate
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feat/delano-vnext-runtime-upgrade
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Rebuild package payload
+        run: npm run build:assets
+
+      - name: Check package manifest drift
+        run: npm run check:package-manifest
+
+      - name: Run package and runtime tests
+        run: npm test
+
+      - name: Run Delano PM validation
+        run: bash .agents/scripts/pm/validate.sh

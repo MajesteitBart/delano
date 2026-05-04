@@ -2,7 +2,7 @@
 name: <project-name>
 slug: <kebab-case>
 owner: <person-or-team>
-status: draft
+status: planned
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 outcome: <measurable target>
