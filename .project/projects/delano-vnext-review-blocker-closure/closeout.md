@@ -6,11 +6,13 @@ The unresolved vNext review blockers are closed for the current branch. Privacy/
 
 ## Quality Evidence
 
-- `npm run build:assets` passed locally and staged 183 payload files.
-- `npm run check:package-manifest` passed locally for 183 manifest entries.
-- `npm test` passed locally with 50 tests.
+- `npm run build:assets` passed locally and staged 184 payload files.
+- `npm run check:package-manifest` passed locally for 184 manifest entries.
+- `npm test` passed locally with 51 tests.
 - `bash .agents/scripts/pm/validate.sh` passed locally with Errors: 0 and Warnings: 0.
+- Text safety validation passed for tracked files and rejects Unicode bidirectional control characters without leaking absolute paths in diagnostics.
 - GitHub Actions PR Validate run `25312402520` passed for head `44a7dad99aa80c76b6ff7eb810e78b70091fdf27` after the detached-HEAD worktree-health fix.
+- GitHub Actions PR Validate run `25313075868` passed for head `fad2cafbd85540287a2c0486b955213df0b0e8db`; live PR checks remain the source for the newest pushed head after evidence-only commits.
 
 ## Remaining Deferred Maturity Work
 

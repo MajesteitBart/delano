@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
@@ -120,6 +121,23 @@ test("install manifest includes shipped runtime script dependencies", () => {
   const entries = new Set(manifest.files.map((entry) => typeof entry === "string" ? entry : entry.target));
   assert.ok(entries.has(".agents/schemas/metrics/delivery-event.schema.json"));
   assert.ok(entries.has(".agents/scripts/audit-context-files.mjs"));
+  assert.ok(entries.has(".agents/scripts/check-text-safety.mjs"));
+});
+
+test("text safety check rejects bidi control characters", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-text-safety-"));
+  const samplePath = path.join(tmpDir, "sample.md");
+  fs.writeFileSync(samplePath, `safe${String.fromCodePoint(0x202E)}unsafe\n`, "utf8");
+
+  const checkResult = spawnSync(process.execPath, ["scripts/check-text-safety.mjs", "--file", samplePath], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 1);
+  assert.match(checkResult.stderr, /U\+202E/);
+  assert.match(checkResult.stderr, /RIGHT-TO-LEFT OVERRIDE/);
+  assert.doesNotMatch(checkResult.stderr, /[A-Za-z]:[\\/]/);
 });
 
 test("agent entry docs keep operational handoff guidance", () => {
@@ -530,9 +548,10 @@ test("context audit scores required context files", () => {
 });
 
 
-test("validation wires skill output evals", () => {
+test("validation wires skill output evals and text safety", () => {
   const validate = require("node:fs").readFileSync(require("node:path").join(repoRoot, ".agents", "scripts", "pm", "validate.sh"), "utf8");
   assert.match(validate, /check-skill-output-evals\.mjs/);
+  assert.match(validate, /check-text-safety\.mjs/);
 });
 
 

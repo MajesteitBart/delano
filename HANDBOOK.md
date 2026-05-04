@@ -2,8 +2,8 @@
 
 ## First Edition, v3
 
-Version: 3.1  
-Last updated: 2026-04-03
+Version: 3.2
+Last updated: 2026-05-04
 
 ---
 
@@ -469,7 +469,7 @@ If team workflow names differ, maintain this semantic mapping in sync rules.
 v0.2 adds enforceable local runtime surfaces around the handbook process:
 
 - **Operating modes**: Mode 0 patch, Mode 1 scoped change, Mode 2 feature, Mode 3 uncertain feature, and Mode 4 multi-stream. Modes are additive hints for task depth and required proof, not a reason to skip safety gates.
-- **Contract validation**: schemas and validators cover artifact scope, schema shape, operating modes, status transitions, evidence maps, strict fixtures, sync scaffolding, leases, metrics, context audit, and skill-output evals.
+- **Contract validation**: schemas and validators cover artifact scope, schema shape, operating modes, status transitions, evidence maps, strict fixtures, sync scaffolding, leases, metrics, text safety, context audit, and skill-output evals.
 - **Evidence expectations**: done tasks need checked acceptance criteria plus implementation or validation evidence. v0.2 evidence mapping remains markdown-based; full criterion-to-ledger instance validation is a later maturity gate.
 - **Dry-run sync**: GitHub and Linear sync surfaces inspect, classify drift, and produce repair plans without remote mutation unless a future explicit apply gate is approved.
 - **Lease semantics**: multi-agent work uses leases with conflict zones, lifecycle state, and handoff summaries. Conflict checks must run before overlapping work proceeds.
@@ -566,6 +566,7 @@ script_hooks:
 | `query-log.sh` | query change stream |
 | `test-and-log.sh` | capture test execution logs |
 | `check-path-standards.sh` | path/privacy enforcement |
+| `check-text-safety.mjs` | hidden/bidirectional Unicode control enforcement |
 | `fix-path-standards.sh` | path normalization |
 | `git-sparse-download.sh` | sparse external resource retrieval |
 
@@ -997,6 +998,7 @@ Every update should answer:
 - immutable creation timestamps
 - UTC timestamp policy
 - path privacy enforcement
+- hidden/bidirectional Unicode control enforcement
 - GitHub remote safety checks
 
 ### 14.2 Default team policy pack

@@ -383,6 +383,27 @@ if [[ -x .agents/scripts/check-log-safety.sh ]]; then
   fi
 fi
 
+text_safety_check=""
+if [[ -f .agents/scripts/check-text-safety.mjs ]]; then
+  text_safety_check=".agents/scripts/check-text-safety.mjs"
+elif [[ -f scripts/check-text-safety.mjs ]]; then
+  text_safety_check="scripts/check-text-safety.mjs"
+fi
+
+if [[ -n "$text_safety_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$text_safety_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for text safety check"
+    errors=$((errors + 1))
+  fi
+fi
+
 if [[ -f scripts/check-package-manifest-drift.mjs ]]; then
   echo ""
   if command -v node >/dev/null 2>&1; then
