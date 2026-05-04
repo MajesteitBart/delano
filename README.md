@@ -15,7 +15,7 @@ The npm package is intentionally thin. It distributes the approved runtime paylo
 ## Delano CLI
 
 - Package: `@bvdm/delano`
-- Current package version: `0.2.2`
+- Current package version: `0.2.3`
 - Binary: `delano`
 - Commands: `onboarding`, `install`, `viewer`, `init`, `validate`, `status`, `next`
 - Primary goal: bootstrap a repo safely, expose local delivery state clearly, and keep runtime gates verifiable
@@ -254,7 +254,7 @@ Before the first Actions publish, configure npm trusted publishing for `@bvdm/de
 
 The package metadata must keep `repository.url` set to `https://github.com/MajesteitBart/delano`; npm validates that value against the GitHub Actions provenance bundle.
 
-After trusted publishing is configured, publish by pushing a matching version tag such as `v0.2.2`, or run the `Publish package to npm` workflow manually from `main`. The workflow rebuilds the package payload, checks manifest drift, runs tests, dry-runs the package contents, verifies the version is not already published, and then runs `npm publish --access public` from GitHub Actions using OIDC. A manual `dry_run` input is available to run the same checks without publishing.
+After trusted publishing is configured, publish by pushing a matching version tag such as `v0.2.3`, or run the `Publish package to npm` workflow manually from `main`. The workflow rebuilds the package payload, checks manifest drift, runs tests, dry-runs the package contents, verifies the version is not already published, and then runs `npm publish --access public` from GitHub Actions using OIDC. A manual `dry_run` input is available to run the same checks without publishing.
 
 If npm publish fails after the package checks pass, verify that the npm trusted publisher settings match the repository and workflow filename exactly, and that the workflow has `id-token: write`.
 
