@@ -14,6 +14,7 @@ const manifestPath = path.join(repoRoot, "assets", "install-manifest.json");
 const payloadRoot = path.join(repoRoot, "assets", "payload");
 const packageJsonPath = path.join(repoRoot, "package.json");
 const packOutputPath = path.join(repoRoot, "pack-output.json");
+const expectedRepositoryUrl = "https://github.com/MajesteitBart/delano";
 
 const errors = [];
 
@@ -90,6 +91,22 @@ function validateRelativePath(relativePath, label) {
 function checkPackageMetadata(pkg) {
   if (pkg.name !== "@bvdm/delano") {
     errors.push(`package.json name must be @bvdm/delano, found: ${pkg.name || "<missing>"}`);
+  }
+
+  if (!pkg.repository || pkg.repository.url !== expectedRepositoryUrl) {
+    errors.push(`package.json repository.url must be ${expectedRepositoryUrl} for npm trusted publishing provenance.`);
+  }
+
+  if (pkg.repository && pkg.repository.url && pkg.repository.url.startsWith("git+")) {
+    errors.push("package.json repository.url must not use the git+ prefix because npm provenance checks require the exact GitHub URL.");
+  }
+
+  if (!pkg.bugs || pkg.bugs.url !== `${expectedRepositoryUrl}/issues`) {
+    errors.push(`package.json bugs.url must be ${expectedRepositoryUrl}/issues.`);
+  }
+
+  if (pkg.homepage !== `${expectedRepositoryUrl}#readme`) {
+    errors.push(`package.json homepage must be ${expectedRepositoryUrl}#readme.`);
   }
 
   if (!pkg.bin || pkg.bin.delano !== "bin/delano.js") {

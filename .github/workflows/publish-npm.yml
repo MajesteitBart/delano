@@ -72,6 +72,4 @@ jobs:
 
       - name: Publish to npm
         if: github.event_name != 'workflow_dispatch' || inputs.dry_run == false
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: npm publish --access public

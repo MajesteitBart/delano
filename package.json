@@ -3,6 +3,14 @@
   "version": "0.2.1",
   "description": "CLI for the Delano delivery runtime.",
   "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MajesteitBart/delano"
+  },
+  "bugs": {
+    "url": "https://github.com/MajesteitBart/delano/issues"
+  },
+  "homepage": "https://github.com/MajesteitBart/delano#readme",
   "bin": {
     "delano": "bin/delano.js"
   },
