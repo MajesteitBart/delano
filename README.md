@@ -154,6 +154,7 @@ The CLI does not bundle its own shell or Python runtime.
 - it aborts if an approved target path already exists
 - it reports each conflict as file, directory, or symlink
 - it only overwrites approved allowlist paths when `--force` is used
+- it can narrow updates with `--only`, `--exclude`, `--no-project-context`, and `--no-project-state`
 - it does not touch unrelated files outside the allowlist
 - it does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`
 
@@ -161,6 +162,19 @@ The base install payload intentionally excludes top-level adapter entry docs suc
 The base install payload includes `.delano/`, including the read-only viewer UI.
 The installable `.project/context/` pack is seeded from generic templates during packaging; it does not ship Delano's own repo-specific context files into consumer repositories.
 After install, the recommended first step is `delano onboarding`, which requires explicit approval before it reviews `AGENTS.md`.
+
+For an update-safe refresh that avoids repo-owned project state, narrow the plan before forcing overwrites:
+
+```bash
+delano install --interactive
+delano install --only skills,project-templates --force --yes
+delano install --exclude project-context,project-projects,project-registry --force --yes
+delano install --no-project-state --force --yes
+```
+
+The interactive installer presents presets for updating the runtime while preserving project state, updating only skills and project templates, full install or repair, and custom category selection.
+
+Install categories are `agent-runtime`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`. The `--no-project-state` shortcut excludes `.project/context`, `.project/projects`, and `.project/registry`.
 
 ## Optional AGENTS.md / CLAUDE.md snippet
 
@@ -191,6 +205,7 @@ This package is deliberately narrow:
 - npm is the distribution surface
 - `.project` remains repo-owned after install
 - `.project/context/` installs as generic starter context that the target repo must replace with its own reality
+- `.project/projects/` and `.project/registry/` are repo-owned state and should normally be excluded from forced refreshes
 - `.agents` remains the runtime surface
 - wrapper commands stay thin
 - `install-delano.sh` remains available as the legacy bridge installer

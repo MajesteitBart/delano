@@ -89,6 +89,7 @@ The base install path copies only the approved allowlist payload:
 It does not install top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, or `PI.md`. Those remain opt-in.
 It also does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`.
 The packaged `.project/context/` files are generic starter templates. They are seeded into the target repo during install and should be rewritten to match that repo's actual context.
+After install, `.project/context/`, `.project/projects/`, and `.project/registry/` are repo-owned state. Do not include them in forced refreshes unless you are intentionally replacing that local state.
 
 ## Conflict-first behavior
 
@@ -99,8 +100,22 @@ The packaged `.project/context/` files are generic starter templates. They are s
 - it reports each conflict clearly
 - it distinguishes file, directory, and symlink conflicts
 - it only overwrites approved allowlist paths when `--force` is explicit
+- it can narrow update plans before conflict detection with `--only`, `--exclude`, `--no-project-context`, and `--no-project-state`
 
 Use `--force` only when you are intentionally repairing or replacing files that belong to the Delano allowlist.
+
+Common update-safe examples:
+
+```bash
+delano install --interactive
+delano install --only skills,project-templates --force --yes
+delano install --no-project-state --force --yes
+delano install --exclude project-context,project-projects,project-registry --force --yes
+```
+
+Use `delano install --interactive` when you want the CLI to show presets instead of remembering flags. The menu includes update-safe runtime refresh, skills plus project templates, full install or repair, and custom category selection.
+
+Supported install categories are `agent-runtime`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`.
 
 ## Dependencies
 

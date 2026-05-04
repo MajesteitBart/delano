@@ -3,7 +3,15 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 
 const { commands, getGeneralHelp, resolveInvocation } = require("../src/cli");
-const { normalizeManifestEntries, parseAgentList } = require("../src/cli/lib/install");
+const {
+  applyInstallPreset,
+  filterManifestEntries,
+  normalizeManifestEntries,
+  parseAgentList,
+  parseCategoryList,
+  parseInteractiveCategorySelection,
+  parseInstallArgs
+} = require("../src/cli/lib/install");
 const { ANALYSIS_APPROVAL_FLAG, analyzeAgentsContent, parseOnboardingArgs } = require("../src/cli/lib/onboarding");
 const { parseViewerArgs } = require("../src/cli/commands/viewer");
 const { findDelanoRoot, normalizeBashScriptPath } = require("../src/cli/lib/runtime");
@@ -63,6 +71,52 @@ test("agent parsing normalizes values and removes duplicates", () => {
   assert.deepEqual(parseAgentList("Codex, claude ,codex"), ["codex", "claude"]);
 });
 
+test("install category parsing supports practical aliases", () => {
+  assert.deepEqual(parseCategoryList("agent-skills,templates,context", "--only"), [
+    "skills",
+    "project-templates",
+    "project-context"
+  ]);
+});
+
+test("install args can omit repo-owned project state", () => {
+  assert.deepEqual(parseInstallArgs(["--no-project-state", "--yes"]).exclude, [
+    "project-context",
+    "project-projects",
+    "project-registry"
+  ]);
+});
+
+test("install args support interactive mode", () => {
+  assert.equal(parseInstallArgs(["--interactive"]).interactive, true);
+  assert.equal(parseInstallArgs(["--tui"]).interactive, true);
+});
+
+test("install presets encode update-safe choices", () => {
+  const options = parseInstallArgs(["--target", "../repo"]);
+  const updateSafe = applyInstallPreset(options, "update-safe");
+  const skillsTemplates = applyInstallPreset(options, "skills-templates");
+
+  assert.equal(updateSafe.force, true);
+  assert.equal(updateSafe.only, null);
+  assert.deepEqual(updateSafe.exclude, [
+    "project-context",
+    "project-projects",
+    "project-registry"
+  ]);
+  assert.equal(skillsTemplates.force, true);
+  assert.deepEqual(skillsTemplates.only, ["skills", "project-templates"]);
+});
+
+test("interactive category selection accepts numbers names and all", () => {
+  assert.equal(parseInteractiveCategorySelection("all"), null);
+  assert.equal(parseInteractiveCategorySelection(""), null);
+  assert.deepEqual(parseInteractiveCategorySelection("2, project-templates"), [
+    "skills",
+    "project-templates"
+  ]);
+});
+
 test("install manifest entries support explicit source-to-target mappings", () => {
   assert.deepEqual(
     normalizeManifestEntries({
@@ -83,6 +137,42 @@ test("install manifest entries support explicit source-to-target mappings", () =
         source: "assets/templates/context/project-brief.md",
         target: ".project/context/project-brief.md"
       }
+    ]
+  );
+});
+
+test("install manifest filtering narrows updates before conflict detection", () => {
+  const entries = normalizeManifestEntries({
+    files: [
+      ".agents/scripts/pm/validate.sh",
+      ".agents/skills/planning-skill/SKILL.md",
+      ".project/context/project-brief.md",
+      ".project/projects/.gitkeep",
+      ".project/registry/linear-map.json",
+      ".project/templates/spec.md"
+    ]
+  });
+
+  assert.deepEqual(
+    filterManifestEntries(entries, {
+      only: ["skills", "project-templates"],
+      exclude: []
+    }).map((entry) => entry.target),
+    [
+      ".agents/skills/planning-skill/SKILL.md",
+      ".project/templates/spec.md"
+    ]
+  );
+
+  assert.deepEqual(
+    filterManifestEntries(entries, {
+      only: null,
+      exclude: ["project-context", "project-projects", "project-registry"]
+    }).map((entry) => entry.target),
+    [
+      ".agents/scripts/pm/validate.sh",
+      ".agents/skills/planning-skill/SKILL.md",
+      ".project/templates/spec.md"
     ]
   );
 });

@@ -4,7 +4,7 @@ name: Conflict-first install command
 status: done
 workstream: WS-B
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-28T22:08:32Z
+updated: 2026-05-04T00:00:00Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -44,3 +44,5 @@ Implement `delano install` so it computes the full write plan first, reports con
 - 2026-04-03: Task created during breakdown for the Delano CLI packaging project.
 - 2026-04-03: Implemented conflict-first `delano install` with allowlist-driven planning, sorted conflict reports, safe force behavior, and parent-path blocker detection. Smoke-tested first install, conflict failure, force reinstall, and non-forceable parent blockers.
 - 2026-04-28: Marked done after operator confirmation and final package verification rerun.
+- 2026-05-04: Added granular install selection for update-safe refreshes: `--only`, `--exclude`, `--no-project-context`, and `--no-project-state`. Verified category filtering protects repo-owned `.project/context`, `.project/projects`, and `.project/registry` when excluded. Evidence: `node --test test/cli.test.js`, `node --test test/package.test.js`, `npm test`, `bash .agents/scripts/pm/validate.sh`, and a temporary `delano install --only skills,project-templates --yes` smoke test passed.
+- 2026-05-04: Added `delano install --interactive` / `--tui` with preset-driven terminal selection for update-safe runtime refresh, skills plus project templates, full install or repair, and custom category selection. Evidence: `npm test`, `bash .agents/scripts/pm/validate.sh`, and a piped interactive smoke test for preset 2 passed.
