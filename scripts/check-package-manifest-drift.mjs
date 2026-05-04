@@ -13,6 +13,7 @@ const repoRoot = path.resolve(__dirname, "..");
 const manifestPath = path.join(repoRoot, "assets", "install-manifest.json");
 const payloadRoot = path.join(repoRoot, "assets", "payload");
 const packageJsonPath = path.join(repoRoot, "package.json");
+const packOutputPath = path.join(repoRoot, "pack-output.json");
 
 const errors = [];
 
@@ -21,6 +22,7 @@ const packageJson = readJson(packageJsonPath, "package metadata");
 const manifestEntries = normalizeManifestEntries(manifest);
 
 checkPackageMetadata(packageJson);
+checkPackOutputMetadata(packageJson);
 checkManifestSources(manifestEntries);
 checkPayloadDrift(manifestEntries);
 
@@ -104,6 +106,44 @@ function checkPackageMetadata(pkg) {
 
   if (!pkg.scripts || pkg.scripts.prepack !== "npm run build:assets") {
     errors.push("package.json prepack must rebuild packaged assets with 'npm run build:assets'.");
+  }
+}
+
+function checkPackOutputMetadata(pkg) {
+  if (!existsSync(packOutputPath)) {
+    return;
+  }
+
+  const raw = readFileSync(packOutputPath, "utf8").trim();
+  const jsonStart = raw.indexOf("[");
+  if (jsonStart === -1) {
+    errors.push("pack-output.json must contain npm pack JSON array output when present.");
+    return;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(raw.slice(jsonStart));
+  } catch (error) {
+    errors.push(`pack-output.json could not be parsed as npm pack JSON: ${error.message}`);
+    return;
+  }
+
+  const [packInfo] = Array.isArray(parsed) ? parsed : [];
+  if (!packInfo) {
+    errors.push("pack-output.json must contain at least one npm pack metadata entry.");
+    return;
+  }
+
+  if (packInfo.name && packInfo.name !== pkg.name) {
+    errors.push(`pack-output.json name ${packInfo.name} does not match package.json name ${pkg.name}.`);
+  }
+  if (packInfo.version && packInfo.version !== pkg.version) {
+    errors.push(`pack-output.json version ${packInfo.version} does not match package.json version ${pkg.version}.`);
+  }
+  const expectedId = `${pkg.name}@${pkg.version}`;
+  if (packInfo.id && packInfo.id !== expectedId) {
+    errors.push(`pack-output.json id ${packInfo.id} does not match ${expectedId}.`);
   }
 }
 

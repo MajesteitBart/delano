@@ -10,7 +10,7 @@ uncertainty: medium
 probe_required: true
 probe_status: completed
 target_version: 0.2.0
-source_review: /mnt/c/Obsidian/BartsVault/Development/Delano/Review by 5.5 Pro.md
+source_review: tmp/review_vnext.md
 external_reference: https://developers.openai.com/api/docs/guides/prompt-guidance
 ---
 

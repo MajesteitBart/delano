@@ -11,7 +11,7 @@ const localOnlyMode = process.argv.includes("--local-only") || (!process.argv.in
 const githubSnapshotPath = readOption("--github-snapshot") || path.join(repoRoot, ".agents", "fixtures", "github", "status-snapshot.json");
 const linearSnapshotPath = readOption("--linear-snapshot") || path.join(repoRoot, ".agents", "fixtures", "linear", "issue-snapshot.json");
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isDirectRun()) {
   const syncMap = readLocalSyncMap(repoRoot);
   const githubSnapshot = localOnlyMode ? { repositories: [] } : readJson(githubSnapshotPath, { repositories: [] });
   const linearSnapshot = localOnlyMode ? { issues: [] } : readJson(linearSnapshotPath, { issues: [] });
@@ -122,6 +122,9 @@ function readOption(name) {
 function readJson(filePath, fallback) {
   if (!existsSync(filePath)) return fallback;
   return JSON.parse(readFileSync(filePath, "utf8"));
+}
+function isDirectRun() {
+  return process.argv[1] && path.resolve(process.argv[1]) === __filename;
 }
 function resolveRepoRoot(startDir) {
   const candidates = [path.resolve(startDir, ".."), path.resolve(startDir, "..", "..")];

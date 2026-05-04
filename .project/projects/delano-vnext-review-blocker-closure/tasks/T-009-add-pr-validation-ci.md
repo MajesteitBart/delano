@@ -1,10 +1,10 @@
 ---
 id: T-009
 name: Add PR validation CI
-status: deferred
+status: done
 workstream: WS-D
 created: 2026-05-04T09:25:06Z
-updated: 2026-05-04T09:25:06Z
+updated: 2026-05-04T09:35:25Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -23,12 +23,12 @@ Add a GitHub Actions validation workflow that runs release-blocking checks on pu
 
 ## Acceptance Criteria
 
-- [ ] A CI workflow runs `npm test`.
-- [ ] The workflow runs package asset build or package-manifest drift checks.
-- [ ] The workflow runs PM validation or the documented supported equivalent.
-- [ ] The workflow includes path/log safety coverage either through PM validation or focused commands.
-- [ ] CI setup does not require secrets for read-only validation.
-- [ ] Evidence records a workflow run or local workflow-equivalent validation if repository execution is unavailable.
+- [x] A CI workflow runs `npm test`.
+- [x] The workflow runs package asset build or package-manifest drift checks.
+- [x] The workflow runs PM validation or the documented supported equivalent.
+- [x] The workflow includes path/log safety coverage either through PM validation or focused commands.
+- [x] CI setup does not require secrets for read-only validation.
+- [x] Evidence records a workflow run or local workflow-equivalent validation if repository execution is unavailable.
 
 ## Technical Notes
 
@@ -37,10 +37,11 @@ Add a GitHub Actions validation workflow that runs release-blocking checks on pu
 
 ## Definition of Done
 
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Implementation complete
+- [x] Tests pass
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
 - 2026-05-04T09:25:06Z: Task created from unresolved CI blocker; implementation evidence pending.
+- 2026-05-04T09:35:25Z: Added `.github/workflows/validate.yml` to run build assets, package-manifest drift, npm tests, and PM validation on pull requests, selected pushes, and manual dispatch. Local workflow-equivalent validation passed: `npm run build:assets`; `npm run check:package-manifest`; `npm test`; `bash .agents/scripts/pm/validate.sh`.

@@ -18,6 +18,7 @@ estimate: S
 # Task: Path leak fixture
 
 Leaked path: PATH_LEAK_TOKEN(home::example::private::delano)
+WSL leak form: PATH_LEAK_TOKEN(wsl-mount::example::private::delano)
 
 ## Acceptance Criteria
 - [x] Current repo state has been inspected before implementation starts.

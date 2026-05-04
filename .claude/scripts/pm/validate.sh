@@ -52,6 +52,7 @@ contains_value() {
 }
 
 python_cmd=()
+node_cmd=()
 
 resolve_python_cmd() {
   if command -v python3 >/dev/null 2>&1 && python3 -c "import sys" >/dev/null 2>&1; then
@@ -67,6 +68,40 @@ resolve_python_cmd() {
   if command -v python >/dev/null 2>&1 && python -c "import sys" >/dev/null 2>&1; then
     python_cmd=(python)
     return 0
+  fi
+
+  return 1
+}
+
+resolve_node_cmd() {
+  if command -v node >/dev/null 2>&1 && node -e "process.exit(0)" >/dev/null 2>&1; then
+    node_cmd=(node)
+    return 0
+  fi
+
+  if command -v node.exe >/dev/null 2>&1 && node.exe -e "process.exit(0)" >/dev/null 2>&1; then
+    node_cmd=(node.exe)
+    return 0
+  fi
+
+  if command -v powershell.exe >/dev/null 2>&1; then
+    local win_node
+    win_node="$(powershell.exe -NoProfile -Command "(Get-Command node -ErrorAction SilentlyContinue).Source" 2>/dev/null | tr -d '\r' | head -n 1)"
+    if [[ -n "$win_node" ]]; then
+      local unix_node="$win_node"
+      if command -v cygpath >/dev/null 2>&1; then
+        unix_node="$(cygpath -u "$win_node")"
+      else
+        unix_node="${unix_node//\\//}"
+        if [[ "$unix_node" =~ ^([A-Za-z]):/(.*)$ ]]; then
+          unix_node="/${BASH_REMATCH[1],,}/${BASH_REMATCH[2]}"
+        fi
+      fi
+      if [[ -x "$unix_node" ]]; then
+        node_cmd=("$unix_node")
+        return 0
+      fi
+    fi
   fi
 
   return 1
@@ -96,6 +131,17 @@ if resolve_python_cmd; then
 else
   echo "❌ Python runtime not found (tried: python3, py -3, python)"
   errors=$((errors + 1))
+fi
+
+if resolve_node_cmd; then
+  if ! command -v node >/dev/null 2>&1; then
+    node() {
+      "${node_cmd[@]}" "$@"
+    }
+  fi
+  echo "Node runtime: ${node_cmd[*]}"
+else
+  echo "Node runtime not found (tried: node, node.exe, PowerShell Get-Command node)"
 fi
 
 # Required skill contracts
@@ -318,7 +364,7 @@ if find .project .agents "${compat_paths[@]}" \
   \( -name '*.md' -o -name '*.json' -o -name '*.yaml' -o -name '*.yml' \) \
   -not -path '.agents/logs/*' \
   -not -path '.claude/logs/*' \
-  -print0 | xargs -0 grep -nE '(/home/|/Users/|[A-Za-z]:\\)' >"$path_tmp" 2>/dev/null; then
+  -print0 | xargs -0 grep -nE '(/home/|/Users/|/mnt/[A-Za-z]/|[A-Za-z]:\\)' >"$path_tmp" 2>/dev/null; then
   echo ""
   echo "❌ Absolute path leakage found"
   head -n 20 "$path_tmp"

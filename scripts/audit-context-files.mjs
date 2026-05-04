@@ -32,8 +32,8 @@ if (process.argv.includes("--json")) console.log(JSON.stringify(result, null, 2)
 else console.log(`Context audit scored ${entries.length} file(s): ${Object.entries(summary).map(([k,v])=>`${k}=${v}`).join(", ")}.`);
 
 function auditFile(file) {
-  const repoPath = path.join(".project", "context", file);
-  const abs = path.join(repoRoot, repoPath);
+  const repoPath = [".project", "context", file].join("/");
+  const abs = path.join(repoRoot, ".project", "context", file);
   const text = readFileSync(abs, "utf8");
   const requiredCommands = requiredCommandDocs.get(file) || [];
   const missingCommands = requiredCommands.filter((command) => !text.includes(command));

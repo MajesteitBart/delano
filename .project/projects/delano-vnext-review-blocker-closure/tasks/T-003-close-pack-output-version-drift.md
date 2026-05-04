@@ -1,10 +1,10 @@
 ---
 id: T-003
 name: Close pack-output version drift
-status: ready
+status: done
 workstream: WS-B
 created: 2026-05-04T09:25:06Z
-updated: 2026-05-04T09:25:06Z
+updated: 2026-05-04T09:35:25Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -23,10 +23,10 @@ Resolve the stale `pack-output.json` metadata that still reports an older packag
 
 ## Acceptance Criteria
 
-- [ ] The project has an explicit decision for whether `pack-output.json` is tracked, regenerated, or removed.
-- [ ] Tracked package output no longer reports a stale package version.
-- [ ] A validation or test prevents future tracked pack metadata from disagreeing with `package.json`.
-- [ ] Evidence is recorded before the task is marked done.
+- [x] The project has an explicit decision for whether `pack-output.json` is tracked, regenerated, or removed.
+- [x] Tracked package output no longer reports a stale package version.
+- [x] A validation or test prevents future tracked pack metadata from disagreeing with `package.json`.
+- [x] Evidence is recorded before the task is marked done.
 
 ## Technical Notes
 
@@ -36,10 +36,11 @@ Resolve the stale `pack-output.json` metadata that still reports an older packag
 
 ## Definition of Done
 
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Implementation complete
+- [x] Tests pass
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
 - 2026-05-04T09:25:06Z: Task created from unresolved stale package metadata blocker; implementation evidence pending.
+- 2026-05-04T09:35:25Z: Removed the tracked stale `pack-output.json`; `.gitignore` already treats it as local output. Updated `scripts/check-package-manifest-drift.mjs` to reject mismatched pack output metadata when the file exists. Validation passed: `npm run check:package-manifest`; `npm test`.

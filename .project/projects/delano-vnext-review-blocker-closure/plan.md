@@ -1,9 +1,9 @@
 ---
 name: Delano vNext Review Blocker Closure
-status: planned
+status: done
 lead: bart
 created: 2026-05-04T09:25:06Z
-updated: 2026-05-04T09:25:06Z
+updated: 2026-05-04T09:35:25Z
 linear_project_id:
 risk_level: high
 spec_status_at_plan_time: active

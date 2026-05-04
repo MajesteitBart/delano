@@ -1,9 +1,9 @@
 ---
 name: WS-D Validation and CI Gates
 owner: bart
-status: planned
+status: done
 created: 2026-05-04T09:25:06Z
-updated: 2026-05-04T09:25:06Z
+updated: 2026-05-04T09:35:25Z
 ---
 
 # Workstream: WS-D Validation and CI Gates

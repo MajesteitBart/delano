@@ -1,10 +1,10 @@
 ---
 id: T-001
 name: Remove leaked vNext source-review path
-status: ready
+status: done
 workstream: WS-A
 created: 2026-05-04T09:25:06Z
-updated: 2026-05-04T09:25:06Z
+updated: 2026-05-04T09:35:25Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -23,10 +23,10 @@ Replace the user-specific absolute source-review path in the vNext runtime upgra
 
 ## Acceptance Criteria
 
-- [ ] The vNext spec no longer stores a user-specific absolute source-review path.
-- [ ] The replacement reference is useful to maintainers without exposing local machine structure.
-- [ ] A path-safety check confirms the edited contract does not contain the leaked path.
-- [ ] Evidence is recorded before the task is marked done.
+- [x] The vNext spec no longer stores a user-specific absolute source-review path.
+- [x] The replacement reference is useful to maintainers without exposing local machine structure.
+- [x] A path-safety check confirms the edited contract does not contain the leaked path.
+- [x] Evidence is recorded before the task is marked done.
 
 ## Technical Notes
 
@@ -36,10 +36,11 @@ Replace the user-specific absolute source-review path in the vNext runtime upgra
 
 ## Definition of Done
 
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Implementation complete
+- [x] Tests pass
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
 - 2026-05-04T09:25:06Z: Task created from unresolved vNext review blocker; implementation evidence pending.
+- 2026-05-04T09:35:25Z: Replaced the vNext source-review absolute path with `tmp/review_vnext.md`. Validation passed: `bash .agents/scripts/check-path-standards.sh`; `bash .agents/scripts/pm/validate.sh`.

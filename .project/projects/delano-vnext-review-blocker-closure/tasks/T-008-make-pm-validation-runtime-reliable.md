@@ -1,10 +1,10 @@
 ---
 id: T-008
 name: Make PM validation runtime reliable
-status: ready
+status: done
 workstream: WS-D
 created: 2026-05-04T09:25:06Z
-updated: 2026-05-04T09:25:06Z
+updated: 2026-05-04T09:35:25Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -23,10 +23,10 @@ Make the documented PM validation command reliable in the supported Windows/loca
 
 ## Acceptance Criteria
 
-- [ ] The supported local command for PM validation is explicit.
-- [ ] Node-backed validation checks are reachable from that supported command path.
-- [ ] Known missing-update or environment-only failures are either fixed or documented as external blockers.
-- [ ] Evidence records the PM validation result in the supported environment.
+- [x] The supported local command for PM validation is explicit.
+- [x] Node-backed validation checks are reachable from that supported command path.
+- [x] Known missing-update or environment-only failures are either fixed or documented as external blockers.
+- [x] Evidence records the PM validation result in the supported environment.
 
 ## Technical Notes
 
@@ -36,10 +36,11 @@ Make the documented PM validation command reliable in the supported Windows/loca
 
 ## Definition of Done
 
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Implementation complete
+- [x] Tests pass
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
 - 2026-05-04T09:25:06Z: Task created from reproduced PM validation reliability issue; implementation evidence pending.
+- 2026-05-04T09:35:25Z: Added Windows-aware Node resolution to `.agents` and `.claude` PM validators, and backfilled missing update logs for four existing child projects. Validation passed: `bash .agents/scripts/pm/validate.sh` with Errors: 0.

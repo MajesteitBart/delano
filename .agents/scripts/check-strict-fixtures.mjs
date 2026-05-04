@@ -55,7 +55,7 @@ function validateFixture(fixturePath) {
 
   for (const file of markdownFiles) {
     const text = readFileSync(file, "utf8");
-    if (/PATH_LEAK_TOKEN\(/.test(text) || /\/home\/[^\s)]+/.test(text) || /\/Users\/[^\s)]+/.test(text) || /[A-Z]:\\Users\\[^\s)]+/i.test(text)) violations.add("path-leak");
+    if (/PATH_LEAK_TOKEN\(/.test(text) || /\/home\/[^\s)]+/.test(text) || /\/Users\/[^\s)]+/.test(text) || /\/mnt\/[A-Za-z]\/[^\s)]+/.test(text) || /[A-Z]:\\Users\\[^\s)]+/i.test(text)) violations.add("path-leak");
     const frontmatter = parseFrontmatter(text);
     if (frontmatter.id && frontmatter.status) tasks.set(frontmatter.id, { file, text, frontmatter });
     if (frontmatter.review_by && Date.parse(frontmatter.review_by) < Date.parse("2026-04-29T00:00:00Z")) violations.add("stale-context");

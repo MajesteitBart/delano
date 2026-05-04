@@ -1,9 +1,9 @@
 ---
 name: WS-B Package and Payload Integrity
 owner: bart
-status: planned
+status: done
 created: 2026-05-04T09:25:06Z
-updated: 2026-05-04T09:25:06Z
+updated: 2026-05-04T09:35:25Z
 ---
 
 # Workstream: WS-B Package and Payload Integrity

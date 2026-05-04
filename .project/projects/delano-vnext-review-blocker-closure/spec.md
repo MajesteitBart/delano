@@ -2,9 +2,9 @@
 name: Delano vNext Review Blocker Closure
 slug: delano-vnext-review-blocker-closure
 owner: bart
-status: active
+status: complete
 created: 2026-05-04T09:25:06Z
-updated: 2026-05-04T09:25:06Z
+updated: 2026-05-04T09:35:25Z
 outcome: Close every still-open vNext review blocker with validated fixes before the v0.2 runtime upgrade is called complete.
 uncertainty: medium
 probe_required: true

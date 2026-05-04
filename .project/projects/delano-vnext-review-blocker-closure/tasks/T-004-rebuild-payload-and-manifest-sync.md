@@ -1,10 +1,10 @@
 ---
 id: T-004
 name: Rebuild payload and manifest sync
-status: deferred
+status: done
 workstream: WS-B
 created: 2026-05-04T09:25:06Z
-updated: 2026-05-04T09:25:06Z
+updated: 2026-05-04T09:35:25Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -23,10 +23,10 @@ Rebuild generated runtime payload assets and align `assets/install-manifest.json
 
 ## Acceptance Criteria
 
-- [ ] `npm run build:assets` completes without introducing unexplained generated drift.
-- [ ] `npm run check:package-manifest` passes.
-- [ ] Added or removed payload files are reflected in the install manifest intentionally.
-- [ ] Evidence records the build and package-manifest check results.
+- [x] `npm run build:assets` completes without introducing unexplained generated drift.
+- [x] `npm run check:package-manifest` passes.
+- [x] Added or removed payload files are reflected in the install manifest intentionally.
+- [x] Evidence records the build and package-manifest check results.
 
 ## Technical Notes
 
@@ -35,10 +35,11 @@ Rebuild generated runtime payload assets and align `assets/install-manifest.json
 
 ## Definition of Done
 
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Implementation complete
+- [x] Tests pass
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
 - 2026-05-04T09:25:06Z: Task created from reproduced package-manifest drift failure; implementation evidence pending.
+- 2026-05-04T09:35:25Z: Rebuilt `assets/payload/` from the 177-entry install manifest after runtime changes. Validation passed: `npm run build:assets`; `npm run check:package-manifest`.

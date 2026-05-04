@@ -56,7 +56,7 @@ Its core objective is:
 
 ### 1.1 Primary flow
 
-**Outcome -> Draft Spec -> Probe Decision -> Approved Spec -> Delivery Project -> Workstreams -> Tasks -> Linear Issues -> PRs -> Release -> Learnings**
+**Outcome -> Planned Spec -> Probe Decision -> Active Spec -> Delivery Project -> Workstreams -> Tasks -> Linear Issues -> PRs -> Release -> Learnings**
 
 ### 1.2 Design principles
 
@@ -296,7 +296,7 @@ A coding agent is Delano-compatible if it can:
 name: <project-name>
 slug: <kebab-case>
 owner: <person-or-team>
-status: draft|approved|active|complete|canceled
+status: planned|active|complete|deferred
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 outcome: <measurable target>
@@ -325,13 +325,13 @@ Required sections:
 
 ```yaml
 name: <project-name>
-status: planned|in-progress|done|canceled
+status: planned|active|done|deferred
 lead: <person>
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 linear_project_id: <id>
 risk_level: low|medium|high
-spec_status_at_plan_time: approved|active
+spec_status_at_plan_time: planned|active|complete|deferred
 ```
 
 Required sections:
@@ -351,7 +351,7 @@ Required sections:
 ```yaml
 id: T-001
 name: <task-title>
-status: backlog|ready|in-progress|review|done|blocked|canceled
+status: ready|in-progress|blocked|done|deferred
 workstream: WS-A
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
@@ -361,8 +361,8 @@ github_pr: <url-or-empty>
 depends_on: []
 conflicts_with: []
 parallel: true|false
-priority: low|medium|high|urgent
-estimate: XS|S|M|L|XL
+priority: low|medium|high
+estimate: S|M|L|XL
 ```
 
 Required sections:
@@ -377,7 +377,7 @@ Required sections:
 
 - `created` immutable
 - `updated` real UTC system timestamp
-- probe decision explicit before spec approval
+- probe decision explicit before spec activation
 - dependency graph acyclic before execution
 - no absolute path leakage in shared output
 
@@ -385,66 +385,71 @@ Required sections:
 
 ## 7) Status models and transition policy
 
-### 7.1 Why expanded task states exist
+### 7.1 Why compact runtime states exist
 
-Expanded states solve execution ambiguity:
+The v0.2 runtime uses compact status sets that are enforced by schemas and validation:
 
-- `backlog` vs `ready` separates unsized ideas from executable work
-- `review` enforces handoff before closure
-- `blocked` exposes dependency constraints explicitly
+- `planned` means a spec, plan, or workstream is defined but not actively being executed.
+- `ready` means a task is executable and should not carry unresolved local dependencies.
+- `in-progress` means implementation has started.
+- `blocked` exposes dependency constraints explicitly.
+- `done` and `complete` are terminal success states for delivery plans/tasks and specs respectively.
+- `deferred` is the terminal non-completion state for postponed or canceled work.
+
+Idea triage belongs outside executable task files. Review is a gate recorded in evidence, updates, quality notes, or PR state; it is not a canonical v0.2 task status.
 
 ### 7.2 Lifecycle definitions
 
 #### Spec
 
-`draft -> approved -> active -> complete`  
-optional terminal: `canceled`
+`planned -> active -> complete`  
+optional terminal: `deferred`
 
-Probe decision rule while spec is `draft`:
+Probe decision rule while spec is `planned`:
 
-- `probe_required: false` allows approval once other discovery gates pass
-- `probe_required: true` requires a Prototype Probe and recorded findings before approval
+- `probe_required: false` allows activation once other discovery gates pass.
+- `probe_required: true` requires a Prototype Probe and recorded findings before activation.
 
 #### Delivery Project
 
-`planned -> in-progress -> done`  
-optional terminal: `canceled`
+`planned -> active -> done`  
+optional terminal: `deferred`
 
 #### Task
 
-`backlog -> ready -> in-progress -> review -> done`  
-optional branches: `blocked`, `canceled`
+`ready -> in-progress -> done`  
+optional branches: `blocked`, `deferred`
 
 ### 7.3 Transition policy
 
-- No `in-progress` with unmet hard dependencies.
+- No `ready`, `in-progress`, or `done` transition with unmet local dependencies.
 - No `done` without evidence completion.
 - No project `done` with unresolved required tasks.
-- No spec `approved` without explicit probe decision fields.
-- No spec `approved` with unresolved required probe findings.
+- No spec `active` without explicit probe decision fields.
+- No spec `active` with unresolved required probe findings.
 - No spec `complete` without outcome review.
+
+Current artifact scans are intentionally additive for legacy migration in some validators, but proposed transitions and release-blocking fixtures should be strict.
 
 ### 7.4 Review semantics
 
-`review` may include one or more:
+Review is a quality gate before closure. It may include one or more:
 
 - code review
 - quality gate verification
 - product acceptance for user-visible changes
 
-Teams must define exact review semantics in local policy.
+Teams must define exact review semantics in local policy and record the result in evidence, updates, or PR state.
 
 ### 7.5 Explicit Delano -> Linear status mapping
 
 | Delano task status | Preferred Linear state |
 |---|---|
-| backlog | Triage or Backlog |
 | ready | Todo |
 | in-progress | In Progress |
-| review | In Review |
 | done | Done |
 | blocked | Blocked (if exists) or Todo + blocked relation/label |
-| canceled | Canceled |
+| deferred | Canceled, Icebox, or Backlog depending on team policy |
 
 If team workflow names differ, maintain this semantic mapping in sync rules.
 
@@ -458,6 +463,17 @@ If team workflow names differ, maintain this semantic mapping in sync rules.
 - **Scripts**: deterministic execution
 - **Rules**: constraints and policy
 - **Hooks**: runtime tracking and guardrails
+
+### 8.8 v0.2 runtime foundation
+
+v0.2 adds enforceable local runtime surfaces around the handbook process:
+
+- **Operating modes**: Mode 0 patch, Mode 1 scoped change, Mode 2 feature, Mode 3 uncertain feature, and Mode 4 multi-stream. Modes are additive hints for task depth and required proof, not a reason to skip safety gates.
+- **Contract validation**: schemas and validators cover artifact scope, schema shape, operating modes, status transitions, evidence maps, strict fixtures, sync scaffolding, leases, metrics, context audit, and skill-output evals.
+- **Evidence expectations**: done tasks need checked acceptance criteria plus implementation or validation evidence. v0.2 evidence mapping remains markdown-based; full criterion-to-ledger instance validation is a later maturity gate.
+- **Dry-run sync**: GitHub and Linear sync surfaces inspect, classify drift, and produce repair plans without remote mutation unless a future explicit apply gate is approved.
+- **Lease semantics**: multi-agent work uses leases with conflict zones, lifecycle state, and handoff summaries. Conflict checks must run before overlapping work proceeds.
+- **Release gates**: `npm run build:assets`, package-manifest drift checks, PM validation, and `npm test` are the local release baseline. Formal CI publishing, enterprise state-machine orchestration, and non-mocked Linear behavior remain later maturity gates.
 
 ### 8.2 Skill contract standard
 
@@ -477,7 +493,7 @@ Each skill must define:
 
 ```yaml
 name: breakdown-skill
-intent: decompose approved plan into atomic tasks
+intent: decompose active plan into atomic tasks
 inputs:
   - spec_path
   - plan_path
@@ -599,7 +615,7 @@ This keeps rapid learning without weakening team governance.
 
 **Goal**
 
-- define a measurable outcome, draft the Spec, and make the probe decision explicit
+- define a measurable outcome, create the planned Spec, and make the probe decision explicit
 
 **Entry criteria**
 
@@ -612,7 +628,7 @@ This keeps rapid learning without weakening team governance.
 
 **Exit artifacts**
 
-- drafted `spec.md` with uncertainty and probe decision recorded
+- planned `spec.md` with uncertainty and probe decision recorded
 
 **Gate**
 
@@ -625,11 +641,11 @@ This keeps rapid learning without weakening team governance.
 
 **Goal**
 
-- retire or bound material uncertainty before spec approval
+- retire or bound material uncertainty before spec activation
 
 **Entry criteria**
 
-- `spec.md` is still `draft`
+- `spec.md` is still `planned`
 - `probe_required: true`
 
 **Primary components**
@@ -641,14 +657,14 @@ This keeps rapid learning without weakening team governance.
 
 **Exit artifacts**
 
-- updated draft `spec.md`
-- probe findings and approval recommendation
+- updated planned `spec.md`
+- probe findings and activation recommendation
 
 **Gate**
 
 - probe findings recorded
 - touched surfaces and footguns explicit
-- approval recommendation clear
+- activation recommendation clear
 
 ### Stage C: Planning
 
@@ -658,7 +674,7 @@ This keeps rapid learning without weakening team governance.
 
 **Entry criteria**
 
-- `spec.md` approved
+- `spec.md` active
 
 **Primary components**
 
@@ -1173,7 +1189,7 @@ This section is designed for live planning and execution meetings.
 name: <project-name>
 slug: <kebab-case>
 owner: <person-or-team>
-status: draft
+status: planned
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 outcome: <measurable target>
@@ -1224,7 +1240,7 @@ created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
 linear_project_id:
 risk_level: <low|medium|high>
-spec_status_at_plan_time: <approved|active>
+spec_status_at_plan_time: <planned|active|complete|deferred>
 ---
 
 # Delivery Plan: <project-name>
@@ -1427,7 +1443,7 @@ For each active epic scope:
 
 #### Step 4: map statuses
 
-- `open` -> `backlog` or `ready` depending on readiness
+- `open` -> `ready` when executable, or `deferred` when not actionable in the current delivery scope
 - `in-progress` -> `in-progress`
 - `closed` -> `done`
 
