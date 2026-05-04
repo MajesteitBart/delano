@@ -161,7 +161,6 @@
     ".delano/viewer/public/markdown.svg",
     ".delano/viewer/public/vscode.svg",
     ".delano/viewer/public/styles.css",
-    ".delano/viewer/server.js",
     ".project/projects/.gitkeep",
     ".project/registry/linear-map.json",
     ".project/registry/migration-map.json",
