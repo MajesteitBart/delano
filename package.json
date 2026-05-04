@@ -2,7 +2,7 @@
   "name": "@bvdm/delano",
   "version": "0.2.1",
   "description": "CLI for the Delano delivery runtime.",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MajesteitBart/delano"

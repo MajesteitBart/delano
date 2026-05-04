@@ -15,9 +15,19 @@ The npm package is intentionally thin. It distributes the approved runtime paylo
 ## Delano CLI
 
 - Package: `@bvdm/delano`
+- Current package version: `0.2.1`
 - Binary: `delano`
 - Commands: `onboarding`, `install`, `viewer`, `init`, `validate`, `status`, `next`
-- Primary v1.1 goal: bootstrap a repo safely, then stay out of the way
+- Primary goal: bootstrap a repo safely, expose local delivery state clearly, and keep runtime gates verifiable
+
+## Recent main changes
+
+The latest main merges moved Delano beyond a thin install wrapper:
+
+- PR #4, `feat/delano-vnext-runtime-upgrade`, merged on 2026-05-04. This added the v0.2 runtime layer: schema-backed `.project` artifact validation, operating-mode and status-transition checks, evidence mapping, strict validation fixtures, privacy-safe logging defaults, package/payload drift checks, dry-run sync inspection, apply-gated repair planning, lease-based multi-agent coordination, worktree health checks, delivery metrics, context audits, skill-output eval fixtures, and compact root/adapter agent instructions.
+- PR #3, `delano-viewer-design-overhaul`, merged on 2026-04-29. This added the packaged read-only Delano viewer under `.delano/viewer`, including the local Node server, static UI, `.project` indexing APIs, project outlines, workstream/task navigation, rendered markdown, context-aware filters, guarded open actions, and visual/browser smoke evidence.
+
+The current runtime still treats `HANDBOOK.md` and `.project/` as the source of truth. The new pieces make that model easier to inspect and harder to bypass accidentally.
 
 ## One-command bootstrap
 
@@ -123,11 +133,11 @@ bash .agents/scripts/pm/status.sh
 bash .agents/scripts/pm/next.sh --all
 ```
 
-The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files read-only. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port.
+The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files read-only. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port. It indexes `.project/context`, `.project/templates`, and `.project/projects`, then derives artifact roles, statuses, project outlines, task/workstream relationships, snippets, and rendered markdown for local inspection.
 
 ## Required dependencies
 
-Delano v1.1 assumes these tools are available:
+Delano assumes these tools are available:
 
 - `node` 18 or newer
 - `bash`
@@ -174,7 +184,7 @@ When working in this repository:
 - use `delano viewer` to inspect `.project/` through the read-only local UI
 ```
 
-## v1.1 boundaries
+## Runtime boundaries
 
 This package is deliberately narrow:
 
@@ -182,8 +192,29 @@ This package is deliberately narrow:
 - `.project` remains repo-owned after install
 - `.project/context/` installs as generic starter context that the target repo must replace with its own reality
 - `.agents` remains the runtime surface
-- wrapper commands stay thin in v1.1
+- wrapper commands stay thin
 - `install-delano.sh` remains available as the legacy bridge installer
+- remote GitHub/Linear writes remain outside the default flow; current sync tooling is dry-run and repair-plan oriented unless an operator explicitly approves an apply-capable workflow
+
+## Runtime validation
+
+The v0.2 runtime upgrade expanded `delano validate` and `bash .agents/scripts/pm/validate.sh` with local gates for:
+
+- artifact schemas, artifact scope, operating modes, status transitions, dependencies, blockers, and acceptance/evidence mapping
+- privacy-safe prompt/log defaults and path-output safety
+- package manifest and install payload drift
+- local/GitHub/Linear sync inspection, drift reporting, and apply-gated repair planning
+- lease contracts, conflict zones, stream-aware next-task selection, handoff summaries, and worktree health
+- delivery metrics, project metrics summaries, context audit scoring, skill-output eval fixtures, and closeout learning proposals
+
+For release readiness, run:
+
+```bash
+npm run build:assets
+npm run check:package-manifest
+bash .agents/scripts/pm/validate.sh
+npm test
+```
 
 ## Local development
 
@@ -208,7 +239,7 @@ Before the first Actions publish, configure npm trusted publishing for `@bvdm/de
 
 The package metadata must keep `repository.url` set to `https://github.com/MajesteitBart/delano`; npm validates that value against the GitHub Actions provenance bundle.
 
-After trusted publishing is configured, publish by pushing a matching version tag such as `v0.2.0`, or run the `Publish package to npm` workflow manually from `main`. The workflow rebuilds the package payload, checks manifest drift, runs tests, dry-runs the package contents, verifies the version is not already published, and then runs `npm publish --access public` from GitHub Actions using OIDC. A manual `dry_run` input is available to run the same checks without publishing.
+After trusted publishing is configured, publish by pushing a matching version tag such as `v0.2.1`, or run the `Publish package to npm` workflow manually from `main`. The workflow rebuilds the package payload, checks manifest drift, runs tests, dry-runs the package contents, verifies the version is not already published, and then runs `npm publish --access public` from GitHub Actions using OIDC. A manual `dry_run` input is available to run the same checks without publishing.
 
 If npm publish fails after the package checks pass, verify that the npm trusted publisher settings match the repository and workflow filename exactly, and that the workflow has `id-token: write`.
 
