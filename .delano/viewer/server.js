@@ -9,7 +9,7 @@ const path = require('node:path');
 const url = require('node:url');
 const { spawn, spawnSync } = require('node:child_process');
 
-const repoRoot = path.resolve(__dirname, '..', '..');
+const repoRoot = path.resolve(process.env.DELANO_VIEWER_ROOT || path.resolve(__dirname, '..', '..'));
 const projectRoot = path.join(repoRoot, '.project');
 const publicRoot = path.join(__dirname, 'public');
 const port = Number(process.env.DELANO_VIEWER_PORT || process.env.PORT || 3977);
