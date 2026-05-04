@@ -12,10 +12,6 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: read
-  id-token: write
-
 concurrency:
   group: publish-npm
   cancel-in-progress: false
@@ -23,6 +19,9 @@ concurrency:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -31,6 +30,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
+          registry-url: https://registry.npmjs.org
 
       - name: Verify manual dispatch source
         if: github.event_name == 'workflow_dispatch'
@@ -70,24 +70,8 @@ jobs:
       - name: Smoke-test package contents
         run: npm pack --dry-run
 
-      - name: Verify npm trusted publishing OIDC
-        if: github.event_name != 'workflow_dispatch' || inputs.dry_run == false
-        run: |
-          if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ] || [ -z "${ACTIONS_ID_TOKEN_REQUEST_TOKEN:-}" ]; then
-            echo "GitHub Actions did not provide an OIDC token request endpoint."
-            echo "Check that this workflow has 'permissions: id-token: write' on the ref being published."
-            exit 1
-          fi
-          echo "Trusted publishing identity:"
-          echo "  Repository: ${GITHUB_REPOSITORY}"
-          echo "  Workflow file: publish-npm.yml"
-          echo "  Ref: ${GITHUB_REF}"
-          if [ -n "${NPM_CONFIG_USERCONFIG:-}" ] && [ -f "${NPM_CONFIG_USERCONFIG}" ]; then
-            rm -f "${NPM_CONFIG_USERCONFIG}"
-          fi
-
       - name: Publish to npm
         if: github.event_name != 'workflow_dispatch' || inputs.dry_run == false
         env:
-          NODE_AUTH_TOKEN:
-        run: npm publish --access public --registry https://registry.npmjs.org
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
