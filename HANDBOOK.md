@@ -429,7 +429,7 @@ optional branches: `blocked`, `deferred`
 - No spec `active` with unresolved required probe findings.
 - No spec `complete` without outcome review.
 
-Current artifact scans are intentionally additive for legacy migration in some validators, but proposed transitions and release-blocking fixtures should be strict.
+Current artifact scans and proposed transitions are strict for local task dependencies: `ready`, `in-progress`, and `done` tasks fail validation when they depend on unresolved local tasks.
 
 ### 7.4 Review semantics
 

@@ -6,10 +6,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = resolveRepoRoot(__dirname);
 const contractPath = path.join(repoRoot, ".agents", "schemas", "status-transitions.json");
-const projectsRoot = path.join(repoRoot, ".project", "projects");
+const args = process.argv.slice(2);
+const projectsRoot = path.resolve(repoRoot, valueAfter(args, "--projects-root") || path.join(".project", "projects"));
 const errors = [];
 
-const warnings = [];
 const contract = readJson(contractPath, "status transition contract");
 if (contract.schema_version !== 1) {
   errors.push("status-transitions.json schema_version must be 1.");
@@ -21,7 +21,7 @@ for (const requiredRule of ["ready-dependencies-done", "blocked-owner-check-back
   }
 }
 
-const transitionRequest = parseTransitionArgs(process.argv.slice(2));
+const transitionRequest = parseTransitionArgs(args);
 if (transitionRequest) {
   validateTransitionRequest(transitionRequest);
   finish();
@@ -49,8 +49,7 @@ for (const projectDir of listDirectories(projectsRoot)) {
         const dependencyStatus = dependency.frontmatter.status || "";
         if (dependencyStatus !== "done") {
           const message = `${toRepoPath(task.file)} has status ${status} but depends on unresolved ${dependencyId} (${dependencyStatus || "missing status"}).`;
-          if (status === "ready") warnings.push(message);
-          else errors.push(message);
+          errors.push(message);
         }
       }
     }
@@ -107,9 +106,6 @@ function finish() {
     process.exit(1);
   }
 
-  if (warnings.length > 0) {
-    console.warn(`Status transition check warnings: ${warnings.length} ready task dependency warning(s).`);
-  }
   console.log("Status transition check passed for current project tasks.");
   process.exit(0);
 }

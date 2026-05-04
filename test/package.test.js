@@ -114,6 +114,14 @@ test("package manifest and generated payload stay in sync", () => {
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Package\/manifest drift check passed/);
 });
+
+test("install manifest includes shipped runtime script dependencies", () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, "assets", "install-manifest.json"), "utf8"));
+  const entries = new Set(manifest.files.map((entry) => typeof entry === "string" ? entry : entry.target));
+  assert.ok(entries.has(".agents/schemas/metrics/delivery-event.schema.json"));
+  assert.ok(entries.has(".agents/scripts/audit-context-files.mjs"));
+});
+
 test("agent entry docs keep operational handoff guidance", () => {
   const checkResult = spawnSync(process.execPath, ["scripts/check-agent-entry-docs.mjs"], {
     cwd: repoRoot,
@@ -178,6 +186,49 @@ test("status transition validation rejects unresolved proposed transitions", () 
 
   assert.notEqual(checkResult.status, 0);
   assert.match(checkResult.stderr, /cannot transition to ready with unresolved dependency status: ready/);
+});
+
+test("status transition validation rejects existing ready tasks with unresolved dependencies", () => {
+  const tmpDir = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "delano-ready-dependency-"));
+  const projectDir = path.join(tmpDir, "sample-project");
+  const tasksDir = path.join(projectDir, "tasks");
+  fs.mkdirSync(tasksDir, { recursive: true });
+  fs.writeFileSync(path.join(tasksDir, "dependency.md"), `---
+id: T-001
+name: Dependency
+status: in-progress
+workstream: WS-A
+created: 2026-05-04T00:00:00Z
+updated: 2026-05-04T00:00:00Z
+depends_on: []
+---
+
+# Task: Dependency
+`);
+  fs.writeFileSync(path.join(tasksDir, "task.md"), `---
+id: T-002
+name: Ready task
+status: ready
+workstream: WS-A
+created: 2026-05-04T00:00:00Z
+updated: 2026-05-04T00:00:00Z
+depends_on: [T-001]
+---
+
+# Task: Ready task
+`);
+
+  const checkResult = spawnSync(process.execPath, [
+    "scripts/check-status-transitions.mjs",
+    "--projects-root",
+    tmpDir
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr, /has status ready but depends on unresolved T-001/);
 });
 
 test("status transition validation rejects blocked transitions without owner and check-back", () => {
