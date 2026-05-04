@@ -152,7 +152,8 @@ Included in v0.2:
 Deferred beyond v0.2:
 - Remote GitHub/Linear writes without explicit apply gates.
 - Dashboard-first or enterprise portfolio surfaces.
-- Formal release automation and CI publishing.
 - Broader state-machine orchestration beyond targeted validators.
+
+Npm publication now runs through GitHub Actions trusted publishing once the npm package settings authorize `.github/workflows/publish-npm.yml`.
 
 Release gates are documented in `release-gates.md`.

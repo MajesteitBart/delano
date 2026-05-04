@@ -15,3 +15,7 @@
 ## 2026-04-28: Close local packaging work with publish access deferred
 - Context: Package implementation, install behavior, docs, tests, asset build, and dry-run packaging are verified locally. A prior `npm publish --access public` attempt failed because this environment lacks publish permission for the `@bvdm` scope.
 - Decision: Close the local delivery project as complete and track npm publish access as an external release follow-up rather than an implementation blocker.
+
+## 2026-05-04: Publish from GitHub Actions
+- Context: Local `npm publish --access public` reached npm's one-time-password browser flow, leaving the corrected release dependent on a manual publish from the maintainer PC.
+- Decision: Use GitHub Actions trusted publishing for `@bvdm/delano` through `.github/workflows/publish-npm.yml`, with local package gates run in CI before publication.

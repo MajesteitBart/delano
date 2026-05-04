@@ -52,14 +52,16 @@ These are intentionally deferred beyond v0.2.0:
 
 - Remote GitHub/Linear writes beyond explicit dry-run and apply-gated repair planning.
 - Full portfolio/dashboard surfaces.
-- Formal release automation or CI publishing.
 - Enterprise-grade state-machine/runtime orchestration.
 - Non-mocked Linear API behavior beyond local fixture inspection.
+
+GitHub Actions now owns npm publication through `.github/workflows/publish-npm.yml` after the npm package is configured for trusted publishing.
 
 ## Current verification command list
 
 ```bash
 npm run build:assets
+npm run check:package-manifest
 bash .agents/scripts/pm/validate.sh
 npm test
 ```

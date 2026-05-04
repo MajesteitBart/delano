@@ -2,6 +2,12 @@ name: Publish package to npm
 
 on:
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run all publish checks without publishing to npm"
+        required: false
+        default: false
+        type: boolean
   push:
     tags:
       - "v*"
@@ -15,6 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      id-token: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -22,8 +29,16 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org
+
+      - name: Verify manual dispatch source
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${GITHUB_REF}" != "refs/heads/main" ] && ! [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "Manual npm publish runs must target main or a v* tag. Current ref: ${GITHUB_REF}."
+            exit 1
+          fi
 
       - name: Verify tag matches package version
         if: startsWith(github.ref, 'refs/tags/')
@@ -34,6 +49,21 @@ jobs:
             exit 1
           fi
 
+      - name: Verify package version is unpublished
+        run: |
+          PACKAGE_NAME=$(node -p "require('./package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./package.json').version")
+          if npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" version >/dev/null 2>&1; then
+            echo "${PACKAGE_NAME}@${PACKAGE_VERSION} is already published on npm."
+            exit 1
+          fi
+
+      - name: Rebuild package payload
+        run: npm run build:assets
+
+      - name: Check package manifest drift
+        run: npm run check:package-manifest
+
       - name: Run tests
         run: npm test
 
@@ -41,6 +71,5 @@ jobs:
         run: npm pack --dry-run
 
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        if: github.event_name != 'workflow_dispatch' || inputs.dry_run == false
         run: npm publish --access public

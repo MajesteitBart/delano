@@ -4,7 +4,7 @@ name: Windows-first verification and release evidence
 status: done
 workstream: WS-D
 created: 2026-04-03T12:00:36Z
-updated: 2026-04-28T22:08:32Z
+updated: 2026-05-04T00:00:00Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -46,3 +46,4 @@ Verify the packaged CLI and wrapper commands in the current Windows-first enviro
 - 2026-04-28: Marked done after operator confirmation and final package verification rerun.
 - 2026-04-28: Final closeout rerun passed: `npm test` (11/11), `npm run build:assets` (111 files), `node bin/delano.js --version` (`0.1.7`), `node bin/delano.js --help`, `npm pack --dry-run` (`bvdm-delano-0.1.7.tgz`, 136 files), and `bash .agents/scripts/pm/validate.sh`. npm publish access remains an external follow-up.
 - 2026-05-04: Prepared corrected vNext release `@bvdm/delano` `0.2.0` for publication. `npm run build:assets` built 184 manifest entries, `npm test` passed 51/51 tests, `npm run check:package-manifest` passed, `node bin/delano.js --version` returned `0.2.0`, `bash .agents/scripts/pm/validate.sh` passed with 0 errors and 0 warnings, and `npm pack` produced `bvdm-delano-0.2.0.tgz` with 219 files. Registry inspection showed `0.1.8` as the current latest after an earlier mistaken patch-version publish attempt; `0.2.0` is the intended vNext release version. `npm publish --access public` rebuilt the tarball but stopped with `EOTP`, requiring npm one-time browser/OTP authentication before the corrected release can publish.
+- 2026-05-04: Replaced the token/OTP-oriented publish workflow with GitHub Actions trusted publishing. `.github/workflows/publish-npm.yml` now grants `id-token: write`, uses Node 24 for npm trusted publishing support, runs `npm run build:assets`, `npm run check:package-manifest`, `npm test`, and `npm pack --dry-run`, blocks already-published versions, and publishes from Actions with `npm publish --access public`. README publishing guidance records the required one-time npm trusted publisher configuration.

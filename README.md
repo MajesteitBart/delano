@@ -195,6 +195,19 @@ node bin/delano.js --help
 node bin/delano.js --yes --target ./tmp/cli-install-smoke
 ```
 
+## Publishing
+
+Publishing is handled by the GitHub Actions workflow `.github/workflows/publish-npm.yml`.
+
+Before the first Actions publish, configure npm trusted publishing for `@bvdm/delano` on npmjs.com:
+
+- provider: GitHub Actions
+- repository: this GitHub repository
+- workflow filename: `publish-npm.yml`
+- environment: leave blank unless the workflow is later changed to use a GitHub environment
+
+After that one-time npm setting is in place, publish by pushing a matching version tag such as `v0.2.0`, or run the `Publish package to npm` workflow manually from `main`. The workflow rebuilds the package payload, checks manifest drift, runs tests, dry-runs the package contents, verifies the version is not already published, and then runs `npm publish --access public` from GitHub Actions. A manual `dry_run` input is available to run the same checks without publishing.
+
 ## Read next
 
 - `docs/user-guide.md` for the practical user flow
