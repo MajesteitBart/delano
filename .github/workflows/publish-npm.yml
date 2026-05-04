@@ -31,7 +31,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          registry-url: https://registry.npmjs.org
 
       - name: Verify manual dispatch source
         if: github.event_name == 'workflow_dispatch'
@@ -83,6 +82,9 @@ jobs:
           echo "  Repository: ${GITHUB_REPOSITORY}"
           echo "  Workflow file: publish-npm.yml"
           echo "  Ref: ${GITHUB_REF}"
+          if [ -n "${NPM_CONFIG_USERCONFIG:-}" ] && [ -f "${NPM_CONFIG_USERCONFIG}" ]; then
+            rm -f "${NPM_CONFIG_USERCONFIG}"
+          fi
 
       - name: Publish to npm
         if: github.event_name != 'workflow_dispatch' || inputs.dry_run == false

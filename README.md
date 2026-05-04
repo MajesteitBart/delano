@@ -215,6 +215,7 @@ If npm publish fails with `E404` from GitHub Actions after the package checks pa
 - workflow filename: `publish-npm.yml`
 
 The workflow prints these values before publishing and also verifies that GitHub provided an OIDC token request endpoint.
+The workflow intentionally does not configure `actions/setup-node` with `registry-url`, because that creates token-based npm auth config that can prevent npm from using trusted publishing.
 
 ## Read next
 
