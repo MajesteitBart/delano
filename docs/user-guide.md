@@ -4,13 +4,14 @@ This guide is about one thing: how to use the Delano CLI without guessing.
 
 ## Mental model
 
-Delano has three important layers:
+Delano has four important layers:
 
 - npm package: distribution and command surface
 - `.agents/`: shared runtime
 - `.project/`: delivery truth inside your repo
+- `.delano/`: optional read-only UI layer
 
-The CLI is intentionally thin. It installs the approved runtime payload and wraps the existing PM scripts. It does not replace the handbook or the file-contract model.
+The CLI is intentionally thin. It installs the approved runtime payload, launches the read-only viewer, and wraps the existing PM scripts. It does not replace the handbook or the file-contract model.
 
 ## Primary install flow
 
@@ -52,6 +53,7 @@ Then in any repository:
 ```bash
 delano onboarding
 delano install --yes
+delano viewer
 delano validate
 delano init <slug> "<Project Name>" [owner] [lead]
 ```
@@ -59,6 +61,7 @@ delano init <slug> "<Project Name>" [owner] [lead]
 Important distinction:
 
 - `delano install` installs the Delano runtime into the repository
+- `delano viewer` launches the packaged read-only UI for `.project` contracts
 - `delano validate` verifies that the runtime is correctly installed
 - `delano init` creates a delivery project after the runtime is already present
 
@@ -79,7 +82,7 @@ The base install path copies only the approved allowlist payload:
 
 - `.agents/`
 - `.project/`
-- `.delano/README.md`
+- `.delano/`
 - `HANDBOOK.md`
 - `install-delano.sh`
 
@@ -124,6 +127,7 @@ If you used one-shot `npx` for bootstrap, you can keep using `npx`:
 
 ```bash
 npx -y @bvdm/delano@latest onboarding --approve-agents-analysis
+npx -y @bvdm/delano@latest viewer
 npx -y @bvdm/delano@latest validate
 npx -y @bvdm/delano@latest status
 npx -y @bvdm/delano@latest next -- --all
@@ -133,6 +137,7 @@ If the package is installed locally or globally, inside the installed repo:
 
 ```bash
 delano onboarding
+delano viewer
 delano validate
 delano status
 delano next -- --all
@@ -152,6 +157,8 @@ bash .agents/scripts/pm/status.sh
 bash .agents/scripts/pm/next.sh --all
 bash .agents/scripts/pm/init.sh <slug> "<Project Name>" [owner] [lead]
 ```
+
+`delano viewer` serves the selected repository's `.project` files read-only on `http://127.0.0.1:3977` by default. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.
 
 ## Day-to-day workflow
 

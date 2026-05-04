@@ -5,10 +5,11 @@ const path = require("node:path");
 const { commands, getGeneralHelp, resolveInvocation } = require("../src/cli");
 const { normalizeManifestEntries, parseAgentList } = require("../src/cli/lib/install");
 const { ANALYSIS_APPROVAL_FLAG, analyzeAgentsContent, parseOnboardingArgs } = require("../src/cli/lib/onboarding");
+const { parseViewerArgs } = require("../src/cli/commands/viewer");
 const { findDelanoRoot, normalizeBashScriptPath } = require("../src/cli/lib/runtime");
 
-test("CLI exposes the planned v1 command surface", () => {
-  assert.deepEqual(Object.keys(commands).sort(), ["init", "install", "next", "onboarding", "status", "validate"]);
+test("CLI exposes the package command surface", () => {
+  assert.deepEqual(Object.keys(commands).sort(), ["init", "install", "next", "onboarding", "status", "validate", "viewer"]);
 });
 
 test("general help mentions the install and wrapper commands", () => {
@@ -17,6 +18,7 @@ test("general help mentions the install and wrapper commands", () => {
   assert.match(helpText, /\binstall\b/);
   assert.match(helpText, /\bvalidate\b/);
   assert.match(helpText, /\bnext\b/);
+  assert.match(helpText, /\bviewer\b/);
   assert.match(helpText, /npx -y @bvdm\/delano@latest --yes/);
 });
 
@@ -32,6 +34,12 @@ test("top-level install options are treated as install shorthand", () => {
 test("onboarding args support explicit approval and target overrides", () => {
   assert.deepEqual(parseOnboardingArgs([ANALYSIS_APPROVAL_FLAG, "--target", "..\\repo"]), {
     approveAnalysis: true,
+    target: path.resolve("..\\repo")
+  });
+});
+
+test("viewer args support target overrides", () => {
+  assert.deepEqual(parseViewerArgs(["--target", "..\\repo"]), {
     target: path.resolve("..\\repo")
   });
 });

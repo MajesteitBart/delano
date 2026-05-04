@@ -10,13 +10,13 @@ Delano is an agent-agnostic delivery runtime. It keeps planning, execution, and 
 - `.claude/` is a compatibility mirror of `.agents/`, not a second runtime.
 - `.delano/` is an optional UI layer.
 
-The npm package is intentionally thin. It distributes the approved runtime payload and wraps the existing shell-based PM scripts. It does not replace the handbook, the file contracts, or the underlying bash/Python execution layer.
+The npm package is intentionally thin. It distributes the approved runtime payload, includes the read-only viewer UI, and wraps the existing shell-based PM scripts. It does not replace the handbook, the file contracts, or the underlying bash/Python execution layer.
 
 ## Delano CLI
 
 - Package: `@bvdm/delano`
 - Binary: `delano`
-- Commands: `onboarding`, `install`, `init`, `validate`, `status`, `next`
+- Commands: `onboarding`, `install`, `viewer`, `init`, `validate`, `status`, `next`
 - Primary v1.1 goal: bootstrap a repo safely, then stay out of the way
 
 ## One-command bootstrap
@@ -59,6 +59,7 @@ Typical flow in a repository:
 ```bash
 cd /path/to/repo
 delano install --yes
+delano viewer
 delano validate
 delano init <slug> "<Project Name>" [owner] [lead]
 ```
@@ -66,6 +67,7 @@ delano init <slug> "<Project Name>" [owner] [lead]
 Command intent:
 
 - `delano install` bootstraps the Delano runtime into the current repository
+- `delano viewer` launches the read-only local UI for `.project` contracts
 - `delano validate` checks whether the runtime and required assets are in place
 - `delano init` creates a delivery project inside a repository that already has Delano installed
 
@@ -96,6 +98,7 @@ If you bootstrap with one-shot `npx`, keep using `npx` for wrapper commands:
 
 ```bash
 npx -y @bvdm/delano@latest onboarding --approve-agents-analysis
+npx -y @bvdm/delano@latest viewer
 npx -y @bvdm/delano@latest validate
 npx -y @bvdm/delano@latest status
 npx -y @bvdm/delano@latest next -- --all
@@ -105,6 +108,7 @@ If the package is installed locally or globally, run these inside the target rep
 
 ```bash
 delano onboarding
+delano viewer
 delano validate
 delano status
 delano next -- --all
@@ -118,6 +122,8 @@ bash .agents/scripts/pm/validate.sh
 bash .agents/scripts/pm/status.sh
 bash .agents/scripts/pm/next.sh --all
 ```
+
+The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files read-only. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port.
 
 ## Required dependencies
 
@@ -142,6 +148,7 @@ The CLI does not bundle its own shell or Python runtime.
 - it does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`
 
 The base install payload intentionally excludes top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, and `PI.md`. Those remain opt-in only.
+The base install payload includes `.delano/`, including the read-only viewer UI.
 The installable `.project/context/` pack is seeded from generic templates during packaging; it does not ship Delano's own repo-specific context files into consumer repositories.
 After install, the recommended first step is `delano onboarding`, which requires explicit approval before it reviews `AGENTS.md`.
 
@@ -164,6 +171,7 @@ When working in this repository:
 - use the Delano status model and evidence discipline from `HANDBOOK.md`
 - keep sync and quality gates aligned with the handbook
 - use `delano init <slug> "<Project Name>" [owner] [lead]` to scaffold a new delivery project when needed
+- use `delano viewer` to inspect `.project/` through the read-only local UI
 ```
 
 ## v1.1 boundaries

@@ -5,6 +5,7 @@ const { CliError } = require("./lib/errors");
 const { getPackageRoot } = require("./lib/runtime");
 const { getOnboardingHelp, runOnboarding } = require("./commands/onboarding");
 const { runInstall, getInstallHelp } = require("./commands/install");
+const { runViewer, getViewerHelp } = require("./commands/viewer");
 const { createWrapperCommand } = require("./commands/wrapper");
 
 const wrapperCommands = {
@@ -24,6 +25,11 @@ const commands = {
     description: "Install the approved Delano runtime payload into a target repository.",
     run: runInstall,
     help: getInstallHelp
+  },
+  viewer: {
+    description: "Launch the read-only Delano UI for a local repository.",
+    run: runViewer,
+    help: getViewerHelp
   },
   init: wrapperCommands.init,
   validate: wrapperCommands.validate,
@@ -92,6 +98,7 @@ function getGeneralHelp() {
     "Commands:",
     "  onboarding Analyze AGENTS.md with the approval-first onboarding skill",
     "  install    Install the approved Delano runtime payload",
+    "  viewer     Launch the read-only local UI for .project contracts",
     "  init       Run .agents/scripts/pm/init.sh in the current Delano repo",
     "  validate   Run .agents/scripts/pm/validate.sh in the current Delano repo",
     "  status     Run .agents/scripts/pm/status.sh in the current Delano repo",
@@ -107,6 +114,7 @@ function getGeneralHelp() {
     "  delano --yes",
     "  delano --target ../my-repo --yes",
     "  npx -y @bvdm/delano@latest --yes",
+    "  delano viewer",
     "  delano validate",
     "  delano next -- --all",
     "",

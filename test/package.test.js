@@ -32,6 +32,12 @@ test("npm pack excludes repo root Git config files from the payload", () => {
   assert.ok(!packedPaths.has("assets/payload/.gitignore"));
   assert.ok(!packedPaths.has("assets/payload/__dot_gitignore__"));
   assert.ok(!packedPaths.has("assets/payload/.gitattributes"));
+  assert.ok(packedPaths.has(".delano/viewer/server.js"));
+  assert.ok(packedPaths.has(".delano/viewer/public/app.js"));
+  assert.ok(packedPaths.has(".delano/viewer/public/styles.css"));
+  assert.ok(packedPaths.has(".delano/viewer/public/explorer.svg"));
+  assert.ok(packedPaths.has("assets/payload/.delano/viewer/server.js"));
+  assert.ok(packedPaths.has("assets/payload/.delano/viewer/public/vscode.svg"));
 
   const tarballPath = path.join(repoRoot, packInfo.filename);
   if (fs.existsSync(tarballPath)) {
@@ -80,6 +86,15 @@ test("build:assets stages generic context templates instead of Delano repo conte
     "onboarding",
     "SKILL.md"
   );
+  const stagedViewerIconPath = path.join(
+    repoRoot,
+    "assets",
+    "payload",
+    ".delano",
+    "viewer",
+    "public",
+    "vscode.svg"
+  );
 
   const liveContext = fs.readFileSync(liveContextPath, "utf8");
   const stagedContext = fs.readFileSync(stagedContextPath, "utf8");
@@ -88,4 +103,5 @@ test("build:assets stages generic context templates instead of Delano repo conte
   assert.doesNotMatch(stagedContext, /Delano is both the product and the reference repository/);
   assert.match(stagedContext, /<describe the product or operational problem this repository exists to solve>/);
   assert.equal(fs.existsSync(stagedOnboardingSkillPath), true);
+  assert.equal(fs.existsSync(stagedViewerIconPath), true);
 });

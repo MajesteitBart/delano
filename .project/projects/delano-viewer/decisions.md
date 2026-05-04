@@ -23,3 +23,9 @@ Rationale: The viewer is useful when it helps operators understand process and p
 Decision: Close the viewer project with `.delano/viewer` remaining an optional local repository tool launched by `npm run viewer`, not part of packaging or install assets.
 
 Rationale: The implemented scope satisfies the local read-only inspection outcome. Packaging, automatic install, or hosted use would expand the operational surface and should be handled by a separate project if needed.
+
+## 2026-04-29: Include viewer in npm package and install payload
+
+Decision: Promote the read-only viewer into the `@bvdm/delano` package by including `.delano/` in the npm tarball, adding the viewer files to the install manifest, and exposing `delano viewer` as the package command for launching it against an installed Delano repository.
+
+Rationale: The viewer is now useful as part of the standard package workflow, but it remains read-only and still treats `.project/` as the source of truth.
