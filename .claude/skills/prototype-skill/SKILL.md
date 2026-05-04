@@ -1,6 +1,6 @@
 ---
 name: prototype-skill
-description: Run a time-boxed Prototype Probe to retire material uncertainty before spec approval. Use when `spec.md` is still draft, `probe_required: true`, or a narrow experiment is needed to bound technical or delivery risk before planning.
+description: Run a time-boxed Prototype Probe to retire material uncertainty before spec approval. Use when `spec.md` is still draft, `probe_required` is true, or a narrow experiment is needed to bound technical or delivery risk before planning.
 ---
 
 # prototype-skill
