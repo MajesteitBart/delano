@@ -208,6 +208,8 @@ Before the first Actions publish, configure npm trusted publishing for `@bvdm/de
 
 After that one-time npm setting is in place, publish by pushing a matching version tag such as `v0.2.0`, or run the `Publish package to npm` workflow manually from `main`. The workflow rebuilds the package payload, checks manifest drift, runs tests, dry-runs the package contents, verifies the version is not already published, and then runs `npm publish --access public` from GitHub Actions. A manual `dry_run` input is available to run the same checks without publishing.
 
+If npm publish fails with `E404` from GitHub Actions after the package checks pass, verify the npm trusted publisher settings first. The package settings on npmjs.com must match the GitHub owner, repository, and workflow filename exactly, and the workflow must have OIDC permission through `id-token: write`.
+
 ## Read next
 
 - `docs/user-guide.md` for the practical user flow
