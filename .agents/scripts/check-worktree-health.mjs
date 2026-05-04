@@ -19,7 +19,9 @@ const worktreePrune = git(["worktree", "prune", "--dry-run", "--verbose"]);
 const issues = [];
 const warnings = [];
 if (status.status !== 0) issues.push("git status failed");
-if (branch.status !== 0 || !branch.stdout.trim() || branch.stdout.trim() === "HEAD") issues.push("branch could not be resolved or is detached");
+const branchName = branch.stdout.trim();
+if (branch.status !== 0 || !branchName) issues.push("branch could not be resolved");
+else if (branchName === "HEAD") warnings.push("branch is detached");
 if (worktreeList.status !== 0) issues.push("git worktree list failed");
 if (worktreePrune.status !== 0) warnings.push("git worktree prune dry-run failed");
 
@@ -33,7 +35,7 @@ for (const stale of staleWorktrees) warnings.push(`stale worktree candidate: ${s
 
 const result = {
   schema_version: 1,
-  branch: branch.stdout.trim(),
+  branch: branchName || "unknown",
   upstream: upstream.status === 0 ? upstream.stdout.trim() : "",
   dirty: dirtyFiles.length > 0,
   dirty_files: dirtyFiles,
