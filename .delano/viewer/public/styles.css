@@ -307,6 +307,53 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
 .preview-row-warn {
   border-bottom-color: color-mix(in oklch, var(--warn) 20%, var(--line-soft));
 }
+.preview-row-progress {
+  grid-template-columns: minmax(116px, max-content) minmax(160px, 0.55fr) minmax(0, 1.45fr);
+  gap: 8px;
+  align-items: start;
+  padding: 6px 0 7px;
+}
+.preview-meta-time {
+  padding-top: 1px;
+  color: var(--ink-50);
+  white-space: nowrap;
+}
+.preview-row-progress .link {
+  justify-self: start;
+  text-align: left;
+  line-height: 1.25;
+}
+.preview-copy {
+  color: var(--ink-70);
+  line-height: 1.45;
+}
+.preview-list-validation {
+  gap: 10px;
+  padding-top: 18px;
+}
+.validation-row {
+  grid-template-columns: max-content max-content minmax(0, 1fr);
+  gap: 17px;
+  align-items: center;
+  padding: 12px 0;
+}
+.validation-row .link {
+  justify-self: start;
+  max-width: 34ch;
+  text-align: left;
+}
+.source-nav-v2 {
+  gap: 1px;
+}
+.source-nav-v2 .nav-break {
+  margin-top: 11px;
+  padding: 11px 10px 4px;
+  border-top: 1px solid var(--line-soft);
+  color: var(--ink-40);
+  font: 500 10px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
 
 .back {
   display: inline-flex; align-items: center; gap: 6px;
@@ -334,6 +381,48 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
 .summary > .field:first-child { padding-left: 0; }
 .summary-tight > .field { padding: 12px 22px; }
 .summary-tight > .field:first-child { padding-left: 0; }
+.doc-reader-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  gap: 44px;
+  align-items: start;
+}
+.doc-reader-main {
+  min-width: 0;
+}
+.doc-reader-main .md-body {
+  margin-top: 34px;
+}
+.content-reader-head-c .doc-reader-main .back {
+  margin-bottom: 22px;
+}
+.content-reader-head-c .doc-reader-main .ws-eyebrow {
+  margin-bottom: 6px;
+}
+.content-reader-head-c .doc-reader-main .page-title {
+  max-width: 17ch;
+}
+.doc-meta-panel {
+  position: sticky;
+  top: 86px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--surface);
+  overflow: hidden;
+}
+.doc-meta-title {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 600;
+}
+.doc-meta-list {
+  max-height: calc(100vh - 150px);
+  overflow: auto;
+}
+.doc-meta-list dd {
+  overflow-wrap: anywhere;
+}
 
 .field-label {
   font-size: 11px;

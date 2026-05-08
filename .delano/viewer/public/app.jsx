@@ -76,6 +76,30 @@ const escapeHtml = (s) =>
 const titleCase = (s) =>
   String(s || "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
+const formatShortDateTime = (value) => {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+};
+
+const stripRepeatedTitle = (title, text) => {
+  const source = String(text || "").trim();
+  const heading = String(title || "").trim();
+  if (!source || !heading) return source;
+  const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return source
+    .replace(new RegExp(`^#{1,6}\\s+${escaped}\\s*`, "i"), "")
+    .replace(new RegExp(`^${escaped}\\s+`, "i"), "")
+    .trim();
+};
+
 /* ================================================================
    Markdown rendering (ported from original Delano viewer)
    ================================================================ */
@@ -566,40 +590,28 @@ function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProje
 
 
           <div className="nav-section">Source contracts</div>
-          <nav className="nav">
-            {contractItems.map((it) => (
-              <button
-                key={it.id}
-                className={"nav-item" + (route === "document" && section === it.path ? " is-active" : "")}
-                onClick={() => onNavigate("document", it.path)}
-                type="button"
-              >
-                <span className="nav-ico">
-                  <Icon d={it.icon} size={16} />
-                </span>
+          <nav className="nav source-nav-v2">
+            {contractItems.filter((it) => !it.id.startsWith("prog-")).map((it) => (
+              <button key={it.id} className={"nav-item" + (route === "document" && section === it.path ? " is-active" : "")} onClick={() => onNavigate("document", it.path)} type="button">
+                <span className="nav-ico"><Icon d={it.icon} size={16} /></span>
                 <span>{it.label}</span>
               </button>
             ))}
-            <button
-              className={"nav-item" + (route === "workstreams" ? " is-active" : "")}
-              onClick={() => onNavigate("workstreams")}
-              type="button"
-            >
-              <span className="nav-ico">
-                <Icon d={I.grid} size={16} />
-              </span>
+            <button className={"nav-item" + (route === "workstreams" ? " is-active" : "")} onClick={() => onNavigate("workstreams")} type="button">
+              <span className="nav-ico"><Icon d={I.grid} size={16} /></span>
               <span>Workstreams</span>
             </button>
-            <button
-              className={"nav-item" + (route === "tasks" ? " is-active" : "")}
-              onClick={() => onNavigate("tasks")}
-              type="button"
-            >
-              <span className="nav-ico">
-                <Icon d={I.task} size={16} />
-              </span>
+            <button className={"nav-item" + (route === "tasks" ? " is-active" : "")} onClick={() => onNavigate("tasks")} type="button">
+              <span className="nav-ico"><Icon d={I.task} size={16} /></span>
               <span>Tasks</span>
             </button>
+            <div className="nav-break">Progress</div>
+            {contractItems.filter((it) => it.id.startsWith("prog-")).map((it) => (
+              <button key={it.id} className={"nav-item" + (route === "document" && section === it.path ? " is-active" : "")} onClick={() => onNavigate("document", it.path)} type="button">
+                <span className="nav-ico"><Icon d={it.icon} size={16} /></span>
+                <span>{it.label}</span>
+              </button>
+            ))}
           </nav>
         </>
       )}
@@ -626,9 +638,9 @@ function Topbar({ project, index, docPath, onOpenAction }) {
   const status = specDoc?.status || project?.status;
   const updated = specDoc?.updated || "";
   const dateStr = updated
-    ? new Date(updated).toLocaleString("en-US", {
+      ? new Date(updated).toLocaleString("en-US", {
         month: "short", day: "numeric", year: "numeric",
-        hour: "numeric", minute: "2-digit",
+        hour: "2-digit", minute: "2-digit", hour12: false,
       })
     : "";
 
@@ -757,13 +769,17 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
         <SectionHeader title="Progress" count={progressDocs.length} collapsible open={open.progress} onToggle={() => toggle("progress")} />
         {progressDocs.length > 0 ? (
           <div className="preview-list">
-            {progressDocs.slice(0, open.progress ? progressDocs.length : 3).map((doc, i) => (
-              <div className="preview-row" key={i}>
-                <span className="mono td-muted">{doc.updated ? new Date(doc.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""}</span>
-                <button className="link" onClick={() => onOpenDoc(doc.path)}>{doc.title}</button>
-                <span className="td-muted">{doc.snippet}</span>
-              </div>
-            ))}
+            {progressDocs.slice(0, open.progress ? progressDocs.length : 3).map((doc, i) => {
+              const progressMeta = formatShortDateTime(doc.updated);
+              const progressSnippet = stripRepeatedTitle(doc.title, doc.snippet);
+              return (
+                <div className="preview-row preview-row-progress" key={i}>
+                  <span className="mono preview-meta-time">{progressMeta}</span>
+                  <button className="link" onClick={() => onOpenDoc(doc.path)}>{doc.title}</button>
+                  <span className="preview-copy">{progressSnippet}</span>
+                </div>
+              );
+            })}
           </div>
         ) : (
           <div className="empty-state">No progress entries.</div>
@@ -772,12 +788,12 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
 
       <section className="block">
         <SectionHeader title="Validation" count={tasks.length} collapsible open={open.validation} onToggle={() => toggle("validation")} />
-        <div className="preview-list">
+        <div className="preview-list preview-list-validation">
           {tasks.slice(0, open.validation ? tasks.length : 3).map((task, i) => {
             const label = statusLabel(task.status);
             const chipClass = label === "Complete" ? "chip-ok" : label === "Blocked" ? "chip-warn" : "chip-low";
             return (
-              <div className="preview-row" key={i}>
+              <div className="preview-row validation-row" key={i}>
                 <span className={`chip ${chipClass}`}><span className="chip-dot" /> {label}</span>
                 <button className="link" onClick={() => onOpenDoc(task.path)}>{task.title}</button>
                 <span className="td-muted">{(wsLookup[task.path]?.title) || "Unassigned"}</span>
@@ -1466,77 +1482,48 @@ function DocumentReader({ doc, onBack, onOpenAction }) {
     d
       ? new Date(d).toLocaleString("en-US", {
           month: "short", day: "numeric", year: "numeric",
-          hour: "numeric", minute: "2-digit",
+          hour: "2-digit", minute: "2-digit", hour12: false,
         })
       : "—";
 
   return (
-    <div className="page">
-      {onBack && (
-        <button className="back" onClick={onBack}>
-          <Icon d={I.arrowL} size={14} /> Back
-        </button>
-      )}
-      <div className="ws-eyebrow">{titleCase(doc.role)}</div>
-      <h1 className="page-title">{doc.title}</h1>
-
-      <section className="summary summary-tight">
-        <Field label="Path" mono>
-          {doc.path}
-        </Field>
-        {doc.status && (
-          <Field label="Status">
-            <StatusChip>{doc.status}</StatusChip>
-          </Field>
+    <div className="page doc-reader-page">
+      <div className="doc-reader-main">
+        {onBack && (
+          <button className="back" onClick={onBack}>
+            <Icon d={I.arrowL} size={14} /> Back
+          </button>
         )}
-        <Field label="Updated">{fmtDate(doc.updated)}</Field>
-        <Field label="Actions">
-          <div style={{ display: "flex", gap: "8px" }}>
-            <button className="btn" onClick={() => onOpenAction("code", doc.path)}>
-              <Icon d={I.code} size={14} /> IDE
-            </button>
-            <button className="btn" onClick={() => onOpenAction("explorer", doc.path)}>
-              <Icon d={I.folderOpen} size={14} /> Folder
-            </button>
-          </div>
-        </Field>
-      </section>
+        <div className="ws-eyebrow">{titleCase(doc.role)}</div>
+        <h1 className="page-title">{doc.title}</h1>
 
-      {props.length > 0 && (
-        <div
-          style={{
-            marginTop: "24px",
-            border: "1px solid var(--line)",
-            borderRadius: "var(--r)",
-            overflow: "hidden",
-          }}
-        >
-          <div
-            style={{
-              padding: "12px 14px",
-              borderBottom: "1px solid var(--line)",
-              fontWeight: 600,
-              fontSize: "13px",
-            }}
-          >
-            Frontmatter
-          </div>
-          <dl className="dl">
-            {props.map(([k, v]) => (
-              <React.Fragment key={k}>
-                <dt>{k}</dt>
-                <dd>{Array.isArray(v) ? v.join(", ") : String(v ?? "")}</dd>
-              </React.Fragment>
-            ))}
-          </dl>
-        </div>
-      )}
+        <article
+          className="md-body"
+          dangerouslySetInnerHTML={{ __html: renderMarkdown(doc.markdown || "") }}
+        />
+      </div>
 
-      <article
-        className="md-body"
-        style={{ marginTop: "36px" }}
-        dangerouslySetInnerHTML={{ __html: renderMarkdown(doc.markdown || "") }}
-      />
+      <aside className="doc-meta-panel" aria-label="Document metadata">
+        <div className="doc-meta-title">Metadata</div>
+        <dl className="dl doc-meta-list">
+          <dt>Path</dt>
+          <dd className="mono">{doc.path}</dd>
+          {doc.status && (
+            <>
+              <dt>Status</dt>
+              <dd><StatusChip>{doc.status}</StatusChip></dd>
+            </>
+          )}
+          <dt>Updated</dt>
+          <dd>{fmtDate(doc.updated)}</dd>
+          {props.map(([k, v]) => (
+            <React.Fragment key={k}>
+              <dt>{k}</dt>
+              <dd>{Array.isArray(v) ? v.join(", ") : String(v ?? "")}</dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      </aside>
     </div>
   );
 }
@@ -1835,7 +1822,9 @@ function App() {
           docPath={docPath || (hasOutline ? project.outline.spec : null)}
           onOpenAction={handleOpenAction}
         />
-        <div className="content">{mainContent}</div>
+
+        <div className="content content-reader-head-c">{mainContent}</div>
+
       </div>
     </div>
   );
