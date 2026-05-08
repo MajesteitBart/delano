@@ -4,7 +4,7 @@ name: Global workspace navigation
 status: done
 workstream: WS-A
 created: 2026-05-08T09:44:35Z
-updated: 2026-05-08T09:44:35Z
+updated: 2026-05-08T10:55:40Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -42,3 +42,6 @@ Separate the left navigation from project-specific dashboard sections. The sideb
 
 ## Evidence Log
 - 2026-05-08: Browser smoke test at `http://127.0.0.1:3977/` loaded with 0 console errors. Global sidebar sections rendered as Workspace, Selected project, and Source contracts. Progress view showed 10 rows with `Page 1 of 4`; Open work, Validation, Warnings, and Blockers views switched successfully with aggregate counts.
+- 2026-05-08: Live layout feedback accepted for the selected-project Overview. Accepted variant `50ec0703` with density `1.25`, adding a warning-first signal strip and folded previews for warnings, progress, and validation. Browser reload at `http://127.0.0.1:3977/` reported 0 console errors.
+- 2026-05-08: Live color and cleanup feedback applied for the Overview signal strip. Warning and blocker pills now only use Review Amber when a nonzero warning/blocker count is present; zero-count and non-warning pills remain neutral per `DESIGN.md`. Follow-up live feedback `5b764750` removed the duplicate side summary block from the selected-project Overview.
+- 2026-05-08: Restored the served Workstreams filter behavior in `.delano/viewer/public/app.js`. Browser verification on `http://127.0.0.1:3977/` clicked `workstreams`, opened `WS-A Apollo Provider Foundation`, expanded its three subtasks, and reported 0 console errors.

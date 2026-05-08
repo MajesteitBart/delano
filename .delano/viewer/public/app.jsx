@@ -581,8 +581,8 @@ function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProje
               </button>
             ))}
             <button
-              className={"nav-item" + (section === "workstreams-nav" ? " is-active" : "")}
-              onClick={() => onNavigate("overview", "workstreams-nav")}
+              className={"nav-item" + (route === "workstreams" ? " is-active" : "")}
+              onClick={() => onNavigate("workstreams")}
               type="button"
             >
               <span className="nav-ico">
@@ -591,8 +591,8 @@ function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProje
               <span>Workstreams</span>
             </button>
             <button
-              className={"nav-item" + (section === "tasks-nav" ? " is-active" : "")}
-              onClick={() => onNavigate("overview", "tasks-nav")}
+              className={"nav-item" + (route === "tasks" ? " is-active" : "")}
+              onClick={() => onNavigate("tasks")}
               type="button"
             >
               <span className="nav-ico">
@@ -695,249 +695,99 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
   }, [scrollTarget]);
 
   return (
-    <div className="page">
-      <h1 className="page-title">Overview</h1>
+    <div className="page overview-v1">
+      <div className="overview-v1-head">
+        <h1 className="page-title">Overview</h1>
+        <div className="overview-signal-strip signal-color-filled">
+          <button className={"signal-pill signal-pill-warning" + (warnings.length ? " has-count" : " is-zero")} onClick={() => toggle("warnings")} type="button">
+            <Icon d={I.warn} size={14} />
+            <span>Warnings</span>
+            <span className="mono">{warnings.length}</span>
+          </button>
+          <button className={"signal-pill signal-pill-blocker" + (blockers.length ? " has-count" : " is-zero")} onClick={() => toggle("blockers")} type="button">
+            <Icon d={I.block} size={14} />
+            <span>Blockers</span>
+            <span className="mono">{blockers.length}</span>
+          </button>
+          <button className={"signal-pill signal-pill-validation" + (tasks.length ? " has-count" : " is-zero")} onClick={() => toggle("validation")} type="button">
+            <Icon d={I.check} size={14} />
+            <span>Validation</span>
+            <span className="mono">{tasks.length}</span>
+          </button>
+          <button className={"signal-pill signal-pill-progress" + (progressDocs.length ? " has-count" : " is-zero")} onClick={() => toggle("progress")} type="button">
+            <Icon d={I.trend} size={14} />
+            <span>Progress</span>
+            <span className="mono">{progressDocs.length}</span>
+          </button>
+        </div>
+      </div>
 
-      {/* Summary strip */}
-      <section className="summary">
+      <section className="summary overview-summary">
         <Field label="Project">{project.title}</Field>
-        <Field label="Status">
-          <StatusChip>{project.status || "Planned"}</StatusChip>
-        </Field>
+        <Field label="Status"><StatusChip>{project.status || "Planned"}</StatusChip></Field>
         <Field label="Health">
           <span className="health">
-            <span className="health-bar">
-              <span
-                className="health-fill"
-                style={{
-                  width: `${health.pct}%`,
-                  background: health.pct === 100 ? "var(--ok)" : undefined,
-                }}
-              />
-            </span>
+            <span className="health-bar"><span className="health-fill" style={{ width: `${health.pct}%`, background: health.pct === 100 ? "var(--ok)" : undefined }} /></span>
             <span className="health-label">{health.label}</span>
           </span>
         </Field>
         <Field label="Next action">{nextAction}</Field>
       </section>
 
-      {/* Current Work */}
-      <section className="block" id="section-current">
-        <SectionHeader
-          title="Current Work"
-          count={currentWork.length}
-          collapsible
-          open={open.current}
-          onToggle={() => toggle("current")}
-        />
-        {open.current &&
-          (currentWork.length > 0 ? (
-            <div className="table table-4">
-              <div className="tr th">
-                <div>Task</div>
-                <div>Workstream</div>
-                <div>Status</div>
-                <div>Source</div>
-              </div>
-              {currentWork.map((task, i) => {
-                const ws = wsLookup[task.path];
-                return (
-                  <div className="tr" key={i}>
-                    <div className="td-primary">
-                      <button className="link" onClick={() => onOpenDoc(task.path)}>
-                        {task.title}
-                      </button>
-                    </div>
-                    <div>
-                      {ws ? (
-                        <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
-                          {ws.title}
-                        </button>
-                      ) : (
-                        <span className="td-muted">—</span>
-                      )}
-                    </div>
-                    <div>
-                      <StatusChip>{task.status}</StatusChip>
-                    </div>
-                    <div className="mono td-muted">{task.path.split("/").pop()}</div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">No active tasks.</div>
-          ))}
-      </section>
-
-      {/* Blockers */}
-      <section className="block" id="section-blockers">
-        <SectionHeader
-          title="Blockers"
-          count={blockers.length}
-          collapsible
-          open={open.blockers}
-          onToggle={() => toggle("blockers")}
-        />
-        {open.blockers &&
-          (blockers.length > 0 ? (
-            <div className="table table-3">
-              <div className="tr th">
-                <div>Task</div>
-                <div>Workstream</div>
-                <div>Details</div>
-              </div>
-              {blockers.map((task, i) => {
-                const ws = wsLookup[task.path];
-                return (
-                  <div className="tr" key={i}>
-                    <div className="td-primary">
-                      <span className="dot dot-warn" /> {task.title}
-                    </div>
-                    <div>
-                      {ws ? (
-                        <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
-                          {ws.title}
-                        </button>
-                      ) : (
-                        "—"
-                      )}
-                    </div>
-                    <div className="td-muted">{task.snippet || "—"}</div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">No blockers.</div>
-          ))}
-      </section>
-
-      {/* Validation */}
-      <section className="block" id="section-validation">
-        <SectionHeader
-          title="Validation"
-          count={tasks.length}
-          collapsible
-          open={open.validation}
-          onToggle={() => toggle("validation")}
-        />
-        {open.validation &&
-          (tasks.length > 0 ? (
-            <div className="table table-3">
-              <div className="tr th">
-                <div>Task</div>
-                <div>Workstream</div>
-                <div>State</div>
-              </div>
-              {tasks.map((task, i) => {
-                const ws = wsLookup[task.path];
-                const label = statusLabel(task.status);
-                const chipClass = label === "Complete" ? "chip-ok" : label === "Blocked" ? "chip-warn" : "chip-low";
-                return (
-                  <div className="tr" key={i}>
-                    <div className="td-primary">{task.title}</div>
-                    <div>
-                      {ws ? (
-                        <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
-                          {ws.title}
-                        </button>
-                      ) : (
-                        "—"
-                      )}
-                    </div>
-                    <div>
-                      <span className={`chip ${chipClass}`}>
-                        <span className="chip-dot" /> {label}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">No tasks to validate.</div>
-          ))}
-      </section>
-
-      {/* Progress */}
-      <section className="block" id="section-progress">
-        <SectionHeader
-          title="Progress"
-          count={progressDocs.length}
-          collapsible
-          open={open.progress}
-          onToggle={() => toggle("progress")}
-        />
-        {open.progress &&
-          (progressDocs.length > 0 ? (
-            <div className="timeline">
-              {progressDocs.map((doc, i) => {
-                const date = doc.updated
-                  ? new Date(doc.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" })
-                  : "";
-                return (
-                  <div className="tl-row" key={i}>
-                    <div className="tl-date mono">{date}</div>
-                    <div className="tl-bullet">
-                      <span />
-                    </div>
-                    <div className="tl-body">
-                      <div>
-                        <button className="link" onClick={() => onOpenDoc(doc.path)}>
-                          {doc.title}
-                        </button>
-                      </div>
-                      <div className="td-muted small">{doc.snippet}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="empty-state">No progress entries.</div>
-          ))}
-      </section>
-
-      {/* Warnings */}
-      <section className="block" id="section-warnings">
-        <SectionHeader
-          title="Warnings"
-          count={warnings.length}
-          collapsible
-          open={open.warnings}
-          onToggle={() => toggle("warnings")}
-        />
-        {open.warnings &&
-          (warnings.length > 0 ? (
-            <div className="table table-3">
-              <div className="tr th">
-                <div>Severity</div>
-                <div>Note</div>
-                <div>Source</div>
-              </div>
-              {warnings.map((w, i) => (
-                <div className="tr" key={i}>
-                  <div>
-                    <span className={`chip ${w.sev === "Medium" ? "chip-warn" : "chip-low"}`}>
-                      <span className="chip-dot" /> {w.sev}
-                    </span>
-                  </div>
-                  <div className="td-primary">{w.note}</div>
-                  <div className="td-muted">{w.ws}</div>
+      <section className="overview-priority">
+        <div className="overview-priority-main">
+          <SectionHeader title="Warnings" count={warnings.length} collapsible open={open.warnings} onToggle={() => toggle("warnings")} />
+          {warnings.length > 0 ? (
+            <div className="preview-list">
+              {warnings.slice(0, open.warnings ? warnings.length : 3).map((w, i) => (
+                <div className="preview-row preview-row-warn" key={i}>
+                  <span className={`chip ${w.sev === "Medium" ? "chip-warn" : "chip-low"}`}><span className="chip-dot" /> {w.sev}</span>
+                  <span className="td-primary">{w.note}</span>
+                  <span className="td-muted">{w.ws}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <div className="empty-state" style={{ color: "var(--ok)" }}>
-              No warnings.
-            </div>
-          ))}
+            <div className="empty-state">No warnings.</div>
+          )}
+        </div>
       </section>
 
-      <div className="page-foot mono">
-        viewer · read-only · generated from contracts at <span>{index.generatedAt || ""}</span>
-      </div>
+      <section className="block">
+        <SectionHeader title="Progress" count={progressDocs.length} collapsible open={open.progress} onToggle={() => toggle("progress")} />
+        {progressDocs.length > 0 ? (
+          <div className="preview-list">
+            {progressDocs.slice(0, open.progress ? progressDocs.length : 3).map((doc, i) => (
+              <div className="preview-row" key={i}>
+                <span className="mono td-muted">{doc.updated ? new Date(doc.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" }) : ""}</span>
+                <button className="link" onClick={() => onOpenDoc(doc.path)}>{doc.title}</button>
+                <span className="td-muted">{doc.snippet}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">No progress entries.</div>
+        )}
+      </section>
+
+      <section className="block">
+        <SectionHeader title="Validation" count={tasks.length} collapsible open={open.validation} onToggle={() => toggle("validation")} />
+        <div className="preview-list">
+          {tasks.slice(0, open.validation ? tasks.length : 3).map((task, i) => {
+            const label = statusLabel(task.status);
+            const chipClass = label === "Complete" ? "chip-ok" : label === "Blocked" ? "chip-warn" : "chip-low";
+            return (
+              <div className="preview-row" key={i}>
+                <span className={`chip ${chipClass}`}><span className="chip-dot" /> {label}</span>
+                <button className="link" onClick={() => onOpenDoc(task.path)}>{task.title}</button>
+                <span className="td-muted">{(wsLookup[task.path]?.title) || "Unassigned"}</span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="page-foot mono">viewer · read-only · generated from contracts at <span>{index.generatedAt || ""}</span></div>
     </div>
   );
 }
@@ -1108,6 +958,102 @@ function WorkspacePage({ index, view, onOpenProject, onOpenProjectDoc, onOpenPro
       <section className="block">
         <SectionHeader title={title} count={count} />
         {renderBody()}
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================
+   Project Outline Pages
+   ================================================================ */
+function ProjectWorkstreamsPage({ index, project, docs, onOpenWorkstream, onOpenDoc }) {
+  const workstreams = project.outline?.workstreams || [];
+  const taskDocs = useMemo(() => {
+    const byTaskPath = {};
+    docs.filter((doc) => doc.role === "task").forEach((task) => {
+      byTaskPath[task.path] = task;
+    });
+    return byTaskPath;
+  }, [docs]);
+
+  return (
+    <div className="page">
+      <h1 className="page-title">Workstreams</h1>
+      <section className="block">
+        <SectionHeader title="Project outline" count={workstreams.length} />
+        {workstreams.length > 0 ? (
+          <div className="outline-list">
+            {workstreams.map((ws) => {
+              const tasks = (ws.tasks || []).map((path) => taskDocs[path]).filter(Boolean);
+              return (
+                <div className="outline-row" key={ws.path}>
+                  <button className="outline-main" onClick={() => onOpenWorkstream(ws.path)} type="button">
+                    <span className="outline-title">{ws.title}</span>
+                    <StatusChip>{ws.status || "Planned"}</StatusChip>
+                  </button>
+                  {tasks.length > 0 && (
+                    <div className="outline-sublist">
+                      {tasks.map((task) => (
+                        <button className="outline-subitem" key={task.path} onClick={() => onOpenDoc(task.path)} type="button">
+                          <span className="mono">{task.taskId || task.path.split("/").pop()?.replace(/\.md$/, "")}</span>
+                          <span>{task.title}</span>
+                          <StatusChip>{task.status || "Planned"}</StatusChip>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="empty-state">No workstreams in this project.</div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function ProjectTasksPage({ project, docs, onOpenDoc, onOpenWorkstream }) {
+  const dashboard = useMemo(() => getDashboardModel(project, docs), [project, docs]);
+  const { tasks, wsLookup } = dashboard;
+
+  return (
+    <div className="page">
+      <h1 className="page-title">Tasks</h1>
+      <section className="block">
+        <SectionHeader title="Project tasks" count={tasks.length} />
+        {tasks.length > 0 ? (
+          <div className="table table-4">
+            <div className="tr th">
+              <div>Task</div>
+              <div>Workstream</div>
+              <div>Status</div>
+              <div>Source</div>
+            </div>
+            {tasks.map((task) => {
+              const ws = wsLookup[task.path];
+              return (
+                <div className="tr" key={task.path}>
+                  <div className="td-primary">
+                    <button className="link" onClick={() => onOpenDoc(task.path)} type="button">{task.title}</button>
+                  </div>
+                  <div>
+                    {ws ? (
+                      <button className="link" onClick={() => onOpenWorkstream(ws.path)} type="button">{ws.title}</button>
+                    ) : (
+                      <span className="td-muted">Unassigned</span>
+                    )}
+                  </div>
+                  <div><StatusChip>{task.status || "Planned"}</StatusChip></div>
+                  <div className="mono td-muted">{task.path.split("/").pop()}</div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="empty-state">No tasks in this project.</div>
+        )}
       </section>
     </div>
   );
@@ -1834,6 +1780,25 @@ function App() {
         onOpenProject={handleOpenProject}
         onOpenProjectDoc={handleOpenProjectDoc}
         onOpenProjectWorkstream={handleOpenProjectWorkstream}
+      />
+    );
+  } else if (route === "workstreams" && hasOutline) {
+    mainContent = (
+      <ProjectWorkstreamsPage
+        index={index}
+        project={project}
+        docs={docs}
+        onOpenWorkstream={handleOpenWorkstream}
+        onOpenDoc={handleOpenDoc}
+      />
+    );
+  } else if (route === "tasks" && hasOutline) {
+    mainContent = (
+      <ProjectTasksPage
+        project={project}
+        docs={docs}
+        onOpenDoc={handleOpenDoc}
+        onOpenWorkstream={handleOpenWorkstream}
       />
     );
   } else if (route === "overview" && hasOutline) {
