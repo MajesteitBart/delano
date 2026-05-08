@@ -1,0 +1,1879 @@
+const { useState, useEffect, useMemo, useCallback } = React;
+
+/* ================================================================
+   Icons — hairline 1.4px stroke, 24×24 viewBox
+   ================================================================ */
+const Icon = ({ d, size = 16, fill = "none", stroke = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke}
+       strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {typeof d === "string" ? <path d={d} /> : d}
+  </svg>
+);
+
+const I = {
+  home:      <><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/></>,
+  list:      <><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></>,
+  block:     <><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></>,
+  trend:     <><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></>,
+  check:     <><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M8 12.5l3 3 5-6"/></>,
+  warn:      <><path d="M12 3.5 21 19H3z"/><path d="M12 10v4.5"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></>,
+  doc:       <><path d="M6 3.5h8l4 4V20.5H6z"/><path d="M14 3.5V8h4"/></>,
+  plan:      <><path d="M4 5.5h16"/><path d="M4 12h16"/><path d="M4 18.5h10"/></>,
+  scale:     <><path d="M12 4v16"/><path d="M5 8h14"/><path d="M5 8 3 13h4z"/><path d="M19 8l-2 5h4z"/></>,
+  clock:     <><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></>,
+  grid:      <><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></>,
+  task:      <><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M7 8.5h10"/><path d="M7 13h7"/></>,
+  folder:    <><path d="M3.5 6.5a2 2 0 0 1 2-2h3.5l2 2h7.5a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></>,
+  gear:      <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></>,
+  code:      <><path d="m9 8-5 4 5 4"/><path d="m15 8 5 4-5 4"/></>,
+  folderOpen:<><path d="M3 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v1H3z"/><path d="M3 10h18l-2 8a2 2 0 0 1-2 1.5H5a2 2 0 0 1-2-1.5z"/></>,
+  user:      <><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/></>,
+  chevR:     <path d="m9 6 6 6-6 6"/>,
+  chevD:     <path d="m6 9 6 6 6-6"/>,
+  chevU:     <path d="m6 15 6-6 6 6"/>,
+  arrowL:    <><path d="M19 12H5"/><path d="m12 5-7 7 7 7"/></>,
+  lock:      <><rect x="4.5" y="10.5" width="15" height="10" rx="1.5"/><path d="M8 10.5V7a4 4 0 0 1 8 0v3.5"/></>,
+  search:    <><circle cx="11" cy="11" r="6"/><path d="m20 20-4.3-4.3"/></>,
+};
+
+/* ================================================================
+   Status utilities
+   ================================================================ */
+const STATUS_TONE = {
+  "Planned":     { dot: "var(--ink-40)" },
+  "In Progress": { dot: "var(--accent)" },
+  "Complete":    { dot: "var(--ok)" },
+  "Blocked":     { dot: "var(--warn)" },
+};
+
+function statusLabel(raw) {
+  if (!raw) return "Planned";
+  const s = String(raw).toLowerCase().replace(/[-_]+/g, " ").trim();
+  if (s.includes("progress") || s === "active") return "In Progress";
+  if (s === "blocked") return "Blocked";
+  if (["complete", "done", "approved", "closed"].includes(s)) return "Complete";
+  if (["planned", "draft", "ready"].includes(s)) return "Planned";
+  return "Planned";
+}
+
+const StatusChip = ({ children }) => {
+  const label = statusLabel(children);
+  const tone = STATUS_TONE[label] || STATUS_TONE["Planned"];
+  return (
+    <span className="chip">
+      <span className="chip-dot" style={{ background: tone.dot }} />
+      {label}
+    </span>
+  );
+};
+
+/* ================================================================
+   HTML / text utilities
+   ================================================================ */
+const escapeHtml = (s) =>
+  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+const titleCase = (s) =>
+  String(s || "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+/* ================================================================
+   Markdown rendering (ported from original Delano viewer)
+   ================================================================ */
+function inlineMd(text) {
+  let s = escapeHtml(text);
+  s = s.replace(/`([^`]+)`/g, "<code>$1</code>");
+  s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/(^|[^*\w])\*([^*\n]+)\*(?=[^*\w]|$)/g, "$1<em>$2</em>");
+  s = s.replace(/\[\[([^\]]+)\]\]/g, '<span class="wikilink">$1</span>');
+  s = s.replace(
+    /\[([^\]]+)\]\(((?:https?:\/\/|mailto:|\.\.?\/|\/)[^)]+)\)/g,
+    '<a href="$2" target="_blank" rel="noreferrer noopener">$1</a>'
+  );
+  return s;
+}
+
+function isTableSeparator(line) {
+  return line ? /^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?\s*$/.test(line) : false;
+}
+
+function isBlockStart(line, nextLine) {
+  if (!line) return false;
+  if (/^\s*```/.test(line)) return true;
+  if (/^#{1,6}\s+/.test(line)) return true;
+  if (/^\s*-{3,}\s*$/.test(line)) return true;
+  if (/^\s*>/.test(line)) return true;
+  if (/^\s*(?:[-*+]|\d+\.)\s+/.test(line)) return true;
+  if (line.includes("|") && nextLine && isTableSeparator(nextLine)) return true;
+  return false;
+}
+
+function renderCodeBlock(text, lang) {
+  const langBadge = lang ? `<span class="code-lang">${escapeHtml(lang)}</span>` : "";
+  const padClass = lang ? " has-lang" : "";
+  return `<pre class="code${padClass}">${langBadge}<code>${escapeHtml(text)}</code></pre>`;
+}
+
+function renderTable(tableLines) {
+  const parseRow = (line) => {
+    let s = line.trim();
+    if (s.startsWith("|")) s = s.slice(1);
+    if (s.endsWith("|")) s = s.slice(0, -1);
+    return s.split("|").map((c) => c.trim());
+  };
+  const aligns = parseRow(tableLines[1]).map((s) => {
+    if (/^:-+:$/.test(s)) return "center";
+    if (/^-+:$/.test(s)) return "right";
+    if (/^:-+$/.test(s)) return "left";
+    return null;
+  });
+  const headers = parseRow(tableLines[0]);
+  const headerHtml =
+    "<thead><tr>" +
+    headers.map((h, j) => {
+        const a = aligns[j] ? ` style="text-align:${aligns[j]}"` : "";
+        return `<th${a}>${inlineMd(h)}</th>`;
+      }).join("") +
+    "</tr></thead>";
+  const rowsHtml = tableLines
+    .slice(2)
+    .map((line) => {
+      const cells = parseRow(line);
+      return (
+        "<tr>" +
+        cells.map((c, j) => {
+            const a = aligns[j] ? ` style="text-align:${aligns[j]}"` : "";
+            return `<td${a}>${inlineMd(c)}</td>`;
+          }).join("") +
+        "</tr>"
+      );
+    })
+    .join("");
+  return `<div class="table-wrap"><table>${headerHtml}<tbody>${rowsHtml}</tbody></table></div>`;
+}
+
+function parseList(lines, start, baseIndent) {
+  const items = [];
+  let i = start;
+  let listType = null;
+  let isTaskList = false;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const m = line.match(/^(\s*)([-*+]|\d+\.)\s+(.*)$/);
+    if (!m) break;
+    const indent = m[1].length;
+    if (indent !== baseIndent) break;
+    const isOrdered = /^\d+\./.test(m[2]);
+    if (listType === null) listType = isOrdered ? "ol" : "ul";
+    else if ((listType === "ol") !== isOrdered) break;
+
+    const content = m[3];
+    const taskMatch = content.match(/^\[([ xX])\]\s+(.*)$/);
+    let itemHtml;
+    const itemClasses = [];
+    if (taskMatch) {
+      isTaskList = true;
+      const checked = taskMatch[1].toLowerCase() === "x";
+      itemClasses.push("task-item");
+      if (checked) itemClasses.push("checked");
+      const checkSvg = checked
+        ? '<svg viewBox="0 0 14 14" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3,7 6,10 11,4"/></svg>'
+        : "";
+      itemHtml = `<span class="task-marker">${checkSvg}</span><span class="task-text">${inlineMd(taskMatch[2])}</span>`;
+    } else {
+      itemHtml = inlineMd(content);
+    }
+
+    i++;
+    let nestedHtml = "";
+    while (i < lines.length) {
+      const nextLine = lines[i];
+      if (!nextLine.trim()) {
+        if (i + 1 < lines.length) {
+          const peek = lines[i + 1].match(/^(\s*)([-*+]|\d+\.)\s+/);
+          if (peek && peek[1].length > baseIndent) { i++; continue; }
+        }
+        break;
+      }
+      const nextMatch = nextLine.match(/^(\s*)([-*+]|\d+\.)\s+/);
+      if (nextMatch && nextMatch[1].length > baseIndent) {
+        const nested = parseList(lines, i, nextMatch[1].length);
+        nestedHtml += nested.html;
+        i = nested.next;
+      } else {
+        break;
+      }
+    }
+
+    const cls = itemClasses.length ? ` class="${itemClasses.join(" ")}"` : "";
+    items.push(`<li${cls}>${itemHtml}${nestedHtml}</li>`);
+  }
+
+  const tag = listType || "ul";
+  const cls = isTaskList ? ' class="task-list"' : "";
+  return { html: `<${tag}${cls}>${items.join("")}</${tag}>`, next: i };
+}
+
+function parseBlocks(lines) {
+  const out = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+
+    const fence = line.match(/^\s*```(.*)$/);
+    if (fence) {
+      const lang = (fence[1] || "").trim();
+      const codeLines = [];
+      i++;
+      while (i < lines.length && !/^\s*```\s*$/.test(lines[i])) { codeLines.push(lines[i]); i++; }
+      i++;
+      out.push(renderCodeBlock(codeLines.join("\n"), lang));
+      continue;
+    }
+
+    if (!line.trim()) { i++; continue; }
+
+    if (/^\s*-{3,}\s*$/.test(line) || /^\s*\*{3,}\s*$/.test(line)) {
+      out.push("<hr/>");
+      i++;
+      continue;
+    }
+
+    const heading = line.match(/^(#{1,6})\s+(.+?)\s*$/);
+    if (heading) {
+      const level = heading[1].length;
+      out.push(`<h${level}>${inlineMd(heading[2])}</h${level}>`);
+      i++;
+      continue;
+    }
+
+    if (line.includes("|") && i + 1 < lines.length && isTableSeparator(lines[i + 1])) {
+      const tableLines = [lines[i], lines[i + 1]];
+      i += 2;
+      while (i < lines.length && lines[i].trim() && lines[i].includes("|")) { tableLines.push(lines[i]); i++; }
+      out.push(renderTable(tableLines));
+      continue;
+    }
+
+    if (/^\s*>/.test(line)) {
+      const quoteLines = [];
+      while (i < lines.length && /^\s*>/.test(lines[i])) { quoteLines.push(lines[i].replace(/^\s*>\s?/, "")); i++; }
+      out.push(`<blockquote>${parseBlocks(quoteLines)}</blockquote>`);
+      continue;
+    }
+
+    if (/^\s*(?:[-*+]|\d+\.)\s+/.test(line)) {
+      const indent = (line.match(/^(\s*)/)[1] || "").length;
+      const list = parseList(lines, i, indent);
+      out.push(list.html);
+      i = list.next;
+      continue;
+    }
+
+    const paraLines = [];
+    while (i < lines.length && lines[i].trim() && !isBlockStart(lines[i], lines[i + 1])) {
+      paraLines.push(lines[i]);
+      i++;
+    }
+    if (paraLines.length) {
+      out.push(`<p>${inlineMd(paraLines.join(" "))}</p>`);
+    } else {
+      i++;
+    }
+  }
+  return out.join("\n");
+}
+
+function renderMarkdown(markdown) {
+  const body = markdown.replace(/^---[\s\S]*?\n---\r?\n/, "");
+  return parseBlocks(body.split(/\r?\n/)) || '<p class="empty-state">This document is empty.</p>';
+}
+
+/* ================================================================
+   Data helpers
+   ================================================================ */
+function byPath(docs, path) {
+  return docs.find((d) => d.path === path);
+}
+
+function getProjectData(index, slug) {
+  if (!index) return { project: null, docs: [] };
+  const project = index.projects.find((p) => p.slug === slug) || index.projects[0];
+  if (!project) return { project: null, docs: [] };
+  const docs = project.docs.map((p) => byPath(index.docs, p)).filter(Boolean);
+  return { project, docs };
+}
+
+function computeHealth(docs) {
+  const tasks = docs.filter((d) => d.role === "task");
+  if (!tasks.length) return { pct: 0, label: "No tasks" };
+  const done = tasks.filter((d) => statusLabel(d.status) === "Complete").length;
+  const pct = Math.round((done / tasks.length) * 100);
+  const remaining = tasks.length - done;
+  return { pct, label: remaining > 0 ? `${remaining} of ${tasks.length} incomplete` : "All tasks complete" };
+}
+
+function computeWarnings(project, docs) {
+  const warnings = [];
+  const tasks = docs.filter((d) => d.role === "task");
+  const noStatus = tasks.filter((d) => !d.status);
+  if (noStatus.length) {
+    warnings.push({ sev: "Medium", note: `${noStatus.length} task(s) missing status field`, ws: "Tasks" });
+  }
+  if (project.outline) {
+    const ws = project.outline.workstreams || [];
+    const emptyWs = ws.filter((w) => !w.tasks || !w.tasks.length);
+    if (emptyWs.length) {
+      warnings.push({ sev: "Low", note: `${emptyWs.length} workstream(s) have no linked tasks`, ws: "Workstreams" });
+    }
+    if (project.outline.unassignedTasks?.length) {
+      warnings.push({ sev: "Low", note: `${project.outline.unassignedTasks.length} task(s) not assigned to a workstream`, ws: "Tasks" });
+    }
+  }
+  const blocked = tasks.filter((d) => statusLabel(d.status) === "Blocked");
+  if (blocked.length) {
+    warnings.push({ sev: "Medium", note: `${blocked.length} task(s) currently blocked`, ws: "Tasks" });
+  }
+  return warnings;
+}
+
+function getDashboardModel(project, docs) {
+  const tasks = docs.filter((d) => d.role === "task");
+  const currentWork = tasks.filter((d) => statusLabel(d.status) === "In Progress");
+  const blockers = tasks.filter((d) => statusLabel(d.status) === "Blocked");
+  const progressDocs = docs
+    .filter((d) => d.role === "progress")
+    .sort((a, b) => (b.updated || "").localeCompare(a.updated || ""));
+  const health = computeHealth(docs);
+  const warnings = computeWarnings(project, docs);
+  const workstreams = project.outline?.workstreams || [];
+  const wsLookup = {};
+
+  workstreams.forEach((ws) => {
+    (ws.tasks || []).forEach((taskPath) => {
+      wsLookup[taskPath] = ws;
+    });
+  });
+
+  return { tasks, currentWork, blockers, progressDocs, health, warnings, workstreams, wsLookup };
+}
+
+function getWorkspaceModel(index) {
+  const model = {
+    current: [],
+    blockers: [],
+    validation: [],
+    progress: [],
+    warnings: [],
+    counts: { current: 0, blockers: 0, validation: 0, progress: 0, warnings: 0 },
+  };
+
+  if (!index) return model;
+
+  for (const project of index.projects || []) {
+    if (!project.outline) continue;
+    const docs = (project.docs || []).map((p) => byPath(index.docs, p)).filter(Boolean);
+    const dashboard = getDashboardModel(project, docs);
+    const withProject = (item, extra = {}) => ({ ...item, project, ...extra });
+
+    dashboard.currentWork.forEach((task) => {
+      model.current.push(withProject(task, { workstream: dashboard.wsLookup[task.path] || null }));
+    });
+    dashboard.blockers.forEach((task) => {
+      model.blockers.push(withProject(task, { workstream: dashboard.wsLookup[task.path] || null }));
+    });
+    dashboard.tasks.forEach((task) => {
+      model.validation.push(withProject(task, { workstream: dashboard.wsLookup[task.path] || null }));
+    });
+    dashboard.progressDocs.forEach((doc) => {
+      model.progress.push(withProject(doc));
+    });
+    dashboard.warnings.forEach((warning) => {
+      model.warnings.push({ ...warning, project });
+    });
+  }
+
+  const byUpdatedDesc = (a, b) => (b.updated || b.project?.updated || "").localeCompare(a.updated || a.project?.updated || "");
+  model.current.sort(byUpdatedDesc);
+  model.blockers.sort(byUpdatedDesc);
+  model.validation.sort(byUpdatedDesc);
+  model.progress.sort(byUpdatedDesc);
+  model.warnings.sort((a, b) => (b.project?.updated || "").localeCompare(a.project?.updated || ""));
+
+  model.counts.current = model.current.length;
+  model.counts.blockers = model.blockers.length;
+  model.counts.validation = model.validation.length;
+  model.counts.progress = model.progress.length;
+  model.counts.warnings = model.warnings.length;
+
+  return model;
+}
+
+/* ================================================================
+   Reusable components
+   ================================================================ */
+const Field = ({ label, children, mono }) => (
+  <div className="field">
+    <div className="field-label">{label}</div>
+    <div className={"field-value" + (mono ? " mono" : "")}>{children}</div>
+  </div>
+);
+
+const SectionHeader = ({ title, count, right, collapsible, open, onToggle }) => (
+  <div
+    className={"section-head" + (collapsible ? " is-collapsible" : "")}
+    onClick={collapsible ? onToggle : undefined}
+    role={collapsible ? "button" : undefined}
+  >
+    <div className="section-title">
+      <span>{title}</span>
+      {count != null && <span className="count">{count}</span>}
+    </div>
+    <div className="section-right">
+      {right}
+      {collapsible && (
+        <span className="caret">
+          <Icon d={open ? I.chevU : I.chevD} size={16} />
+        </span>
+      )}
+    </div>
+  </div>
+);
+
+const Block = ({ title, children }) => (
+  <section className="ws-block">
+    <h3 className="ws-h">{title}</h3>
+    <div className="ws-body">{children}</div>
+  </section>
+);
+
+/* ================================================================
+   Navigation definitions
+   ================================================================ */
+const NAV = [
+  { id: "overview", label: "Overview", icon: I.home },
+  { id: "current", label: "Current Work", icon: I.list },
+  { id: "blockers", label: "Blockers", icon: I.block },
+  { id: "progress", label: "Progress", icon: I.trend },
+  { id: "validation", label: "Validation", icon: I.check },
+  { id: "warnings", label: "Warnings", icon: I.warn },
+];
+
+const GLOBAL_NAV = [
+  { id: "workspace-current", label: "Open work", icon: I.list, countKey: "current" },
+  { id: "workspace-progress", label: "Progress", icon: I.trend, countKey: "progress" },
+  { id: "workspace-validation", label: "Validation", icon: I.check, countKey: "validation" },
+  { id: "workspace-warnings", label: "Warnings", icon: I.warn, countKey: "warnings" },
+  { id: "workspace-blockers", label: "Blockers", icon: I.block, countKey: "blockers" },
+];
+
+const GLOBAL_ROUTES = new Set(GLOBAL_NAV.map((item) => item.id));
+
+/* ================================================================
+   Sidebar
+   ================================================================ */
+function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProject }) {
+  const projects = index?.projects || [];
+  const current = projects.find((p) => p.slug === projectSlug);
+  const hasOutline = current?.outline;
+  const globalCounts = useMemo(
+    () => (index ? getWorkspaceModel(index).counts : {}),
+    [index]
+  );
+
+  const contractItems = useMemo(() => {
+    if (!hasOutline) return [];
+    const items = [];
+    if (current.outline.spec) items.push({ id: "spec", label: "Spec", icon: I.doc, path: current.outline.spec });
+    if (current.outline.plan) items.push({ id: "plan", label: "Plan", icon: I.plan, path: current.outline.plan });
+    (current.outline.decisions || []).forEach((p, i) =>
+      items.push({ id: `dec-${i}`, label: "Decisions", icon: I.scale, path: p })
+    );
+    (current.outline.progress || []).forEach((p, i) =>
+      items.push({ id: `prog-${i}`, label: i === 0 ? "Progress log" : `Progress ${i + 1}`, icon: I.clock, path: p })
+    );
+    return items;
+  }, [current, hasOutline]);
+
+  return (
+    <aside className="sidebar">
+      <div className="brand">
+        <div className="brand-mark">
+          <Icon
+            d={
+              <>
+                <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
+                <path d="M8 8h6a4 4 0 0 1 0 8H8z" />
+              </>
+            }
+            size={18}
+          />
+        </div>
+        <span className="brand-name">Delano</span>
+      </div>
+
+      <div className="nav-section">Workspace</div>
+      <nav className="nav">
+        {GLOBAL_NAV.map((it) => (
+          <button
+            key={it.id}
+            className={"nav-item nav-item-count" + (route === it.id ? " is-active" : "")}
+            onClick={() => onNavigate(it.id)}
+            type="button"
+          >
+            <span className="nav-ico">
+              <Icon d={it.icon} size={16} />
+            </span>
+            <span className="nav-label">{it.label}</span>
+            <span className="nav-count mono">{globalCounts[it.countKey] || 0}</span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="nav-section">Selected project</div>
+      <div className="project-select-v3">
+        <span className="project-select-mark">
+          <Icon d={current?.outline ? I.grid : I.folder} size={15} />
+        </span>
+        <select
+          className="project-select-control"
+          value={projectSlug || ""}
+          onChange={(e) => onSelectProject(e.target.value)}
+          aria-label="Project"
+        >
+          {projects.map((p) => (
+            <option key={p.slug} value={p.slug}>
+              {p.title}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {hasOutline && (
+        <>
+          <nav className="nav">
+            <button
+              className={"nav-item" + (route === "overview" ? " is-active" : "")}
+              onClick={() => onNavigate("overview")}
+              type="button"
+            >
+              <span className="nav-ico">
+                <Icon d={I.home} size={16} />
+              </span>
+              <span>Project overview</span>
+            </button>
+          </nav>
+
+
+          <div className="nav-section">Source contracts</div>
+          <nav className="nav">
+            {contractItems.map((it) => (
+              <button
+                key={it.id}
+                className={"nav-item" + (route === "document" && section === it.path ? " is-active" : "")}
+                onClick={() => onNavigate("document", it.path)}
+                type="button"
+              >
+                <span className="nav-ico">
+                  <Icon d={it.icon} size={16} />
+                </span>
+                <span>{it.label}</span>
+              </button>
+            ))}
+            <button
+              className={"nav-item" + (section === "workstreams-nav" ? " is-active" : "")}
+              onClick={() => onNavigate("overview", "workstreams-nav")}
+              type="button"
+            >
+              <span className="nav-ico">
+                <Icon d={I.grid} size={16} />
+              </span>
+              <span>Workstreams</span>
+            </button>
+            <button
+              className={"nav-item" + (section === "tasks-nav" ? " is-active" : "")}
+              onClick={() => onNavigate("overview", "tasks-nav")}
+              type="button"
+            >
+              <span className="nav-ico">
+                <Icon d={I.task} size={16} />
+              </span>
+              <span>Tasks</span>
+            </button>
+          </nav>
+        </>
+      )}
+
+      <div className="sidebar-foot">
+        <button className="nav-item" type="button">
+          <span className="nav-ico">
+            <Icon d={I.gear} size={16} />
+          </span>
+          <span>Viewer settings</span>
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+/* ================================================================
+   Topbar
+   ================================================================ */
+function Topbar({ project, index, docPath, onOpenAction }) {
+  const spec = project?.outline?.spec;
+  const specDoc = spec && index ? byPath(index.docs, spec) : null;
+  const title = project?.title || "Delano";
+  const status = specDoc?.status || project?.status;
+  const updated = specDoc?.updated || "";
+  const dateStr = updated
+    ? new Date(updated).toLocaleString("en-US", {
+        month: "short", day: "numeric", year: "numeric",
+        hour: "numeric", minute: "2-digit",
+      })
+    : "";
+
+  return (
+    <header className="topbar">
+      <div className="tb-project">
+        <span className="tb-title">{title}</span>
+        {status && <StatusChip>{status}</StatusChip>}
+      </div>
+      <div className="tb-meta">
+        {dateStr && (
+          <>
+            <span>Last updated <strong>{dateStr}</strong></span>
+            <span className="tb-sep" />
+          </>
+        )}
+        <span className="tb-readonly">
+          <Icon d={I.lock} size={13} /> Read-only
+        </span>
+      </div>
+      <div className="tb-actions">
+        {docPath && (
+          <>
+            <button className="btn" onClick={() => onOpenAction("code", docPath)}>
+              <Icon d={I.code} size={14} /> Open in IDE
+            </button>
+            <button className="btn" onClick={() => onOpenAction("explorer", docPath)}>
+              <Icon d={I.folderOpen} size={14} /> Open folder
+            </button>
+          </>
+        )}
+      </div>
+    </header>
+  );
+}
+
+/* ================================================================
+   Overview
+   ================================================================ */
+function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpenDoc }) {
+  const [open, setOpen] = useState({ current: true, blockers: true, validation: false, progress: false, warnings: false });
+  const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
+
+  const dashboard = useMemo(() => getDashboardModel(project, docs), [project, docs]);
+  const { tasks, currentWork, blockers, progressDocs, health, warnings, wsLookup } = dashboard;
+
+  const nextAction = blockers.length
+    ? "Resolve blocked tasks"
+    : health.pct < 100
+    ? "Complete remaining tasks"
+    : "All tasks complete";
+
+  // Auto-open + scroll to section from sidebar nav
+  useEffect(() => {
+    if (!scrollTarget || scrollTarget === "overview") return;
+    const sectionKey = scrollTarget.replace("-nav", "");
+    if (["blockers", "validation", "progress", "warnings", "current"].includes(sectionKey)) {
+      setOpen((o) => ({ ...o, [sectionKey]: true }));
+      setTimeout(() => {
+        const el = document.getElementById(`section-${sectionKey}`);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+  }, [scrollTarget]);
+
+  return (
+    <div className="page">
+      <h1 className="page-title">Overview</h1>
+
+      {/* Summary strip */}
+      <section className="summary">
+        <Field label="Project">{project.title}</Field>
+        <Field label="Status">
+          <StatusChip>{project.status || "Planned"}</StatusChip>
+        </Field>
+        <Field label="Health">
+          <span className="health">
+            <span className="health-bar">
+              <span
+                className="health-fill"
+                style={{
+                  width: `${health.pct}%`,
+                  background: health.pct === 100 ? "var(--ok)" : undefined,
+                }}
+              />
+            </span>
+            <span className="health-label">{health.label}</span>
+          </span>
+        </Field>
+        <Field label="Next action">{nextAction}</Field>
+      </section>
+
+      {/* Current Work */}
+      <section className="block" id="section-current">
+        <SectionHeader
+          title="Current Work"
+          count={currentWork.length}
+          collapsible
+          open={open.current}
+          onToggle={() => toggle("current")}
+        />
+        {open.current &&
+          (currentWork.length > 0 ? (
+            <div className="table table-4">
+              <div className="tr th">
+                <div>Task</div>
+                <div>Workstream</div>
+                <div>Status</div>
+                <div>Source</div>
+              </div>
+              {currentWork.map((task, i) => {
+                const ws = wsLookup[task.path];
+                return (
+                  <div className="tr" key={i}>
+                    <div className="td-primary">
+                      <button className="link" onClick={() => onOpenDoc(task.path)}>
+                        {task.title}
+                      </button>
+                    </div>
+                    <div>
+                      {ws ? (
+                        <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
+                          {ws.title}
+                        </button>
+                      ) : (
+                        <span className="td-muted">—</span>
+                      )}
+                    </div>
+                    <div>
+                      <StatusChip>{task.status}</StatusChip>
+                    </div>
+                    <div className="mono td-muted">{task.path.split("/").pop()}</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">No active tasks.</div>
+          ))}
+      </section>
+
+      {/* Blockers */}
+      <section className="block" id="section-blockers">
+        <SectionHeader
+          title="Blockers"
+          count={blockers.length}
+          collapsible
+          open={open.blockers}
+          onToggle={() => toggle("blockers")}
+        />
+        {open.blockers &&
+          (blockers.length > 0 ? (
+            <div className="table table-3">
+              <div className="tr th">
+                <div>Task</div>
+                <div>Workstream</div>
+                <div>Details</div>
+              </div>
+              {blockers.map((task, i) => {
+                const ws = wsLookup[task.path];
+                return (
+                  <div className="tr" key={i}>
+                    <div className="td-primary">
+                      <span className="dot dot-warn" /> {task.title}
+                    </div>
+                    <div>
+                      {ws ? (
+                        <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
+                          {ws.title}
+                        </button>
+                      ) : (
+                        "—"
+                      )}
+                    </div>
+                    <div className="td-muted">{task.snippet || "—"}</div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">No blockers.</div>
+          ))}
+      </section>
+
+      {/* Validation */}
+      <section className="block" id="section-validation">
+        <SectionHeader
+          title="Validation"
+          count={tasks.length}
+          collapsible
+          open={open.validation}
+          onToggle={() => toggle("validation")}
+        />
+        {open.validation &&
+          (tasks.length > 0 ? (
+            <div className="table table-3">
+              <div className="tr th">
+                <div>Task</div>
+                <div>Workstream</div>
+                <div>State</div>
+              </div>
+              {tasks.map((task, i) => {
+                const ws = wsLookup[task.path];
+                const label = statusLabel(task.status);
+                const chipClass = label === "Complete" ? "chip-ok" : label === "Blocked" ? "chip-warn" : "chip-low";
+                return (
+                  <div className="tr" key={i}>
+                    <div className="td-primary">{task.title}</div>
+                    <div>
+                      {ws ? (
+                        <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
+                          {ws.title}
+                        </button>
+                      ) : (
+                        "—"
+                      )}
+                    </div>
+                    <div>
+                      <span className={`chip ${chipClass}`}>
+                        <span className="chip-dot" /> {label}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">No tasks to validate.</div>
+          ))}
+      </section>
+
+      {/* Progress */}
+      <section className="block" id="section-progress">
+        <SectionHeader
+          title="Progress"
+          count={progressDocs.length}
+          collapsible
+          open={open.progress}
+          onToggle={() => toggle("progress")}
+        />
+        {open.progress &&
+          (progressDocs.length > 0 ? (
+            <div className="timeline">
+              {progressDocs.map((doc, i) => {
+                const date = doc.updated
+                  ? new Date(doc.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+                  : "";
+                return (
+                  <div className="tl-row" key={i}>
+                    <div className="tl-date mono">{date}</div>
+                    <div className="tl-bullet">
+                      <span />
+                    </div>
+                    <div className="tl-body">
+                      <div>
+                        <button className="link" onClick={() => onOpenDoc(doc.path)}>
+                          {doc.title}
+                        </button>
+                      </div>
+                      <div className="td-muted small">{doc.snippet}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="empty-state">No progress entries.</div>
+          ))}
+      </section>
+
+      {/* Warnings */}
+      <section className="block" id="section-warnings">
+        <SectionHeader
+          title="Warnings"
+          count={warnings.length}
+          collapsible
+          open={open.warnings}
+          onToggle={() => toggle("warnings")}
+        />
+        {open.warnings &&
+          (warnings.length > 0 ? (
+            <div className="table table-3">
+              <div className="tr th">
+                <div>Severity</div>
+                <div>Note</div>
+                <div>Source</div>
+              </div>
+              {warnings.map((w, i) => (
+                <div className="tr" key={i}>
+                  <div>
+                    <span className={`chip ${w.sev === "Medium" ? "chip-warn" : "chip-low"}`}>
+                      <span className="chip-dot" /> {w.sev}
+                    </span>
+                  </div>
+                  <div className="td-primary">{w.note}</div>
+                  <div className="td-muted">{w.ws}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state" style={{ color: "var(--ok)" }}>
+              No warnings.
+            </div>
+          ))}
+      </section>
+
+      <div className="page-foot mono">
+        viewer · read-only · generated from contracts at <span>{index.generatedAt || ""}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   Workspace Pages
+   ================================================================ */
+function WorkspacePage({ index, view, onOpenProject, onOpenProjectDoc, onOpenProjectWorkstream }) {
+  const workspace = useMemo(() => getWorkspaceModel(index), [index]);
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  useEffect(() => {
+    setPage(1);
+  }, [view]);
+
+  const titleMap = {
+    "workspace-current": "Open work",
+    "workspace-progress": "Progress",
+    "workspace-validation": "Validation",
+    "workspace-warnings": "Warnings",
+    "workspace-blockers": "Blockers",
+  };
+  const title = titleMap[view] || "Workspace";
+
+  const projectButton = (project) => (
+    <button className="link" onClick={() => onOpenProject(project.slug)}>
+      {project.title}
+    </button>
+  );
+
+  const workstreamButton = (item) =>
+    item.workstream ? (
+      <button className="link" onClick={() => onOpenProjectWorkstream(item.project.slug, item.workstream.path)}>
+        {item.workstream.title}
+      </button>
+    ) : (
+      <span className="td-muted">-</span>
+    );
+
+  const renderTaskRows = (items, emptyText, kind) =>
+    items.length > 0 ? (
+      <div className="table table-workspace">
+        <div className="tr th">
+          <div>Task</div>
+          <div>Project</div>
+          <div>Workstream</div>
+          <div>State</div>
+        </div>
+        {items.map((task) => (
+          <div className="tr" key={`${task.project.slug}:${task.path}`}>
+            <div className="td-primary">
+              <button className="link" onClick={() => onOpenProjectDoc(task.project.slug, task.path)}>
+                {kind === "blocked" && <span className="dot dot-warn" />} {task.title}
+              </button>
+            </div>
+            <div>{projectButton(task.project)}</div>
+            <div>{workstreamButton(task)}</div>
+            <div>
+              <StatusChip>{task.status}</StatusChip>
+            </div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="empty-state">{emptyText}</div>
+    );
+
+  const renderProgress = () => {
+    const totalPages = Math.max(1, Math.ceil(workspace.progress.length / pageSize));
+    const safePage = Math.min(page, totalPages);
+    const start = (safePage - 1) * pageSize;
+    const visible = workspace.progress.slice(start, start + pageSize);
+
+    return (
+      <>
+        {visible.length > 0 ? (
+          <div className="timeline timeline-workspace">
+            {visible.map((doc) => {
+              const date = doc.updated
+                ? new Date(doc.updated).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                : "";
+              return (
+                <div className="tl-row" key={`${doc.project.slug}:${doc.path}`}>
+                  <div className="tl-date mono">{date}</div>
+                  <div className="tl-bullet">
+                    <span />
+                  </div>
+                  <div className="tl-body">
+                    <div className="workspace-line">
+                      <button className="link" onClick={() => onOpenProjectDoc(doc.project.slug, doc.path)}>
+                        {doc.title}
+                      </button>
+                      <span className="td-muted-inline">{doc.project.title}</span>
+                    </div>
+                    <div className="td-muted small">{doc.snippet}</div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="empty-state">No progress entries across projects.</div>
+        )}
+        {workspace.progress.length > pageSize && (
+          <div className="pagination">
+            <button className="btn" type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
+              Previous
+            </button>
+            <span className="mono">Page {safePage} of {totalPages}</span>
+            <button className="btn" type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
+              Next
+            </button>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  const renderWarnings = () =>
+    workspace.warnings.length > 0 ? (
+      <div className="table table-workspace-warnings">
+        <div className="tr th">
+          <div>Severity</div>
+          <div>Project</div>
+          <div>Note</div>
+          <div>Source</div>
+        </div>
+        {workspace.warnings.map((w, i) => (
+          <div className="tr" key={`${w.project.slug}:${i}`}>
+            <div>
+              <span className={`chip ${w.sev === "Medium" ? "chip-warn" : "chip-low"}`}>
+                <span className="chip-dot" /> {w.sev}
+              </span>
+            </div>
+            <div>{projectButton(w.project)}</div>
+            <div className="td-primary">{w.note}</div>
+            <div className="td-muted">{w.ws}</div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="empty-state" style={{ color: "var(--ok)" }}>
+        No warnings across projects.
+      </div>
+    );
+
+  const renderBody = () => {
+    if (view === "workspace-current") return renderTaskRows(workspace.current, "No active tasks across projects.");
+    if (view === "workspace-blockers") return renderTaskRows(workspace.blockers, "No blockers across projects.", "blocked");
+    if (view === "workspace-validation") return renderTaskRows(workspace.validation, "No tasks to validate across projects.");
+    if (view === "workspace-progress") return renderProgress();
+    if (view === "workspace-warnings") return renderWarnings();
+    return null;
+  };
+
+  const count =
+    view === "workspace-current" ? workspace.counts.current :
+    view === "workspace-blockers" ? workspace.counts.blockers :
+    view === "workspace-validation" ? workspace.counts.validation :
+    view === "workspace-progress" ? workspace.counts.progress :
+    view === "workspace-warnings" ? workspace.counts.warnings :
+    null;
+
+  return (
+    <div className="page">
+      <h1 className="page-title">{title}</h1>
+      <section className="block">
+        <SectionHeader title={title} count={count} />
+        {renderBody()}
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================
+   Dashboard Pages
+   ================================================================ */
+function DashboardPage({ project, docs, view, onOpenWorkstream, onOpenDoc }) {
+  const dashboard = useMemo(() => getDashboardModel(project, docs), [project, docs]);
+  const { tasks, currentWork, blockers, progressDocs, warnings, wsLookup } = dashboard;
+  const title = NAV.find((item) => item.id === view)?.label || "Dashboard";
+
+  const renderCurrentWork = () =>
+    currentWork.length > 0 ? (
+      <div className="table table-4">
+        <div className="tr th">
+          <div>Task</div>
+          <div>Workstream</div>
+          <div>Status</div>
+          <div>Source</div>
+        </div>
+        {currentWork.map((task, i) => {
+          const ws = wsLookup[task.path];
+          return (
+            <div className="tr" key={i}>
+              <div className="td-primary">
+                <button className="link" onClick={() => onOpenDoc(task.path)}>
+                  {task.title}
+                </button>
+              </div>
+              <div>
+                {ws ? (
+                  <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
+                    {ws.title}
+                  </button>
+                ) : (
+                  <span className="td-muted">-</span>
+                )}
+              </div>
+              <div>
+                <StatusChip>{task.status}</StatusChip>
+              </div>
+              <div className="mono td-muted">{task.path.split("/").pop()}</div>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <div className="empty-state">No active tasks.</div>
+    );
+
+  const renderBlockers = () =>
+    blockers.length > 0 ? (
+      <div className="table table-3">
+        <div className="tr th">
+          <div>Task</div>
+          <div>Workstream</div>
+          <div>Details</div>
+        </div>
+        {blockers.map((task, i) => {
+          const ws = wsLookup[task.path];
+          return (
+            <div className="tr" key={i}>
+              <div className="td-primary">
+                <button className="link" onClick={() => onOpenDoc(task.path)}>
+                  <span className="dot dot-warn" /> {task.title}
+                </button>
+              </div>
+              <div>
+                {ws ? (
+                  <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
+                    {ws.title}
+                  </button>
+                ) : (
+                  <span className="td-muted">-</span>
+                )}
+              </div>
+              <div className="td-muted">{task.snippet || "-"}</div>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <div className="empty-state">No blockers.</div>
+    );
+
+  const renderValidation = () =>
+    tasks.length > 0 ? (
+      <div className="table table-3">
+        <div className="tr th">
+          <div>Task</div>
+          <div>Workstream</div>
+          <div>State</div>
+        </div>
+        {tasks.map((task, i) => {
+          const ws = wsLookup[task.path];
+          const label = statusLabel(task.status);
+          const chipClass = label === "Complete" ? "chip-ok" : label === "Blocked" ? "chip-warn" : "chip-low";
+          return (
+            <div className="tr" key={i}>
+              <div className="td-primary">
+                <button className="link" onClick={() => onOpenDoc(task.path)}>
+                  {task.title}
+                </button>
+              </div>
+              <div>
+                {ws ? (
+                  <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
+                    {ws.title}
+                  </button>
+                ) : (
+                  <span className="td-muted">-</span>
+                )}
+              </div>
+              <div>
+                <span className={`chip ${chipClass}`}>
+                  <span className="chip-dot" /> {label}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <div className="empty-state">No tasks to validate.</div>
+    );
+
+  const renderProgress = () =>
+    progressDocs.length > 0 ? (
+      <div className="timeline">
+        {progressDocs.map((doc, i) => {
+          const date = doc.updated
+            ? new Date(doc.updated).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+            : "";
+          return (
+            <div className="tl-row" key={i}>
+              <div className="tl-date mono">{date}</div>
+              <div className="tl-bullet">
+                <span />
+              </div>
+              <div className="tl-body">
+                <div>
+                  <button className="link" onClick={() => onOpenDoc(doc.path)}>
+                    {doc.title}
+                  </button>
+                </div>
+                <div className="td-muted small">{doc.snippet}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    ) : (
+      <div className="empty-state">No progress entries.</div>
+    );
+
+  const renderWarnings = () =>
+    warnings.length > 0 ? (
+      <div className="table table-3">
+        <div className="tr th">
+          <div>Severity</div>
+          <div>Note</div>
+          <div>Source</div>
+        </div>
+        {warnings.map((w, i) => (
+          <div className="tr" key={i}>
+            <div>
+              <span className={`chip ${w.sev === "Medium" ? "chip-warn" : "chip-low"}`}>
+                <span className="chip-dot" /> {w.sev}
+              </span>
+            </div>
+            <div className="td-primary">{w.note}</div>
+            <div className="td-muted">{w.ws}</div>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="empty-state" style={{ color: "var(--ok)" }}>
+        No warnings.
+      </div>
+    );
+
+  const renderBody = () => {
+    if (view === "current") return renderCurrentWork();
+    if (view === "blockers") return renderBlockers();
+    if (view === "validation") return renderValidation();
+    if (view === "progress") return renderProgress();
+    if (view === "warnings") return renderWarnings();
+    return null;
+  };
+
+  const count =
+    view === "current" ? currentWork.length :
+    view === "blockers" ? blockers.length :
+    view === "validation" ? tasks.length :
+    view === "progress" ? progressDocs.length :
+    view === "warnings" ? warnings.length :
+    null;
+
+  return (
+    <div className="page">
+      <h1 className="page-title">{title}</h1>
+      <section className="block">
+        <SectionHeader title={title} count={count} />
+        {renderBody()}
+      </section>
+    </div>
+  );
+}
+
+/* ================================================================
+   Workstream Detail
+   ================================================================ */
+function WorkstreamDetail({ index, project, wsPath, onBack, onOpenDoc }) {
+  const [wsDoc, setWsDoc] = useState(null);
+
+  useEffect(() => {
+    if (!wsPath) return;
+    fetch(`/api/doc?path=${encodeURIComponent(wsPath)}`)
+      .then((r) => r.json())
+      .then(setWsDoc);
+  }, [wsPath]);
+
+  const outline = project.outline;
+  const wsOutline = outline?.workstreams?.find((w) => w.path === wsPath);
+  const tasks = useMemo(
+    () => (wsOutline?.tasks || []).map((p) => byPath(index.docs, p)).filter(Boolean),
+    [wsOutline, index.docs]
+  );
+
+  if (!wsDoc) {
+    return (
+      <div className="page">
+        <div className="empty-state">Loading workstream...</div>
+      </div>
+    );
+  }
+
+  const title = wsDoc.title || wsOutline?.title || "Workstream";
+  const status = wsDoc.status || wsOutline?.status;
+  const owner = wsDoc.frontmatter?.owner || "";
+  const created = wsDoc.frontmatter?.created || "";
+  const updated = wsDoc.updated || "";
+
+  // Parse markdown into named sections
+  const body = (wsDoc.markdown || "").replace(/^---[\s\S]*?\n---\r?\n/, "");
+  const sections = {};
+  let currentSection = "__body";
+  sections[currentSection] = [];
+  for (const line of body.split(/\r?\n/)) {
+    const heading = line.match(/^#{1,3}\s+(.+?)\s*$/);
+    if (heading) {
+      currentSection = heading[1].toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      sections[currentSection] = [];
+    } else {
+      if (!sections[currentSection]) sections[currentSection] = [];
+      sections[currentSection].push(line);
+    }
+  }
+  const sectionHtml = (key) => {
+    const lines = sections[key];
+    if (!lines || !lines.filter((l) => l.trim()).length) return null;
+    return parseBlocks(lines);
+  };
+
+  const summaryHtml = sectionHtml("summary") || sectionHtml("__body");
+  const goalHtml = sectionHtml("goal") || sectionHtml("objective");
+  const scopeHtml = sectionHtml("scope");
+  const notesHtml = sectionHtml("notes");
+  const decisionsHtml = sectionHtml("decisions");
+
+  const fmtDate = (d) =>
+    d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "—";
+
+  return (
+    <div className="page">
+      <button className="back" onClick={onBack}>
+        <Icon d={I.arrowL} size={14} /> Back to Overview
+      </button>
+      <div className="ws-eyebrow">Workstream</div>
+      <h1 className="page-title">{title}</h1>
+
+      <section className="summary summary-tight">
+        <Field label="Status">
+          <StatusChip>{status || "Planned"}</StatusChip>
+        </Field>
+        <Field label="Owner">{owner || "—"}</Field>
+        <Field label="Created">{fmtDate(created)}</Field>
+        <Field label="Last updated">{fmtDate(updated)}</Field>
+      </section>
+
+      <div className="two-col">
+        <div className="col-main">
+          {summaryHtml && (
+            <Block title="Summary">
+              <div dangerouslySetInnerHTML={{ __html: summaryHtml }} />
+            </Block>
+          )}
+          {goalHtml && (
+            <Block title="Goal">
+              <div dangerouslySetInnerHTML={{ __html: goalHtml }} />
+            </Block>
+          )}
+          {scopeHtml && (
+            <Block title="Scope">
+              <div dangerouslySetInnerHTML={{ __html: scopeHtml }} />
+            </Block>
+          )}
+
+          <Block title="Tasks">
+            <ul className="checklist">
+              {tasks.map((t, i) => {
+                const done = statusLabel(t.status) === "Complete";
+                return (
+                  <li key={i} className={done ? "done" : ""}>
+                    <span className="cb">
+                      {done && <Icon d={<path d="M5 12.5l4 4 10-11" />} size={11} />}
+                    </span>
+                    <button className="link" onClick={() => onOpenDoc(t.path)}>
+                      {t.title}
+                    </button>
+                  </li>
+                );
+              })}
+              {!tasks.length && (
+                <li style={{ color: "var(--ink-50)", listStyle: "none" }}>
+                  No tasks linked to this workstream.
+                </li>
+              )}
+            </ul>
+          </Block>
+
+          {notesHtml && (
+            <Block title="Notes">
+              <div dangerouslySetInnerHTML={{ __html: notesHtml }} />
+            </Block>
+          )}
+          {decisionsHtml && (
+            <Block title="Decisions">
+              <div dangerouslySetInnerHTML={{ __html: decisionsHtml }} />
+            </Block>
+          )}
+        </div>
+
+        <aside className="col-side">
+          <div className="side-block">
+            <div className="side-head">Details</div>
+            <dl className="dl">
+              <dt>Status</dt>
+              <dd>
+                <StatusChip>{status || "Planned"}</StatusChip>
+              </dd>
+              {owner && (
+                <>
+                  <dt>Owner</dt>
+                  <dd>{owner}</dd>
+                </>
+              )}
+              <dt>Source path</dt>
+              <dd className="mono small">{wsPath}</dd>
+              {wsOutline?.id && (
+                <>
+                  <dt>ID</dt>
+                  <dd className="mono">{wsOutline.id}</dd>
+                </>
+              )}
+            </dl>
+          </div>
+
+          <div className="side-block">
+            <div className="side-head">
+              Subtasks <span className="count">{tasks.length}</span>
+            </div>
+            <ul className="side-list">
+              {tasks.map((t, i) => (
+                <li key={i} onClick={() => onOpenDoc(t.path)}>
+                  <span className="sl-name">{t.title}</span>
+                  <span className="sl-right">
+                    <StatusChip>{t.status}</StatusChip>
+                    <Icon d={I.chevR} size={13} />
+                  </span>
+                </li>
+              ))}
+              {!tasks.length && (
+                <li style={{ cursor: "default", color: "var(--ink-50)" }}>None</li>
+              )}
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   Document Reader
+   ================================================================ */
+function DocumentReader({ doc, onBack, onOpenAction }) {
+  if (!doc) {
+    return (
+      <div className="page">
+        <div className="empty-state">Loading document...</div>
+      </div>
+    );
+  }
+
+  const props = Object.entries(doc.frontmatter || {});
+  const fmtDate = (d) =>
+    d
+      ? new Date(d).toLocaleString("en-US", {
+          month: "short", day: "numeric", year: "numeric",
+          hour: "numeric", minute: "2-digit",
+        })
+      : "—";
+
+  return (
+    <div className="page">
+      {onBack && (
+        <button className="back" onClick={onBack}>
+          <Icon d={I.arrowL} size={14} /> Back
+        </button>
+      )}
+      <div className="ws-eyebrow">{titleCase(doc.role)}</div>
+      <h1 className="page-title">{doc.title}</h1>
+
+      <section className="summary summary-tight">
+        <Field label="Path" mono>
+          {doc.path}
+        </Field>
+        {doc.status && (
+          <Field label="Status">
+            <StatusChip>{doc.status}</StatusChip>
+          </Field>
+        )}
+        <Field label="Updated">{fmtDate(doc.updated)}</Field>
+        <Field label="Actions">
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button className="btn" onClick={() => onOpenAction("code", doc.path)}>
+              <Icon d={I.code} size={14} /> IDE
+            </button>
+            <button className="btn" onClick={() => onOpenAction("explorer", doc.path)}>
+              <Icon d={I.folderOpen} size={14} /> Folder
+            </button>
+          </div>
+        </Field>
+      </section>
+
+      {props.length > 0 && (
+        <div
+          style={{
+            marginTop: "24px",
+            border: "1px solid var(--line)",
+            borderRadius: "var(--r)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "12px 14px",
+              borderBottom: "1px solid var(--line)",
+              fontWeight: 600,
+              fontSize: "13px",
+            }}
+          >
+            Frontmatter
+          </div>
+          <dl className="dl">
+            {props.map(([k, v]) => (
+              <React.Fragment key={k}>
+                <dt>{k}</dt>
+                <dd>{Array.isArray(v) ? v.join(", ") : String(v ?? "")}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+        </div>
+      )}
+
+      <article
+        className="md-body"
+        style={{ marginTop: "36px" }}
+        dangerouslySetInnerHTML={{ __html: renderMarkdown(doc.markdown || "") }}
+      />
+    </div>
+  );
+}
+
+/* ================================================================
+   Document List (for non-project folders like context, templates)
+   ================================================================ */
+function DocumentList({ index, project, docs, onOpenDoc }) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => {
+    if (!query) return docs;
+    const q = query.toLowerCase();
+    return docs.filter((d) => {
+      const haystack = [d.title, d.path, d.snippet, d.role].join(" ").toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [docs, query]);
+
+  return (
+    <div className="page">
+      <h1 className="page-title">{project.title}</h1>
+
+      <div style={{ maxWidth: "400px" }}>
+        <input
+          className="search-input"
+          placeholder="Search documents..."
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+
+      <div className="table table-list">
+        <div className="tr th">
+          <div>Document</div>
+          <div>Role</div>
+          <div>Status</div>
+          <div>Updated</div>
+        </div>
+        {filtered.map((doc, i) => (
+          <div className="tr" key={i} style={{ cursor: "pointer" }} onClick={() => onOpenDoc(doc.path)}>
+            <div>
+              <div className="td-primary">{doc.title}</div>
+              <div className="mono td-muted" style={{ fontSize: "11px", marginTop: "2px" }}>
+                {doc.path}
+              </div>
+            </div>
+            <div className="td-muted">{titleCase(doc.role)}</div>
+            <div>
+              {doc.status ? <StatusChip>{doc.status}</StatusChip> : <span className="td-muted">—</span>}
+            </div>
+            <div className="td-muted">
+              {doc.updated
+                ? new Date(doc.updated).toLocaleDateString("en-US", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })
+                : "—"}
+            </div>
+          </div>
+        ))}
+        {!filtered.length && (
+          <div style={{ padding: "32px 0", color: "var(--ink-50)", textAlign: "center" }}>
+            {query ? "No documents match your search." : "No documents in this folder."}
+          </div>
+        )}
+      </div>
+
+      <div className="page-foot mono">
+        viewer · read-only · {docs.length} document{docs.length !== 1 ? "s" : ""} · generated at{" "}
+        <span>{index.generatedAt || ""}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================
+   App — root component
+   ================================================================ */
+function App() {
+  const [index, setIndex] = useState(null);
+  const [projectSlug, setProjectSlug] = useState(null);
+  const [route, setRoute] = useState("overview");
+  const [section, setSection] = useState(null);
+  const [docPath, setDocPath] = useState(null);
+  const [doc, setDoc] = useState(null);
+  const [wsPath, setWsPath] = useState(null);
+
+  // Load index on mount
+  useEffect(() => {
+    fetch("/api/index")
+      .then((r) => r.json())
+      .then((data) => {
+        setIndex(data);
+        // Default to first project with outline, or first project
+        const firstProject = data.projects.find((p) => p.outline) || data.projects[0];
+        if (firstProject) setProjectSlug(firstProject.slug);
+      });
+  }, []);
+
+  // Load doc when docPath changes
+  useEffect(() => {
+    if (!docPath) {
+      setDoc(null);
+      return;
+    }
+    setDoc(null);
+    fetch(`/api/doc?path=${encodeURIComponent(docPath)}`)
+      .then((r) => r.json())
+      .then(setDoc);
+  }, [docPath]);
+
+  // Scroll to top on route change
+  useEffect(() => {
+    const main = document.querySelector(".main");
+    if (main) main.scrollTo(0, 0);
+  }, [route, wsPath, docPath]);
+
+  if (!index) {
+    return (
+      <div style={{ padding: "48px", color: "var(--ink-50)", fontFamily: "var(--font-sans)" }}>
+        Loading Delano viewer...
+      </div>
+    );
+  }
+
+  const { project, docs } = getProjectData(index, projectSlug);
+  const hasOutline = project?.outline;
+
+  const handleSelectProject = (slug) => {
+    setProjectSlug(slug);
+    const p = index.projects.find((pp) => pp.slug === slug);
+    if (p?.outline) {
+      setRoute("overview");
+      setSection("overview");
+    } else {
+      setRoute("list");
+      setSection(null);
+    }
+    setDocPath(null);
+    setDoc(null);
+    setWsPath(null);
+  };
+
+  const handleNavigate = (newRoute, newSection) => {
+    if (newRoute === "document" && newSection) {
+      setRoute("document");
+      setDocPath(newSection);
+      setSection(newSection);
+    } else {
+      setRoute(newRoute);
+      setSection(newSection || null);
+      setDocPath(null);
+      setDoc(null);
+    }
+    setWsPath(null);
+  };
+
+  const handleOpenWorkstream = (path) => {
+    setRoute("workstream");
+    setWsPath(path);
+    setSection(null);
+  };
+
+  const handleOpenDoc = (path) => {
+    setRoute("document");
+    setDocPath(path);
+    setSection(path);
+  };
+
+  const handleOpenProject = (slug) => {
+    const p = index.projects.find((pp) => pp.slug === slug);
+    setProjectSlug(slug);
+    setRoute(p?.outline ? "overview" : "list");
+    setSection(p?.outline ? "overview" : null);
+    setWsPath(null);
+    setDocPath(null);
+    setDoc(null);
+  };
+
+  const handleOpenProjectDoc = (slug, path) => {
+    setProjectSlug(slug);
+    setRoute("document");
+    setDocPath(path);
+    setSection(path);
+    setWsPath(null);
+  };
+
+  const handleOpenProjectWorkstream = (slug, path) => {
+    setProjectSlug(slug);
+    setRoute("workstream");
+    setWsPath(path);
+    setSection(null);
+    setDocPath(null);
+    setDoc(null);
+  };
+
+  const handleOpenAction = async (target, path) => {
+    try {
+      await fetch(`/api/open?target=${encodeURIComponent(target)}&path=${encodeURIComponent(path)}`, {
+        method: "POST",
+      });
+    } catch (_) {
+      /* ignore */
+    }
+  };
+
+  const handleBack = () => {
+    if (route === "document" && wsPath) {
+      setRoute("workstream");
+      setDocPath(null);
+      setDoc(null);
+      setSection(null);
+    } else {
+      setRoute(hasOutline ? "overview" : "list");
+      setSection(hasOutline ? "overview" : null);
+      setWsPath(null);
+      setDocPath(null);
+      setDoc(null);
+    }
+  };
+
+  let mainContent;
+  if (route === "workstream" && wsPath && hasOutline) {
+    mainContent = (
+      <WorkstreamDetail
+        index={index}
+        project={project}
+        wsPath={wsPath}
+        onBack={handleBack}
+        onOpenDoc={handleOpenDoc}
+      />
+    );
+  } else if (route === "document" && docPath) {
+    mainContent = <DocumentReader doc={doc} onBack={handleBack} onOpenAction={handleOpenAction} />;
+  } else if (GLOBAL_ROUTES.has(route)) {
+    mainContent = (
+      <WorkspacePage
+        index={index}
+        view={route}
+        onOpenProject={handleOpenProject}
+        onOpenProjectDoc={handleOpenProjectDoc}
+        onOpenProjectWorkstream={handleOpenProjectWorkstream}
+      />
+    );
+  } else if (route === "overview" && hasOutline) {
+    mainContent = (
+      <Overview
+        index={index}
+        project={project}
+        docs={docs}
+        scrollTarget={section}
+        onOpenWorkstream={handleOpenWorkstream}
+        onOpenDoc={handleOpenDoc}
+      />
+    );
+  } else {
+    mainContent = (
+      <DocumentList index={index} project={project} docs={docs} onOpenDoc={handleOpenDoc} />
+    );
+  }
+
+  return (
+    <div className="app">
+      <Sidebar
+        index={index}
+        projectSlug={projectSlug}
+        route={route}
+        section={section}
+        onNavigate={handleNavigate}
+        onSelectProject={handleSelectProject}
+      />
+      <div className="main">
+        <Topbar
+          project={project}
+          index={index}
+          docPath={docPath || (hasOutline ? project.outline.spec : null)}
+          onOpenAction={handleOpenAction}
+        />
+        <div className="content">{mainContent}</div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);

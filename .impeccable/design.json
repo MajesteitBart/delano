@@ -1,0 +1,249 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-07T05:35:20Z",
+  "title": "Design System: Delano Viewer",
+  "extensions": {
+    "colorMeta": {
+      "document-bg": {
+        "role": "neutral",
+        "displayName": "Document Ground",
+        "canonical": "oklch(0.985 0.004 85)",
+        "tonalRamp": [
+          "oklch(0.15 0.004 85)",
+          "oklch(0.25 0.004 85)",
+          "oklch(0.35 0.004 85)",
+          "oklch(0.45 0.004 85)",
+          "oklch(0.60 0.004 85)",
+          "oklch(0.75 0.004 85)",
+          "oklch(0.88 0.004 85)",
+          "oklch(0.985 0.004 85)"
+        ]
+      },
+      "paper-surface": {
+        "role": "neutral",
+        "displayName": "Paper Surface",
+        "canonical": "oklch(0.995 0.003 85)",
+        "tonalRamp": [
+          "oklch(0.15 0.003 85)",
+          "oklch(0.25 0.003 85)",
+          "oklch(0.35 0.003 85)",
+          "oklch(0.45 0.003 85)",
+          "oklch(0.60 0.003 85)",
+          "oklch(0.75 0.003 85)",
+          "oklch(0.90 0.003 85)",
+          "oklch(0.995 0.003 85)"
+        ]
+      },
+      "ink": {
+        "role": "primary",
+        "displayName": "Ledger Ink",
+        "canonical": "oklch(0.21 0.008 80)",
+        "tonalRamp": [
+          "oklch(0.15 0.008 80)",
+          "oklch(0.21 0.008 80)",
+          "oklch(0.32 0.008 80)",
+          "oklch(0.44 0.008 80)",
+          "oklch(0.56 0.008 80)",
+          "oklch(0.70 0.008 80)",
+          "oklch(0.84 0.008 80)",
+          "oklch(0.95 0.008 80)"
+        ]
+      },
+      "slate-accent": {
+        "role": "primary",
+        "displayName": "Quiet Slate Accent",
+        "canonical": "oklch(0.52 0.08 245)",
+        "tonalRamp": [
+          "oklch(0.15 0.08 245)",
+          "oklch(0.25 0.08 245)",
+          "oklch(0.35 0.08 245)",
+          "oklch(0.45 0.08 245)",
+          "oklch(0.52 0.08 245)",
+          "oklch(0.68 0.08 245)",
+          "oklch(0.82 0.08 245)",
+          "oklch(0.95 0.08 245)"
+        ]
+      },
+      "success": {
+        "role": "secondary",
+        "displayName": "Verified Green",
+        "canonical": "oklch(0.62 0.10 155)",
+        "tonalRamp": [
+          "oklch(0.15 0.10 155)",
+          "oklch(0.25 0.10 155)",
+          "oklch(0.35 0.10 155)",
+          "oklch(0.48 0.10 155)",
+          "oklch(0.62 0.10 155)",
+          "oklch(0.75 0.10 155)",
+          "oklch(0.86 0.10 155)",
+          "oklch(0.95 0.10 155)"
+        ]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Review Amber",
+        "canonical": "oklch(0.62 0.13 55)",
+        "tonalRamp": [
+          "oklch(0.15 0.13 55)",
+          "oklch(0.25 0.13 55)",
+          "oklch(0.35 0.13 55)",
+          "oklch(0.48 0.13 55)",
+          "oklch(0.62 0.13 55)",
+          "oklch(0.75 0.13 55)",
+          "oklch(0.86 0.13 55)",
+          "oklch(0.95 0.13 55)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page and document titles only."
+      },
+      "body": {
+        "displayName": "Product Body",
+        "purpose": "Compact product chrome, tables, nav, controls, and summaries."
+      },
+      "document": {
+        "displayName": "Document Body",
+        "purpose": "Markdown reader prose with comfortable line height."
+      },
+      "mono": {
+        "displayName": "Evidence Mono",
+        "purpose": "Paths, timestamps, generated metadata, IDs, and code."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "90ms ease-out",
+        "purpose": "Default hover and active state changes for buttons, nav items, links, and caret color."
+      },
+      {
+        "name": "focus-standard",
+        "value": "150ms ease-out",
+        "purpose": "Input border and background focus response."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "side-column-collapse",
+        "value": "1100px"
+      },
+      {
+        "name": "mobile-nav-wrap",
+        "value": "860px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Compact action button for IDE, folder, and source actions.",
+      "html": "<button class=\"ds-btn-secondary\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M4 5.5h16\"/><path d=\"M4 12h16\"/><path d=\"M4 18.5h10\"/></svg><span>Open</span></button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border: 1px solid var(--line, oklch(0.92 0.005 85)); border-radius: var(--r-sm, 4px); background: var(--bg, oklch(0.985 0.004 85)); color: var(--ink-70, oklch(0.40 0.008 80)); font-family: var(--font-sans, Inter, system-ui, sans-serif); font-size: 13px; transition: background 90ms ease-out, border-color 90ms ease-out, color 90ms ease-out; } .ds-btn-secondary:hover { background: var(--line-soft, oklch(0.95 0.005 85)); color: var(--ink, oklch(0.21 0.008 80)); border-color: var(--ink-25, oklch(0.82 0.005 80)); } .ds-btn-secondary:focus-visible { outline: 2px solid var(--accent, oklch(0.52 0.08 245)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Active Navigation Item",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "Selected sidebar item with icon and label.",
+      "html": "<button class=\"ds-nav-active\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 11.5 12 4l9 7.5\"/><path d=\"M5 10v10h14V10\"/></svg><span>Overview</span></button>",
+      "css": ".ds-nav-active { display: flex; align-items: center; gap: 10px; width: 232px; padding: 7px 9px; border: 0; border-radius: var(--r-sm, 4px); background: var(--ink, oklch(0.21 0.008 80)); color: var(--bg, oklch(0.985 0.004 85)); font-family: var(--font-sans, Inter, system-ui, sans-serif); font-size: 14px; text-align: left; transition: background 90ms ease-out, color 90ms ease-out; } .ds-nav-active:hover { background: oklch(0.13 0.008 80); } .ds-nav-active:focus-visible { outline: 2px solid var(--accent, oklch(0.52 0.08 245)); outline-offset: 2px; }"
+    },
+    {
+      "name": "Status Chip",
+      "kind": "chip",
+      "refersTo": "status-chip",
+      "description": "Dot plus label status indicator.",
+      "html": "<span class=\"ds-chip\"><span class=\"ds-chip-dot\"></span>Complete</span>",
+      "css": ".ds-chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border: 1px solid color-mix(in oklab, var(--ok, oklch(0.62 0.10 155)) 30%, var(--line, oklch(0.92 0.005 85))); border-radius: 999px; background: var(--ok-soft, oklch(0.96 0.03 155)); color: oklch(0.38 0.10 155); font-family: var(--font-sans, Inter, system-ui, sans-serif); font-size: 12px; font-weight: 500; white-space: nowrap; } .ds-chip-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ok, oklch(0.62 0.10 155)); }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "search-input",
+      "description": "Document list filter field.",
+      "html": "<input class=\"ds-search-input\" placeholder=\"Search documents...\" />",
+      "css": ".ds-search-input { width: 320px; padding: 10px 12px; border: 1px solid var(--line, oklch(0.92 0.005 85)); border-radius: var(--r-sm, 4px); background: var(--surface, oklch(0.995 0.003 85)); color: var(--ink, oklch(0.21 0.008 80)); font-family: var(--font-sans, Inter, system-ui, sans-serif); font-size: 14px; outline: none; transition: border-color 150ms ease-out, background 150ms ease-out; } .ds-search-input::placeholder { color: var(--ink-40, oklch(0.66 0.006 80)); } .ds-search-input:focus { border-color: var(--ink-25, oklch(0.82 0.005 80)); background: var(--bg, oklch(0.985 0.004 85)); }"
+    },
+    {
+      "name": "Side Panel",
+      "kind": "card",
+      "refersTo": "side-panel",
+      "description": "Framed detail panel for workstream metadata and related tasks.",
+      "html": "<aside class=\"ds-side-panel\"><div class=\"ds-side-head\">Details</div><dl class=\"ds-dl\"><dt>Status</dt><dd>Complete</dd><dt>Source path</dt><dd class=\"ds-mono\">projects/example/spec.md</dd></dl></aside>",
+      "css": ".ds-side-panel { width: 320px; border: 1px solid var(--line, oklch(0.92 0.005 85)); border-radius: var(--r, 6px); background: var(--surface, oklch(0.995 0.003 85)); overflow: hidden; color: var(--ink, oklch(0.21 0.008 80)); font-family: var(--font-sans, Inter, system-ui, sans-serif); } .ds-side-head { padding: 12px 14px; border-bottom: 1px solid var(--line, oklch(0.92 0.005 85)); font-weight: 600; font-size: 13px; } .ds-dl { margin: 0; padding: 8px 0; display: grid; grid-template-columns: max-content 1fr; gap: 0 16px; } .ds-dl dt { padding: 8px 14px; font-size: 12px; color: var(--ink-50, oklch(0.55 0.008 80)); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 500; } .ds-dl dd { margin: 0; padding: 8px 14px; font-size: 13px; } .ds-mono { font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; overflow-wrap: anywhere; }"
+    },
+    {
+      "name": "Summary Strip",
+      "kind": "custom",
+      "refersTo": "summary-strip",
+      "description": "Ledger-style metadata row for status, owner, dates, and actions.",
+      "html": "<section class=\"ds-summary\"><div class=\"ds-field\"><div class=\"ds-label\">Status</div><div class=\"ds-value\">Complete</div></div><div class=\"ds-field\"><div class=\"ds-label\">Owner</div><div class=\"ds-value\">team</div></div></section>",
+      "css": ".ds-summary { display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--line, oklch(0.92 0.005 85)); border-bottom: 1px solid var(--line, oklch(0.92 0.005 85)); font-family: var(--font-sans, Inter, system-ui, sans-serif); color: var(--ink, oklch(0.21 0.008 80)); } .ds-field { padding: 16px 22px; border-right: 1px solid var(--line, oklch(0.92 0.005 85)); } .ds-field:first-child { padding-left: 0; } .ds-field:last-child { border-right: none; } .ds-label { margin-bottom: 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-40, oklch(0.66 0.006 80)); font-weight: 500; } .ds-value { font-size: 14px; display: flex; align-items: center; gap: 8px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Local Dossier",
+    "overview": "Delano Viewer should feel like a precise local dossier: quiet paper, clear indexes, restrained annotations, and no performance of importance. It is a localhost-only product UI where reading and navigating delivery contracts is the core job. The interface should disappear into the task, but never become vague.\n\nThe design language is document-like and deliberate. It uses warm near-white surfaces, near-black ink, hairline dividers, small status dots, and measured typography to make specs, plans, workstreams, tasks, and evidence easier to inspect. It rejects flashy, decorative, and marketing-led treatment. It also rejects generic SaaS dashboard tropes when they compete with the contracts themselves.",
+    "keyCharacteristics": [
+      "Quiet, document-like, deliberate.",
+      "Warm neutral paper surfaces with tinted ink, never pure black or pure white.",
+      "Restrained slate accent used only for selected state and workflow signal.",
+      "Flat hierarchy through borders, spacing, sticky navigation, and typography.",
+      "Read-only product posture: provenance and source paths stay visible."
+    ],
+    "rules": [
+      {
+        "name": "The Contract Ink Rule",
+        "body": "Text and source structure carry the interface. Color is evidence, state, or selection, never ornament.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Accent Rule",
+        "body": "Slate accent appears on less than 10% of a screen. If it is visible everywhere, it has lost its meaning.",
+        "section": "colors"
+      },
+      {
+        "name": "The Reading Surface Rule",
+        "body": "Document body text gets more line height than the product chrome. The UI is compact; the contract is comfortable.",
+        "section": "typography"
+      },
+      {
+        "name": "The Mono Evidence Rule",
+        "body": "Use monospace only where exact provenance matters. Do not use it as a decorative technology cue.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Ledger Rule",
+        "body": "Surfaces are separated by line, tone, and position. Shadows are prohibited unless a future interactive overlay genuinely needs spatial separation.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Blur Is Utility Rule",
+        "body": "Backdrop blur belongs only to sticky chrome that must remain readable over moving content. It is not a glass effect.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use OKLCH tokens from the viewer CSS as the canonical palette.",
+      "Do keep the default color strategy restrained: warm neutrals, one slate accent, and semantic status colors.",
+      "Do preserve source paths, timestamps, generated-at labels, and read-only cues as visible provenance.",
+      "Do separate dense information with hairline borders and varied spacing instead of stacked cards.",
+      "Do make contracts comfortable to read: 15px document body, 1.65 line height, and max prose width around 65 to 75 characters.",
+      "Do use labels and dots together for status."
+    ],
+    "donts": [
+      "Don't make Delano flashy, decorative, or marketing-led.",
+      "Don't use generic SaaS dashboard tropes, hero metrics, promotional landing-page composition, or ornamental UI inside the product surface.",
+      "Don't use playful mascot-driven agent tooling, heavy enterprise PM-suite density, or dark cyber-terminal styling.",
+      "Don't add gradient text, decorative glassmorphism, colored side-stripe borders, or identical icon-card grids.",
+      "Don't turn every repeated item into a card. Tables, lists, and summary strips are first-class structures.",
+      "Don't use the slate accent as decoration. It is for selection and workflow signal only."
+    ]
+  }
+}

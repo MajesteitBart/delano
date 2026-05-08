@@ -332,6 +332,7 @@ function sendStatic(res, pathname) {
   const ext = path.extname(resolved).toLowerCase();
   const mimeMap = {
     '.js': 'text/javascript',
+    '.jsx': 'text/javascript',
     '.css': 'text/css',
     '.svg': 'image/svg+xml',
     '.png': 'image/png',
@@ -340,7 +341,7 @@ function sendStatic(res, pathname) {
     '.webp': 'image/webp',
     '.ico': 'image/x-icon',
   };
-  const isText = ext === '.js' || ext === '.css' || ext === '.svg' || ext === '' || ext === '.html';
+  const isText = ext === '.js' || ext === '.jsx' || ext === '.css' || ext === '.svg' || ext === '' || ext === '.html';
   const type = mimeMap[ext] || 'text/html';
   const headers = isText ? { 'content-type': `${type}; charset=utf-8` } : { 'content-type': type };
   res.writeHead(200, headers);
