@@ -1,7 +1,7 @@
 ---
 id: T-006
 name: Write first-15-minutes onboarding path
-status: blocked
+status: ready
 workstream: WS-D
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -11,8 +11,6 @@ github_pr:
 depends_on: [T-002, T-003]
 conflicts_with: []
 parallel: true
-blocked_owner: delano-team
-blocked_check_back: 2026-05-11T09:00:00Z
 priority: medium
 estimate: M
 ---
@@ -46,7 +44,3 @@ Create public-facing docs that guide a new user from idea to validated Delano pr
 ## Evidence Log
 
 - 2026-05-10T09:02:02Z: Task created from Spec Kit integration plan conversion.
-
-## Blocker
-
-Blocked until prerequisite local Delano task dependencies are completed.
