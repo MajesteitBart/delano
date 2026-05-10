@@ -156,7 +156,7 @@ delano viewer
 delano validate
 delano status
 delano next -- --all
-delano import-spec-kit -- <slug> <source-md> [project-name] [owner] [lead]
+delano import-spec-kit <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
 ```
 
 Create a new delivery project:
@@ -172,7 +172,7 @@ bash .agents/scripts/pm/validate.sh
 bash .agents/scripts/pm/status.sh
 bash .agents/scripts/pm/next.sh --all
 bash .agents/scripts/pm/init.sh <slug> "<Project Name>" [owner] [lead]
-bash .agents/scripts/pm/import-spec-kit.sh <slug> <source-md> [project-name] [owner] [lead]
+bash .agents/scripts/pm/import-spec-kit.sh <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
 ```
 
 `delano viewer` serves the selected repository's `.project` files read-only on `http://127.0.0.1:3977` by default. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.

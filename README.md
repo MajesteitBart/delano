@@ -72,7 +72,7 @@ delano install --yes
 delano viewer
 delano validate
 delano init <slug> "<Project Name>" [owner] [lead]
-delano import-spec-kit -- <slug> <source-md> [project-name] [owner] [lead]
+delano import-spec-kit <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
 ```
 
 Command intent:
@@ -99,12 +99,13 @@ Notes:
 `delano import-spec-kit` usage:
 
 ```bash
-delano import-spec-kit -- <slug> <source-md> [project-name] [owner] [lead]
+delano import-spec-kit <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
 ```
 
 Notes:
 
 - the source markdown must use the initial supported shape documented in `docs/spec-kit/import-contract.md`
+- agents should prefer named options over positional metadata, and `--json` when parsing the result
 - imported artifacts start in planned/ready states and still have to pass Delano validation, probe, and evidence gates
 - the command is additive and refuses to overwrite an existing `.project/projects/<slug>/` folder
 

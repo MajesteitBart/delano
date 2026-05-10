@@ -10,7 +10,10 @@ const { createWrapperCommand } = require("./commands/wrapper");
 
 const wrapperCommands = {
   init: createWrapperCommand("init"),
-  "import-spec-kit": createWrapperCommand("import-spec-kit"),
+  "import-spec-kit": createWrapperCommand("import-spec-kit", {
+    description: "Create a planned Delano project from a Spec Kit-style markdown artifact.",
+    help: getImportSpecKitHelp
+  }),
   validate: createWrapperCommand("validate"),
   status: createWrapperCommand("status"),
   next: createWrapperCommand("next")
@@ -102,7 +105,7 @@ function getGeneralHelp() {
     "  install    Install the approved Delano runtime payload",
     "  viewer     Launch the read-only local UI for .project contracts",
     "  init            Run .agents/scripts/pm/init.sh in the current Delano repo",
-    "  import-spec-kit Run .agents/scripts/pm/import-spec-kit.sh in the current Delano repo",
+    "  import-spec-kit Create a planned project from a Spec Kit-style markdown artifact",
     "  validate        Run .agents/scripts/pm/validate.sh in the current Delano repo",
     "  status     Run .agents/scripts/pm/status.sh in the current Delano repo",
     "  next       Run .agents/scripts/pm/next.sh in the current Delano repo",
@@ -118,7 +121,7 @@ function getGeneralHelp() {
     "  delano --target ../my-repo --yes",
     "  npx -y @bvdm/delano@latest --yes",
     "  delano viewer",
-    "  delano import-spec-kit -- reminder-email-preferences docs/spec-kit/fixtures/minimal-spec-kit-project.md",
+    "  delano import-spec-kit reminder-email-preferences docs/spec-kit/fixtures/minimal-spec-kit-project.md --json",
     "  delano validate",
     "  delano next -- --all",
     "",
@@ -129,6 +132,35 @@ function getGeneralHelp() {
     "  Run 'delano onboarding' to review AGENTS.md. The command requires explicit approval before analysis.",
     "",
     "Use 'delano <command> --help' for command-specific help."
+  ].join("\n");
+}
+
+function getImportSpecKitHelp() {
+  return [
+    "Usage:",
+    "  delano import-spec-kit <slug> <source-md> [options]",
+    "",
+    "Creates a planned Delano project from the first supported Spec Kit-style markdown fixture, then runs Delano validation by default.",
+    "",
+    "Arguments:",
+    "  slug                  Target Delano project slug in kebab-case",
+    "  source-md             Path to the markdown source artifact",
+    "",
+    "Options:",
+    "  --name <project-name>  Project name override",
+    "  --owner <owner>        Project owner, defaults to team",
+    "  --lead <lead>          Project lead, defaults to owner",
+    "  --no-validate          Create artifacts without running Delano validation",
+    "  --json                 Print a single machine-readable JSON result",
+    "  -h, --help             Show help",
+    "",
+    "Agent examples:",
+    "  delano import-spec-kit reminder-email-preferences docs/spec-kit/fixtures/minimal-spec-kit-project.md --json",
+    "  delano import-spec-kit reminder-email-preferences input.md --name \"Reminder Email Preferences\" --owner platform --lead clark --json",
+    "",
+    "Output:",
+    "  Human mode prints a concise summary plus validation output.",
+    "  JSON mode prints: { ok, command, project, source, validation }."
   ].join("\n");
 }
 
@@ -159,6 +191,7 @@ async function run(argv) {
 module.exports = {
   commands,
   getGeneralHelp,
+  getImportSpecKitHelp,
   resolveInvocation,
   run
 };

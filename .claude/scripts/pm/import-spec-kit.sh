@@ -1,27 +1,119 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ "${1:-}" == "" || "${2:-}" == "" ]]; then
+usage() {
   cat <<'USAGE'
-Usage: import-spec-kit.sh <slug> <source-md> [project-name] [owner] [lead]
+Usage:
+  import-spec-kit.sh <slug> <source-md> [options]
+  import-spec-kit.sh <slug> <source-md> [project-name] [owner] [lead]
 
-Creates a Delano project from the first supported Spec Kit-style markdown fixture.
+Creates a planned Delano project from the first supported Spec Kit-style markdown fixture.
 
-Arguments:
-  slug          Target Delano project slug in kebab-case
-  source-md     Path to a markdown source artifact
-  project-name  Optional project name override
-  owner         Optional owner, defaults to team
-  lead          Optional lead, defaults to owner
+Required arguments:
+  slug                  Target Delano project slug in kebab-case
+  source-md             Path to a markdown source artifact
+
+Options:
+  --name <project-name>  Project name override
+  --owner <owner>        Project owner, defaults to team
+  --lead <lead>          Project lead, defaults to owner
+  --no-validate          Create artifacts without running Delano validation
+  --json                 Print a single machine-readable JSON result
+  -h, --help             Show this help
+
+Agent notes:
+  - Prefer named options over positional metadata.
+  - Use --json when another agent/tool will parse the result.
+  - The command refuses to overwrite an existing .project/projects/<slug>/ folder.
+  - Generated artifacts stay planned/ready and still require Delano evidence gates.
 USAGE
+}
+
+json_escape() {
+  python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().rstrip("\n")))'
+}
+
+if [[ "${1:-}" == "" || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ "${2:-}" == "" ]]; then
+  usage
   exit 1
 fi
 
 slug="$1"
 source_md="$2"
-project_name="${3:-}"
-owner="${4:-team}"
-lead="${5:-$owner}"
+shift 2
+
+project_name=""
+owner="team"
+lead=""
+validate="true"
+json="false"
+positional=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --name)
+      project_name="${2:-}"
+      if [[ -z "$project_name" ]]; then echo "Error: --name requires a value"; exit 1; fi
+      shift 2
+      ;;
+    --owner)
+      owner="${2:-}"
+      if [[ -z "$owner" ]]; then echo "Error: --owner requires a value"; exit 1; fi
+      shift 2
+      ;;
+    --lead)
+      lead="${2:-}"
+      if [[ -z "$lead" ]]; then echo "Error: --lead requires a value"; exit 1; fi
+      shift 2
+      ;;
+    --no-validate)
+      validate="false"
+      shift
+      ;;
+    --json)
+      json="true"
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      while [[ $# -gt 0 ]]; do positional+=("$1"); shift; done
+      ;;
+    --*)
+      echo "Error: unknown option: $1"
+      exit 1
+      ;;
+    *)
+      positional+=("$1")
+      shift
+      ;;
+  esac
+done
+
+# Backward-compatible positional metadata: [project-name] [owner] [lead].
+if [[ ${#positional[@]} -gt 0 && -z "$project_name" ]]; then
+  project_name="${positional[0]}"
+fi
+if [[ ${#positional[@]} -gt 1 && "$owner" == "team" ]]; then
+  owner="${positional[1]}"
+fi
+if [[ ${#positional[@]} -gt 2 && -z "$lead" ]]; then
+  lead="${positional[2]}"
+fi
+if [[ ${#positional[@]} -gt 3 ]]; then
+  echo "Error: too many positional arguments"
+  exit 1
+fi
+
+lead="${lead:-$owner}"
 
 if [[ ! "$slug" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
   echo "Error: slug must be kebab-case"
@@ -385,8 +477,41 @@ Imported `{source_display}` into Delano project `{slug}`.
 Review the generated project, then run Delano validation and a probe before activation.
 """
 (project_dir / "updates" / f"{today}-imported-from-spec-kit.md").write_text(update, encoding="utf-8")
-
-print(f"Created Delano project from Spec Kit-style artifact: .project/projects/{slug}")
 PY
 
-"$root/.agents/scripts/pm/validate.sh"
+validation_status="skipped"
+ok="true"
+error=""
+if [[ "$validate" == "true" ]]; then
+  if [[ "$json" == "true" ]]; then
+    validation_log="$(mktemp)"
+    if "$root/.agents/scripts/pm/validate.sh" >"$validation_log" 2>&1; then
+      validation_status="passed"
+    else
+      validation_status="failed"
+      ok="false"
+      error="validation_failed"
+    fi
+    rm -f "$validation_log"
+  else
+    "$root/.agents/scripts/pm/validate.sh"
+    validation_status="passed"
+  fi
+fi
+
+if [[ "$json" == "true" ]]; then
+  project_json="$(printf '%s' "$project_dir" | json_escape)"
+  source_json="$(printf '%s' "$source_md" | json_escape)"
+  validation_json="$(printf '%s' "$validation_status" | json_escape)"
+  if [[ "$ok" == "true" ]]; then
+    printf '{"ok":true,"command":"import-spec-kit","project":%s,"source":%s,"validation":%s}\n' "$project_json" "$source_json" "$validation_json"
+  else
+    error_json="$(printf '%s' "$error" | json_escape)"
+    printf '{"ok":false,"command":"import-spec-kit","project":%s,"source":%s,"validation":%s,"error":%s}\n' "$project_json" "$source_json" "$validation_json" "$error_json"
+    exit 1
+  fi
+else
+  echo "Created Delano project from Spec Kit-style artifact: $project_dir"
+  echo "Validation: $validation_status"
+  echo "Next: review $project_dir/spec.md, then run a probe before activation."
+fi

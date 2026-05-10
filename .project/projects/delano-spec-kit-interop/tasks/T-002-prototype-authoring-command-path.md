@@ -44,3 +44,4 @@ Build or document the smallest `discover/clarify/plan/tasks` path that creates v
 ## Evidence Log
 
 - 2026-05-10T09:02:02Z: Task created from Spec Kit integration plan conversion.
+- 2026-05-10T10:42:00Z: Audited CLI input/output from an agent perspective. Replaced brittle positional examples with named metadata options, added command-specific help, and added `--json` for parseable success/failure output.

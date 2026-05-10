@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 
-const { commands, getGeneralHelp, resolveInvocation } = require("../src/cli");
+const { commands, getGeneralHelp, getImportSpecKitHelp, resolveInvocation } = require("../src/cli");
 const {
   applyInstallPreset,
   filterManifestEntries,
@@ -29,6 +29,14 @@ test("general help mentions the install and wrapper commands", () => {
   assert.match(helpText, /\bnext\b/);
   assert.match(helpText, /\bviewer\b/);
   assert.match(helpText, /npx -y @bvdm\/delano@latest --yes/);
+});
+
+test("import-spec-kit help is agent-oriented", () => {
+  const helpText = getImportSpecKitHelp();
+  assert.match(helpText, /--json/);
+  assert.match(helpText, /--name <project-name>/);
+  assert.match(helpText, /machine-readable JSON result/);
+  assert.match(helpText, /\{ ok, command, project, source, validation \}/);
 });
 
 test("top-level install options are treated as install shorthand", () => {

@@ -1,13 +1,17 @@
 const { runPmScript } = require("../lib/pm");
 
-function createWrapperCommand(scriptName) {
+function createWrapperCommand(scriptName, options = {}) {
   return {
-    description: `Run .agents/scripts/pm/${scriptName}.sh in the current Delano repository.`,
+    description: options.description || `Run .agents/scripts/pm/${scriptName}.sh in the current Delano repository.`,
     run(args) {
       const passthrough = args[0] === "--" ? args.slice(1) : args;
       return runPmScript(scriptName, passthrough);
     },
     help() {
+      if (typeof options.help === "function") {
+        return options.help();
+      }
+
       return [
         "Usage:",
         `  delano ${scriptName} [-- <script-args>]`,
