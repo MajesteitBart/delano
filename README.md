@@ -72,6 +72,7 @@ delano install --yes
 delano viewer
 delano validate
 delano init <slug> "<Project Name>" [owner] [lead]
+delano import-spec-kit -- <slug> <source-md> [project-name] [owner] [lead]
 ```
 
 Command intent:
@@ -80,6 +81,7 @@ Command intent:
 - `delano viewer` launches the read-only local UI for `.project` contracts
 - `delano validate` checks whether the runtime and required assets are in place
 - `delano init` creates a delivery project inside a repository that already has Delano installed
+- `delano import-spec-kit` creates a planned Delano project from the first supported Spec Kit-style markdown fixture and then runs validation
 
 `delano init` usage:
 
@@ -93,6 +95,18 @@ Notes:
 - `owner` defaults to `team`
 - `lead` defaults to `owner`
 - this is the right command for an agent to scaffold a new delivery project after `delano install`
+
+`delano import-spec-kit` usage:
+
+```bash
+delano import-spec-kit -- <slug> <source-md> [project-name] [owner] [lead]
+```
+
+Notes:
+
+- the source markdown must use the initial supported shape documented in `docs/spec-kit/import-contract.md`
+- imported artifacts start in planned/ready states and still have to pass Delano validation, probe, and evidence gates
+- the command is additive and refuses to overwrite an existing `.project/projects/<slug>/` folder
 
 ## How to use Delano after install
 

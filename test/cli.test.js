@@ -17,13 +17,14 @@ const { parseViewerArgs } = require("../src/cli/commands/viewer");
 const { findDelanoRoot, normalizeBashScriptPath } = require("../src/cli/lib/runtime");
 
 test("CLI exposes the package command surface", () => {
-  assert.deepEqual(Object.keys(commands).sort(), ["init", "install", "next", "onboarding", "status", "validate", "viewer"]);
+  assert.deepEqual(Object.keys(commands).sort(), ["import-spec-kit", "init", "install", "next", "onboarding", "status", "validate", "viewer"]);
 });
 
 test("general help mentions the install and wrapper commands", () => {
   const helpText = getGeneralHelp();
   assert.match(helpText, /\bonboarding\b/);
   assert.match(helpText, /\binstall\b/);
+  assert.match(helpText, /\bimport-spec-kit\b/);
   assert.match(helpText, /\bvalidate\b/);
   assert.match(helpText, /\bnext\b/);
   assert.match(helpText, /\bviewer\b/);

@@ -87,6 +87,7 @@
     ".agents/scripts/pm/epic-list.sh",
     ".agents/scripts/pm/in-progress.sh",
     ".agents/scripts/pm/init.sh",
+    ".agents/scripts/pm/import-spec-kit.sh",
     ".agents/scripts/pm/next.sh",
     ".agents/scripts/pm/prd-list.sh",
     ".agents/scripts/pm/search.sh",

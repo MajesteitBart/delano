@@ -10,6 +10,7 @@ const { createWrapperCommand } = require("./commands/wrapper");
 
 const wrapperCommands = {
   init: createWrapperCommand("init"),
+  "import-spec-kit": createWrapperCommand("import-spec-kit"),
   validate: createWrapperCommand("validate"),
   status: createWrapperCommand("status"),
   next: createWrapperCommand("next")
@@ -32,6 +33,7 @@ const commands = {
     help: getViewerHelp
   },
   init: wrapperCommands.init,
+  "import-spec-kit": wrapperCommands["import-spec-kit"],
   validate: wrapperCommands.validate,
   status: wrapperCommands.status,
   next: wrapperCommands.next
@@ -99,8 +101,9 @@ function getGeneralHelp() {
     "  onboarding Analyze AGENTS.md with the approval-first onboarding skill",
     "  install    Install the approved Delano runtime payload",
     "  viewer     Launch the read-only local UI for .project contracts",
-    "  init       Run .agents/scripts/pm/init.sh in the current Delano repo",
-    "  validate   Run .agents/scripts/pm/validate.sh in the current Delano repo",
+    "  init            Run .agents/scripts/pm/init.sh in the current Delano repo",
+    "  import-spec-kit Run .agents/scripts/pm/import-spec-kit.sh in the current Delano repo",
+    "  validate        Run .agents/scripts/pm/validate.sh in the current Delano repo",
     "  status     Run .agents/scripts/pm/status.sh in the current Delano repo",
     "  next       Run .agents/scripts/pm/next.sh in the current Delano repo",
     "",
@@ -115,6 +118,7 @@ function getGeneralHelp() {
     "  delano --target ../my-repo --yes",
     "  npx -y @bvdm/delano@latest --yes",
     "  delano viewer",
+    "  delano import-spec-kit -- reminder-email-preferences docs/spec-kit/fixtures/minimal-spec-kit-project.md",
     "  delano validate",
     "  delano next -- --all",
     "",

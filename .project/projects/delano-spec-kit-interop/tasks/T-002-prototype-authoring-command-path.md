@@ -1,7 +1,7 @@
 ---
 id: T-002
 name: Prototype authoring command path
-status: ready
+status: done
 workstream: WS-A
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -23,9 +23,9 @@ Build or document the smallest `discover/clarify/plan/tasks` path that creates v
 
 ## Acceptance Criteria
 
-- [ ] A first command/script/agent workflow creates or updates a Delano project scaffold.
-- [ ] Generated artifacts pass validation.
-- [ ] The workflow does not bypass `.project` or `HANDBOOK.md` contracts.
+- [x] A first command/script/agent workflow creates or updates a Delano project scaffold.
+- [x] Generated artifacts pass validation.
+- [x] The workflow does not bypass `.project` or `HANDBOOK.md` contracts.
 
 ## Technical Notes
 
@@ -35,11 +35,11 @@ Build or document the smallest `discover/clarify/plan/tasks` path that creates v
 
 ## Definition of Done
 
-- [ ] Implementation or documentation complete.
-- [ ] Delano validation passes.
-- [ ] Relevant tests or text safety checks pass.
-- [ ] Evidence is recorded in this task or an update note.
-- [ ] Docs are updated where user-facing behavior changes.
+- [x] Implementation or documentation complete.
+- [x] Delano validation passes.
+- [x] Relevant tests or text safety checks pass.
+- [x] Evidence is recorded in this task or an update note.
+- [x] Docs are updated where user-facing behavior changes.
 
 ## Evidence Log
 
