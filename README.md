@@ -126,6 +126,8 @@ Notes:
 
 ## How to use Delano after install
 
+For a fast guided path, start with [Delano in the First 15 Minutes](docs/first-15-minutes.md).
+
 Recommended first step:
 
 ```bash

@@ -1,7 +1,7 @@
 ---
 id: T-006
 name: Write first-15-minutes onboarding path
-status: ready
+status: done
 workstream: WS-D
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -23,9 +23,9 @@ Create public-facing docs that guide a new user from idea to validated Delano pr
 
 ## Acceptance Criteria
 
-- [ ] Guide starts with a plain idea and ends with valid `.project` artifacts.
-- [ ] Guide explains Spec Kit complementarity in simple language.
-- [ ] Guide references validation and evidence gates.
+- [x] Guide starts with a plain idea and ends with valid `.project` artifacts.
+- [x] Guide explains Spec Kit complementarity in simple language.
+- [x] Guide references validation and evidence gates.
 
 ## Technical Notes
 
@@ -35,12 +35,13 @@ Create public-facing docs that guide a new user from idea to validated Delano pr
 
 ## Definition of Done
 
-- [ ] Implementation or documentation complete.
-- [ ] Delano validation passes.
-- [ ] Relevant tests or text safety checks pass.
-- [ ] Evidence is recorded in this task or an update note.
-- [ ] Docs are updated where user-facing behavior changes.
+- [x] Implementation or documentation complete.
+- [x] Delano validation passes.
+- [x] Relevant tests or text safety checks pass.
+- [x] Evidence is recorded in this task or an update note.
+- [x] Docs are updated where user-facing behavior changes.
 
 ## Evidence Log
 
 - 2026-05-10T09:02:02Z: Task created from Spec Kit integration plan conversion.
+- 2026-05-10T12:13:00Z: Added `docs/first-15-minutes.md` and linked it from `README.md` and `docs/user-guide.md`. Guide starts from a plain idea, covers Spec Kit import/direct Delano init/research intake, and ends with validation plus evidence gates.

@@ -179,6 +179,10 @@ bash .agents/scripts/pm/research.sh <project-slug> <research-slug> [--title <tit
 
 `delano viewer` serves the selected repository's `.project` files read-only on `http://127.0.0.1:3977` by default. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.
 
+## First 15 minutes
+
+If you are new to Delano or evaluating the Spec Kit interop path, start with [`first-15-minutes.md`](first-15-minutes.md). It walks from a plain idea to valid `.project` artifacts with validation and evidence gates.
+
 ## Day-to-day workflow
 
 1. Install or validate the runtime.
