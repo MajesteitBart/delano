@@ -1,7 +1,7 @@
 ---
 id: T-002
 name: Prototype authoring command path
-status: blocked
+status: ready
 workstream: WS-A
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -11,8 +11,6 @@ github_pr:
 depends_on: [T-001]
 conflicts_with: []
 parallel: false
-blocked_owner: delano-team
-blocked_check_back: 2026-05-11T09:00:00Z
 priority: high
 estimate: L
 ---
@@ -46,7 +44,3 @@ Build or document the smallest `discover/clarify/plan/tasks` path that creates v
 ## Evidence Log
 
 - 2026-05-10T09:02:02Z: Task created from Spec Kit integration plan conversion.
-
-## Blocker
-
-Blocked until prerequisite local Delano task dependencies are completed.

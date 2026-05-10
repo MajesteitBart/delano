@@ -1,7 +1,7 @@
 ---
 id: T-001
 name: Design minimal Spec Kit artifact import contract
-status: ready
+status: done
 workstream: WS-A
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -23,9 +23,9 @@ Define the accepted input shapes and normalization rules for Spec Kit-style spec
 
 ## Acceptance Criteria
 
-- [ ] Import contract documents source artifact types, target Delano files, field mappings, and unsupported cases.
-- [ ] At least one fixture shape is selected for a first probe.
-- [ ] Private/local environment assumptions are explicitly excluded.
+- [x] Import contract documents source artifact types, target Delano files, field mappings, and unsupported cases.
+- [x] At least one fixture shape is selected for a first probe.
+- [x] Private/local environment assumptions are explicitly excluded.
 
 ## Technical Notes
 
@@ -35,12 +35,14 @@ Define the accepted input shapes and normalization rules for Spec Kit-style spec
 
 ## Definition of Done
 
-- [ ] Implementation or documentation complete.
-- [ ] Delano validation passes.
-- [ ] Relevant tests or text safety checks pass.
-- [ ] Evidence is recorded in this task or an update note.
-- [ ] Docs are updated where user-facing behavior changes.
+- [x] Implementation or documentation complete.
+- [x] Delano validation passes.
+- [x] Relevant tests or text safety checks pass.
+- [x] Evidence is recorded in this task or an update note.
+- [x] Docs are updated where user-facing behavior changes.
 
 ## Evidence Log
 
 - 2026-05-10T09:02:02Z: Task created from Spec Kit integration plan conversion.
+
+- 2026-05-10T09:07:30Z: Completed import contract and first fixture. Validation passed: `npm run check:text-safety`, `./.agents/scripts/pm/validate.sh`, and `npm test` (57 tests passed).

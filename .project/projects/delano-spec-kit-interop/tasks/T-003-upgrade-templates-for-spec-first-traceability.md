@@ -1,7 +1,7 @@
 ---
 id: T-003
 name: Upgrade templates for spec-first traceability
-status: blocked
+status: ready
 workstream: WS-B
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -11,8 +11,6 @@ github_pr:
 depends_on: [T-001]
 conflicts_with: []
 parallel: true
-blocked_owner: delano-team
-blocked_check_back: 2026-05-11T09:00:00Z
 priority: high
 estimate: M
 ---
@@ -46,7 +44,3 @@ Extend templates to carry user stories, acceptance scenarios, success criteria, 
 ## Evidence Log
 
 - 2026-05-10T09:02:02Z: Task created from Spec Kit integration plan conversion.
-
-## Blocker
-
-Blocked until prerequisite local Delano task dependencies are completed.
