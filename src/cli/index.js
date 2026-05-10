@@ -14,6 +14,10 @@ const wrapperCommands = {
     description: "Create a planned Delano project from a Spec Kit-style markdown artifact.",
     help: getImportSpecKitHelp
   }),
+  research: createWrapperCommand("research", {
+    description: "Create repo-native research intake files for a Delano project.",
+    help: getResearchHelp
+  }),
   validate: createWrapperCommand("validate"),
   status: createWrapperCommand("status"),
   next: createWrapperCommand("next")
@@ -37,6 +41,7 @@ const commands = {
   },
   init: wrapperCommands.init,
   "import-spec-kit": wrapperCommands["import-spec-kit"],
+  research: wrapperCommands.research,
   validate: wrapperCommands.validate,
   status: wrapperCommands.status,
   next: wrapperCommands.next
@@ -106,6 +111,7 @@ function getGeneralHelp() {
     "  viewer     Launch the read-only local UI for .project contracts",
     "  init            Run .agents/scripts/pm/init.sh in the current Delano repo",
     "  import-spec-kit Create a planned project from a Spec Kit-style markdown artifact",
+    "  research        Create repo-native research intake files for a project",
     "  validate        Run .agents/scripts/pm/validate.sh in the current Delano repo",
     "  status     Run .agents/scripts/pm/status.sh in the current Delano repo",
     "  next       Run .agents/scripts/pm/next.sh in the current Delano repo",
@@ -122,6 +128,7 @@ function getGeneralHelp() {
     "  npx -y @bvdm/delano@latest --yes",
     "  delano viewer",
     "  delano import-spec-kit reminder-email-preferences docs/spec-kit/fixtures/minimal-spec-kit-project.md --json",
+    "  delano research my-project api-options --title \"API options\" --question \"Which API shape should we use?\" --json",
     "  delano validate",
     "  delano next -- --all",
     "",
@@ -132,6 +139,34 @@ function getGeneralHelp() {
     "  Run 'delano onboarding' to review AGENTS.md. The command requires explicit approval before analysis.",
     "",
     "Use 'delano <command> --help' for command-specific help."
+  ].join("\n");
+}
+
+function getResearchHelp() {
+  return [
+    "Usage:",
+    "  delano research <project-slug> <research-slug> [options]",
+    "",
+    "Creates repo-native research intake files under .project/projects/<project-slug>/research/<research-slug>/, then runs Delano validation by default.",
+    "",
+    "Arguments:",
+    "  project-slug          Existing Delano project slug",
+    "  research-slug         Research folder slug in kebab-case",
+    "",
+    "Options:",
+    "  --title <title>        Human-readable research title",
+    "  --question <question>  Primary research question",
+    "  --owner <owner>        Research owner, defaults to team",
+    "  --no-validate          Create artifacts without running Delano validation",
+    "  --json                 Print a single machine-readable JSON result",
+    "  -h, --help             Show help",
+    "",
+    "Agent examples:",
+    "  delano research delano-spec-kit-interop import-edge-cases --title \"Import edge cases\" --question \"Which inputs should block import?\" --json",
+    "",
+    "Output:",
+    "  Human mode prints a concise summary plus validation output.",
+    "  JSON mode prints: { ok, command, project, research, files, validation }."
   ].join("\n");
 }
 
@@ -192,6 +227,7 @@ module.exports = {
   commands,
   getGeneralHelp,
   getImportSpecKitHelp,
+  getResearchHelp,
   resolveInvocation,
   run
 };

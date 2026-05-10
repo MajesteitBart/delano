@@ -2,7 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
 
-const { commands, getGeneralHelp, getImportSpecKitHelp, resolveInvocation } = require("../src/cli");
+const { commands, getGeneralHelp, getImportSpecKitHelp, getResearchHelp, resolveInvocation } = require("../src/cli");
 const {
   applyInstallPreset,
   filterManifestEntries,
@@ -17,7 +17,7 @@ const { parseViewerArgs } = require("../src/cli/commands/viewer");
 const { findDelanoRoot, normalizeBashScriptPath } = require("../src/cli/lib/runtime");
 
 test("CLI exposes the package command surface", () => {
-  assert.deepEqual(Object.keys(commands).sort(), ["import-spec-kit", "init", "install", "next", "onboarding", "status", "validate", "viewer"]);
+  assert.deepEqual(Object.keys(commands).sort(), ["import-spec-kit", "init", "install", "next", "onboarding", "research", "status", "validate", "viewer"]);
 });
 
 test("general help mentions the install and wrapper commands", () => {
@@ -25,6 +25,7 @@ test("general help mentions the install and wrapper commands", () => {
   assert.match(helpText, /\bonboarding\b/);
   assert.match(helpText, /\binstall\b/);
   assert.match(helpText, /\bimport-spec-kit\b/);
+  assert.match(helpText, /\bresearch\b/);
   assert.match(helpText, /\bvalidate\b/);
   assert.match(helpText, /\bnext\b/);
   assert.match(helpText, /\bviewer\b/);
@@ -37,6 +38,14 @@ test("import-spec-kit help is agent-oriented", () => {
   assert.match(helpText, /--name <project-name>/);
   assert.match(helpText, /machine-readable JSON result/);
   assert.match(helpText, /\{ ok, command, project, source, validation \}/);
+});
+
+test("research help is agent-oriented", () => {
+  const helpText = getResearchHelp();
+  assert.match(helpText, /--json/);
+  assert.match(helpText, /--question <question>/);
+  assert.match(helpText, /research\/<research-slug>/);
+  assert.match(helpText, /\{ ok, command, project, research, files, validation \}/);
 });
 
 test("top-level install options are treated as install shorthand", () => {

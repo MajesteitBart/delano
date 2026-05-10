@@ -1,7 +1,7 @@
 ---
 id: T-004
 name: Create repo-native research intake workflow
-status: ready
+status: done
 workstream: WS-C
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -23,9 +23,9 @@ Design a Delano-native research step based on the durable plan/findings/progress
 
 ## Acceptance Criteria
 
-- [ ] Research artifacts have a defined location and lifecycle.
-- [ ] The workflow includes fold-forward rules into `spec.md` and `plan.md`.
-- [ ] No dependency on Obsidian, OpenClaw, or private skill paths is introduced.
+- [x] Research artifacts have a defined location and lifecycle.
+- [x] The workflow includes fold-forward rules into `spec.md` and `plan.md`.
+- [x] No dependency on Obsidian, OpenClaw, or private skill paths is introduced.
 
 ## Technical Notes
 
@@ -35,12 +35,13 @@ Design a Delano-native research step based on the durable plan/findings/progress
 
 ## Definition of Done
 
-- [ ] Implementation or documentation complete.
-- [ ] Delano validation passes.
-- [ ] Relevant tests or text safety checks pass.
-- [ ] Evidence is recorded in this task or an update note.
-- [ ] Docs are updated where user-facing behavior changes.
+- [x] Implementation or documentation complete.
+- [x] Delano validation passes.
+- [x] Relevant tests or text safety checks pass.
+- [x] Evidence is recorded in this task or an update note.
+- [x] Docs are updated where user-facing behavior changes.
 
 ## Evidence Log
 
 - 2026-05-10T09:02:02Z: Task created from Spec Kit integration plan conversion.
+- 2026-05-10T11:47:00Z: Added repo-native research intake workflow: `docs/research-intake.md`, `delano research`, `.agents/scripts/pm/research.sh`, packaged payload entry, CLI help/tests, and user docs. Smoke-tested JSON output and verified created research files.

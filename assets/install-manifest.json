@@ -90,6 +90,7 @@
     ".agents/scripts/pm/import-spec-kit.sh",
     ".agents/scripts/pm/next.sh",
     ".agents/scripts/pm/prd-list.sh",
+    ".agents/scripts/pm/research.sh",
     ".agents/scripts/pm/search.sh",
     ".agents/scripts/pm/standup.sh",
     ".agents/scripts/pm/status.sh",

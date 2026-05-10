@@ -157,6 +157,7 @@ delano validate
 delano status
 delano next -- --all
 delano import-spec-kit <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
+delano research <project-slug> <research-slug> [--title <title>] [--question <question>] [--json]
 ```
 
 Create a new delivery project:
@@ -173,6 +174,7 @@ bash .agents/scripts/pm/status.sh
 bash .agents/scripts/pm/next.sh --all
 bash .agents/scripts/pm/init.sh <slug> "<Project Name>" [owner] [lead]
 bash .agents/scripts/pm/import-spec-kit.sh <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
+bash .agents/scripts/pm/research.sh <project-slug> <research-slug> [--title <title>] [--question <question>] [--json]
 ```
 
 `delano viewer` serves the selected repository's `.project` files read-only on `http://127.0.0.1:3977` by default. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.
@@ -182,10 +184,11 @@ bash .agents/scripts/pm/import-spec-kit.sh <slug> <source-md> [--name <project-n
 1. Install or validate the runtime.
 2. Run `delano onboarding` and explicitly approve the `AGENTS.md` review if you want it.
 3. Create a project scaffold with `delano init`, or import the first supported Spec Kit-style markdown fixture with `delano import-spec-kit`.
-4. Draft or review the spec in `.project/projects/<slug>/spec.md`.
-5. Make the probe decision explicit before approving the spec.
-6. Work through plans, workstreams, tasks, updates, and quality evidence.
-7. Re-run `delano validate` before handoff or merge.
+4. If intent is unclear, open repo-native research intake with `delano research` and fold findings forward before execution.
+5. Draft or review the spec in `.project/projects/<slug>/spec.md`.
+6. Make the probe decision explicit before approving the spec.
+7. Work through plans, workstreams, tasks, updates, and quality evidence.
+8. Re-run `delano validate` before handoff or merge.
 
 ## Probe-aware delivery
 
