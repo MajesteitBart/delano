@@ -19,6 +19,12 @@ probe_status: <pending|skipped|completed>
 
 ## Outcome and Success Metrics
 
+## User Stories
+- US-001: As a <user>, I want <capability>, so that <outcome>.
+
+## Acceptance Scenarios
+- AC-001: Given <context>, when <action>, then <observable result>.
+
 ## Scope
 ### In Scope
 ### Out of Scope
@@ -26,6 +32,12 @@ probe_status: <pending|skipped|completed>
 ## Functional Requirements
 
 ## Non-Functional Requirements
+
+## Assumptions
+- <assumption to validate>
+
+## Needs Clarification
+- <question that must be answered before activation or execution>
 
 ## Hypotheses and Unknowns
 

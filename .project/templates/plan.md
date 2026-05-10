@@ -13,7 +13,24 @@ spec_status_at_plan_time: <planned|active|complete|deferred>
 
 ## What Changed After Probe
 
+## Technical Context
+
 ## Architecture Decisions
+
+## Policy and Contract Checks
+- [ ] `.project` remains the execution source of truth
+- [ ] Probe decision is explicit
+- [ ] Evidence gates are defined before handoff
+- [ ] External sync writes require dry-run or operator approval
+
+## Generated Artifact Map
+- `spec.md`: <source or generation notes>
+- `plan.md`: <source or generation notes>
+- `workstreams/`: <source or generation notes>
+- `tasks/`: <source or generation notes>
+
+## Complexity Exceptions
+- <exception, rationale, and owner>
 
 ## Probe-Driven Architecture Changes
 

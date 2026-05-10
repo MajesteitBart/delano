@@ -1,7 +1,7 @@
 ---
 id: T-003
 name: Upgrade templates for spec-first traceability
-status: ready
+status: done
 workstream: WS-B
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -23,9 +23,9 @@ Extend templates to carry user stories, acceptance scenarios, success criteria, 
 
 ## Acceptance Criteria
 
-- [ ] Template changes preserve existing required fields.
-- [ ] Task templates support story/acceptance traceability without breaking validation.
-- [ ] Docs explain how generated Spec Kit-style intent maps to Delano contracts.
+- [x] Template changes preserve existing required fields.
+- [x] Task templates support story/acceptance traceability without breaking validation.
+- [x] Docs explain how generated Spec Kit-style intent maps to Delano contracts.
 
 ## Technical Notes
 
@@ -35,11 +35,11 @@ Extend templates to carry user stories, acceptance scenarios, success criteria, 
 
 ## Definition of Done
 
-- [ ] Implementation or documentation complete.
-- [ ] Delano validation passes.
-- [ ] Relevant tests or text safety checks pass.
-- [ ] Evidence is recorded in this task or an update note.
-- [ ] Docs are updated where user-facing behavior changes.
+- [x] Implementation or documentation complete.
+- [x] Delano validation passes.
+- [x] Relevant tests or text safety checks pass.
+- [x] Evidence is recorded in this task or an update note.
+- [x] Docs are updated where user-facing behavior changes.
 
 ## Evidence Log
 
