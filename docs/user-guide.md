@@ -183,6 +183,8 @@ bash .agents/scripts/pm/research.sh <project-slug> <research-slug> [--title <tit
 
 If you are new to Delano or evaluating the Spec Kit interop path, start with [`first-15-minutes.md`](first-15-minutes.md). It walks from a plain idea to valid `.project` artifacts with validation and evidence gates.
 
+For release review of the interop work itself, use [`spec-kit-interop-release-closeout.md`](spec-kit-interop-release-closeout.md).
+
 ## Day-to-day workflow
 
 1. Install or validate the runtime.
