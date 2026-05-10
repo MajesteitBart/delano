@@ -240,6 +240,14 @@ Acceptance scenarios imported as success signals:
 
 {md_list(acceptance)}
 
+## User Stories
+
+{md_list(user_stories)}
+
+## Acceptance Scenarios
+
+{md_list(acceptance)}
+
 ## Scope
 
 ### In Scope
@@ -258,6 +266,14 @@ Acceptance scenarios imported as success signals:
 ## Non-Functional Requirements
 
 {md_list(non_functional)}
+
+## Assumptions
+
+{md_list(assumptions)}
+
+## Needs Clarification
+
+{md_list(clarifications)}
 
 ## Hypotheses and Unknowns
 

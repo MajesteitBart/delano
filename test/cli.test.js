@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const path = require("node:path");
+const { execFileSync } = require("node:child_process");
 
 const { commands, getGeneralHelp, getImportSpecKitHelp, getResearchHelp, resolveInvocation } = require("../src/cli");
 const {
@@ -209,4 +210,13 @@ test("normalizeBashScriptPath converts Windows separators for bash", () => {
     normalizeBashScriptPath("E:\\Development\\delano-1\\.agents\\scripts\\pm\\validate.sh"),
     "E:/Development/delano-1/.agents/scripts/pm/validate.sh"
   );
+});
+
+test("Spec Kit interop fixture commands generate valid artifacts", () => {
+  const output = execFileSync(process.execPath, ["scripts/check-spec-kit-interop-fixtures.mjs"], {
+    cwd: process.cwd(),
+    encoding: "utf8"
+  });
+
+  assert.match(output, /Spec Kit interop fixture check passed/);
 });
