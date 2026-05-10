@@ -29,8 +29,23 @@ Agent notes:
 USAGE
 }
 
+resolve_python() {
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_CMD=(python3)
+  elif command -v py >/dev/null 2>&1; then
+    PYTHON_CMD=(py -3)
+  elif command -v python >/dev/null 2>&1; then
+    PYTHON_CMD=(python)
+  else
+    echo "Error: Python runtime not found. Install python3, python, or py -3." >&2
+    exit 1
+  fi
+}
+
+resolve_python
+
 json_escape() {
-  python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().rstrip("\n")))'
+  "${PYTHON_CMD[@]}" -c 'import json,sys; print(json.dumps(sys.stdin.read().rstrip("\n")))'
 }
 
 if [[ "${1:-}" == "" || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
@@ -134,7 +149,7 @@ if [[ -d "$project_dir" ]]; then
   exit 1
 fi
 
-python3 - "$slug" "$source_md" "$project_name" "$owner" "$lead" <<'PY'
+"${PYTHON_CMD[@]}" - "$slug" "$source_md" "$project_name" "$owner" "$lead" <<'PY'
 import re
 import sys
 from datetime import datetime, timezone
@@ -192,6 +207,10 @@ assumptions = bullet_lines(section("Assumptions"))
 clarifications = bullet_lines(section("Clarifications", "Needs Clarification"))
 implementation_plan = bullet_lines(section("Implementation Plan"))
 raw_tasks = bullet_lines(section("Tasks"))
+
+recognized_content = user_stories + acceptance + requirements + non_functional + assumptions + clarifications + implementation_plan + raw_tasks
+if not recognized_content:
+    raise SystemExit("unsupported Spec Kit-style source: expected at least one recognized section such as User Stories, Acceptance Scenarios, Requirements, Implementation Plan, or Tasks")
 
 project_dir = root / ".project" / "projects" / slug
 (project_dir / "tasks").mkdir(parents=True)
@@ -413,16 +432,48 @@ def slugify(text):
 if not raw_tasks:
     raw_tasks = ["- [ ] Review imported Spec Kit artifact and define executable Delano tasks."]
 
+acceptance_ids = []
+for index, item in enumerate(acceptance, start=1):
+    match = re.search(r"\bAC[-_ ]?(\d{1,3})\b", item, re.IGNORECASE)
+    acceptance_ids.append(f"AC-{int(match.group(1)):03d}" if match else f"AC-{index:03d}")
+
+def parse_task(raw, index):
+    text = raw.strip()
+    parallel = bool(re.search(r"\[(?:P|p)\]", text))
+    source_task_match = re.search(r"\bT[-_ ]?(\d{1,4})\b", text, re.IGNORECASE)
+    story_match = re.search(r"\b(?:US|Story)[-_ ]?(\d{1,3})\b", text, re.IGNORECASE)
+    story_id = f"US-{int(story_match.group(1)):03d}" if story_match else ""
+
+    title = re.sub(r"^-\s*", "", text).strip()
+    title = re.sub(r"^\[(?: |x|X|P|p)\]\s*", "", title).strip()
+    title = re.sub(r"\[(?:P|p)\]", "", title).strip()
+    title = re.sub(r"\[(?:US|Story)[-_ ]?\d{1,3}\]", "", title, flags=re.IGNORECASE).strip()
+    title = re.sub(r"^T[-_ ]?\d{1,4}[:.)-]?\s*", "", title, flags=re.IGNORECASE).strip()
+    title = re.sub(r"^\[[^\]]+\]\s*", "", title).strip()
+    title = title or f"Review imported task {index}"
+
+    vague = bool(re.search(r"\b(tbd|todo|clarify|needs clarification|unknown|investigate|research)\b", raw, re.IGNORECASE))
+    generated_review_task = index == 1 and "Review imported Spec Kit artifact" in raw
+    blocked = bool(clarifications) or vague or generated_review_task
+    status = "blocked" if blocked else "ready"
+    reason = "Open clarifications or vague source wording require review before execution." if blocked else "No source clarification blocker detected by importer."
+    source_task_id = f"T{int(source_task_match.group(1)):03d}" if source_task_match else ""
+    return title, parallel, status, reason, story_id, source_task_id
+
 for index, raw in enumerate(raw_tasks, start=1):
-    parallel = raw.startswith("- [P]")
-    title = re.sub(r"^-\s+\[(?: |x|X|P|p)\]\s*", "", raw).strip()
-    title = re.sub(r"^T\d+\s+", "", title, flags=re.IGNORECASE).strip()
+    title, parallel, status, block_reason, story_id, source_task_id = parse_task(raw, index)
     task_id = f"T-{index:03d}"
     task_slug = slugify(title)
+    acceptance_yaml = "[" + ", ".join(acceptance_ids) + "]" if acceptance_ids else "[]"
+    blocker_frontmatter = ""
+    blocker_section = ""
+    if status == "blocked":
+        blocker_frontmatter = f"blocked_owner: {yaml_scalar(owner)}\nblocked_check_back: {today}\n"
+        blocker_section = f"\n## Blocker\n\n{block_reason}\n"
     task = f"""---
 id: {task_id}
 name: {yaml_scalar(title)}
-status: ready
+status: {status}
 workstream: WS-A
 created: {now}
 updated: {now}
@@ -434,7 +485,9 @@ conflicts_with: []
 parallel: {str(parallel).lower()}
 priority: medium
 estimate: M
----
+story_id: {story_id}
+acceptance_criteria_ids: {acceptance_yaml}
+{blocker_frontmatter}---
 
 # Task: {title}
 
@@ -447,10 +500,17 @@ Imported from Spec Kit-style source task: `{raw}`
 - [ ] Task has been reviewed against the imported acceptance scenarios.
 - [ ] Implementation satisfies relevant Delano evidence requirements.
 
+## Traceability
+
+- Source task id: {source_task_id or "none detected"}
+- Story: {story_id or "none detected"}
+- Acceptance criteria: {", ".join(acceptance_ids) if acceptance_ids else "none detected"}
+{blocker_section}
 ## Technical Notes
 
 - Source artifact: `{source_display}`
 - Parallel marker imported: `{str(parallel).lower()}`
+- Initial status: `{status}`
 
 ## Definition of Done
 

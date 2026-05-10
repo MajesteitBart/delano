@@ -49,10 +49,36 @@ You have two good paths.
 
 ### Path A: Import a Spec Kit-style markdown artifact
 
-Use this when an authoring tool or agent already produced a spec-like markdown file.
+Use this when an authoring tool or agent already produced a spec-like markdown file. The current importer supports the first narrow, single-file Spec Kit-style shape. Full `specs/<feature>/` workspace import is intentionally deferred.
+
+Create a local source file:
 
 ```bash
-delano import-spec-kit reminder-email-preferences docs/spec-kit/fixtures/minimal-spec-kit-project.md \
+cat > reminder-email-preferences.md <<'SPEC'
+# Spec: Reminder Email Preferences
+
+## User Stories
+- US-001: As a user, I want quiet-hours handling, so that reminders do not disturb me overnight.
+
+## Acceptance Scenarios
+- AC-001: Given quiet hours are configured, when a reminder would send overnight, then it is deferred and audit-visible.
+
+## Requirements
+- The system must support quiet-hours windows.
+- The system must preserve an audit trail for deferred reminders.
+
+## Needs Clarification
+- Should urgent reminders bypass quiet hours?
+
+## Tasks
+- [ ] [US-001] Clarify urgent reminder bypass policy
+SPEC
+```
+
+Import it:
+
+```bash
+delano import-spec-kit reminder-email-preferences reminder-email-preferences.md \
   --name "Reminder Email Preferences" \
   --owner team \
   --lead team \
@@ -62,7 +88,7 @@ delano import-spec-kit reminder-email-preferences docs/spec-kit/fixtures/minimal
 Expected JSON shape:
 
 ```json
-{"ok":true,"command":"import-spec-kit","project":".project/projects/reminder-email-preferences","source":"docs/spec-kit/fixtures/minimal-spec-kit-project.md","validation":"passed"}
+{"ok":true,"command":"import-spec-kit","project":".project/projects/reminder-email-preferences","source":"reminder-email-preferences.md","validation":"passed"}
 ```
 
 This creates:

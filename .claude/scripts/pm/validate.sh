@@ -467,6 +467,20 @@ if [[ -n "$artifact_schema_check" ]]; then
   fi
 fi
 
+if [[ -f scripts/check-adapter-manifests.mjs ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node scripts/check-adapter-manifests.mjs; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "❌ Node runtime not found for adapter manifest check"
+    errors=$((errors + 1))
+  fi
+fi
+
 operating_modes_check=""
 if [[ -f .agents/scripts/check-operating-modes.mjs ]]; then
   operating_modes_check=".agents/scripts/check-operating-modes.mjs"

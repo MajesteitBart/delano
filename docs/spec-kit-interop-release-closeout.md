@@ -2,7 +2,7 @@
 
 ## Release scope
 
-This release establishes a practical bridge between Spec Kit-style authoring and Delano-governed delivery.
+This release establishes experimental Spec Kit-style import foundations between authoring artifacts and Delano-governed delivery. It is not a claim of full GitHub Spec Kit workspace interoperability yet.
 
 Included:
 
@@ -63,12 +63,14 @@ Run:
 ```bash
 npm run build:assets
 npm run check:package-manifest
+npm run check:adapter-manifests
 ```
 
 Expected behavior:
 
 - generated npm payload includes new runtime scripts, docs, templates, adapter manifests, and manifest schema where intended;
-- install manifest and packaged payload do not drift.
+- install manifest and packaged payload do not drift;
+- adapter manifests match the declared manifest shape.
 
 ### 4. Text and privacy gates
 
@@ -96,6 +98,8 @@ Expected behavior:
 
 - CLI help surface includes import and research commands;
 - fixture-backed interop subtest passes;
+- imported tasks assert count, blocked status, parallel markers, and acceptance traceability;
+- collision and unsupported-source negative cases are covered;
 - existing install/update conflict behavior remains covered.
 
 ### 6. Manual smoke gates
@@ -120,7 +124,7 @@ Confirm:
 
 Suggested release note:
 
-> Added Spec Kit interop foundations: import supported Spec Kit-style markdown into Delano `.project` contracts, open repo-native research intake, use richer spec-first templates, and validate generated artifacts with fixture-backed checks. The release keeps Delano's conflict-first install posture and evidence gates intact.
+> Added experimental Spec Kit-style import foundations: import a narrow supported single-file markdown shape into Delano `.project` contracts, open repo-native research intake, use richer spec-first templates, and validate generated artifacts with fixture-backed checks. Full GitHub Spec Kit `specs/<feature>/` workspace import is deferred. The release keeps Delano's conflict-first install posture and evidence gates intact.
 
 ## Closeout learning prompts
 
@@ -142,7 +146,6 @@ Use these after release or internal acceptance.
 
 ### What to improve next
 
-- Should adapter manifests be validated in `delano validate`?
 - Should `delano preset list` and `delano preset explain` be added before any apply command?
 - Should unsupported Spec Kit inputs create proposal-only research intake instead of failing?
 - Should import fixtures include multi-workstream, blocked-dependency, and clarification-heavy examples?
@@ -151,14 +154,13 @@ Use these after release or internal acceptance.
 
 These are intentionally deferred from this release unless converted into new tasks:
 
-1. Validate adapter manifests in the standard validation suite.
-2. Add `delano preset list` and `delano preset explain <id>`.
-3. Add a dry-run conflict preview for future preset application.
+1. Add `delano preset list` and `delano preset explain <id>`.
+2. Add a dry-run conflict preview for future preset application.
+3. Add full GitHub Spec Kit `specs/<feature>/` directory import.
 4. Add richer Spec Kit fixture coverage for multi-workstream inputs.
-5. Add unsupported-input fixture expectations.
-6. Add UI affordances in the viewer for imported source, probe state, and research folders.
-7. Decide whether research intake should support source links or attachment manifests.
-8. Decide whether package docs should include a migration path for existing Spec Kit users.
+5. Add UI affordances in the viewer for imported source, probe state, and research folders.
+6. Decide whether research intake should support source links or attachment manifests.
+7. Decide whether package docs should include a migration path for existing Spec Kit users.
 
 ## Closeout criteria
 
@@ -192,8 +194,8 @@ Validation passed:
 - npm test
 
 Deferred:
-- adapter manifest validation
 - preset list/explain commands
 - preset apply dry-run/conflict preview
-- richer unsupported-input fixtures
+- full `specs/<feature>/` workspace import
+- richer multi-workstream fixtures
 ```

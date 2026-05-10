@@ -32,7 +32,7 @@ cat > "$project_dir/spec.md" <<SPEC
 name: $name
 slug: $slug
 owner: $owner
-status: draft
+status: planned
 created: $now
 updated: $now
 outcome: <measurable target>
@@ -93,7 +93,7 @@ created: $now
 updated: $now
 linear_project_id:
 risk_level: <low|medium|high>
-spec_status_at_plan_time: <approved|active>
+spec_status_at_plan_time: planned
 ---
 
 # Delivery Plan: $name

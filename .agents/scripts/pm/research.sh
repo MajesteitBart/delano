@@ -28,8 +28,23 @@ Agent notes:
 USAGE
 }
 
+resolve_python() {
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_CMD=(python3)
+  elif command -v py >/dev/null 2>&1; then
+    PYTHON_CMD=(py -3)
+  elif command -v python >/dev/null 2>&1; then
+    PYTHON_CMD=(python)
+  else
+    echo "Error: Python runtime not found. Install python3, python, or py -3." >&2
+    exit 1
+  fi
+}
+
+resolve_python
+
 json_escape() {
-  python3 -c 'import json,sys; print(json.dumps(sys.stdin.read().rstrip("\n")))'
+  "${PYTHON_CMD[@]}" -c 'import json,sys; print(json.dumps(sys.stdin.read().rstrip("\n")))'
 }
 
 if [[ "${1:-}" == "" || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
