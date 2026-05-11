@@ -15,7 +15,12 @@ if (contract.schema_version !== 1) {
   errors.push("status-transitions.json schema_version must be 1.");
 }
 const rules = Array.isArray(contract.task_rules) ? contract.task_rules : [];
-for (const requiredRule of ["ready-dependencies-done", "blocked-owner-check-back"]) {
+for (const requiredRule of [
+  "ready-dependencies-done",
+  "blocked-owner-check-back",
+  "progressed-task-requires-active-project",
+  "closed-task-set-requires-closed-project"
+]) {
   if (!rules.some((rule) => rule.id === requiredRule)) {
     errors.push(`status transition contract missing rule: ${requiredRule}`);
   }
@@ -28,14 +33,37 @@ if (transitionRequest) {
 }
 
 for (const projectDir of listDirectories(projectsRoot)) {
+  const specPath = path.join(projectDir, "spec.md");
+  const planPath = path.join(projectDir, "plan.md");
+  const specFrontmatter = existsSync(specPath) ? parseFrontmatter(specPath) : null;
+  const planFrontmatter = existsSync(planPath) ? parseFrontmatter(planPath) : null;
+  const hasProjectLifecycle = Boolean(specFrontmatter || planFrontmatter);
   const tasksDir = path.join(projectDir, "tasks");
   if (!existsSync(tasksDir)) continue;
 
   const tasks = new Map();
+  let totalTaskCount = 0;
+  let openTaskCount = 0;
+  let progressedTaskCount = 0;
   for (const taskFile of listMarkdownFiles(tasksDir)) {
     const frontmatter = parseFrontmatter(taskFile);
     const id = frontmatter.id || path.basename(taskFile, ".md").split("-").slice(0, 2).join("-");
+    const status = frontmatter.status || "";
+    totalTaskCount += 1;
+    if (!isClosedTaskStatus(status)) openTaskCount += 1;
+    if (isProgressedTaskStatus(status)) progressedTaskCount += 1;
     tasks.set(id, { file: taskFile, frontmatter });
+  }
+
+  if (hasProjectLifecycle) {
+    validateProjectLifecycle({
+      projectDir,
+      specStatus: specFrontmatter?.status || "",
+      planStatus: planFrontmatter?.status || "",
+      totalTaskCount,
+      openTaskCount,
+      progressedTaskCount
+    });
   }
 
   for (const [taskId, task] of tasks.entries()) {
@@ -75,7 +103,9 @@ function parseTransitionArgs(args) {
     .filter(Boolean);
   const blockedOwner = valueAfter(args, "--blocked-owner");
   const blockedCheckBack = valueAfter(args, "--blocked-check-back");
-  return { nextStatus, dependencyStatuses, blockedOwner, blockedCheckBack };
+  const specStatus = valueAfter(args, "--spec-status");
+  const planStatus = valueAfter(args, "--plan-status");
+  return { nextStatus, dependencyStatuses, blockedOwner, blockedCheckBack, specStatus, planStatus };
 }
 
 function validateTransitionRequest(request) {
@@ -87,10 +117,68 @@ function validateTransitionRequest(request) {
     }
   }
 
+  if (["in-progress", "done"].includes(request.nextStatus)) {
+    if (request.specStatus && !isActiveOrClosedSpecStatus(request.specStatus)) {
+      errors.push(`cannot transition to ${request.nextStatus} while spec status is ${request.specStatus}; expected active or complete`);
+    }
+    if (request.planStatus && !isActiveOrClosedPlanStatus(request.planStatus)) {
+      errors.push(`cannot transition to ${request.nextStatus} while plan status is ${request.planStatus}; expected active or done`);
+    }
+  }
+
   if (request.nextStatus === "blocked") {
     if (!request.blockedOwner) errors.push("cannot transition to blocked without blocked_owner");
     if (!request.blockedCheckBack) errors.push("cannot transition to blocked without blocked_check_back");
   }
+}
+
+function validateProjectLifecycle(request) {
+  const projectPath = toRepoPath(request.projectDir);
+  if (request.progressedTaskCount > 0) {
+    if (!isActiveOrClosedSpecStatus(request.specStatus)) {
+      errors.push(`${projectPath} has ${request.progressedTaskCount} progressed task(s) but spec.md status is ${describeStatus(request.specStatus)}; expected active or complete before tasks can progress.`);
+    }
+    if (!isActiveOrClosedPlanStatus(request.planStatus)) {
+      errors.push(`${projectPath} has ${request.progressedTaskCount} progressed task(s) but plan.md status is ${describeStatus(request.planStatus)}; expected active or done before tasks can progress.`);
+    }
+  }
+
+  if (request.totalTaskCount > 0 && request.openTaskCount === 0) {
+    if (!isClosedSpecStatus(request.specStatus)) {
+      errors.push(`${projectPath} has no open tasks but spec.md status is ${describeStatus(request.specStatus)}; expected complete or deferred.`);
+    }
+    if (!isClosedPlanStatus(request.planStatus)) {
+      errors.push(`${projectPath} has no open tasks but plan.md status is ${describeStatus(request.planStatus)}; expected done or deferred.`);
+    }
+  }
+}
+
+function isProgressedTaskStatus(status) {
+  return ["in-progress", "done"].includes(status);
+}
+
+function isClosedTaskStatus(status) {
+  return ["done", "deferred", "canceled"].includes(status);
+}
+
+function isActiveOrClosedSpecStatus(status) {
+  return ["active", "complete"].includes(status);
+}
+
+function isActiveOrClosedPlanStatus(status) {
+  return ["active", "done"].includes(status);
+}
+
+function isClosedSpecStatus(status) {
+  return ["complete", "deferred"].includes(status);
+}
+
+function isClosedPlanStatus(status) {
+  return ["done", "deferred"].includes(status);
+}
+
+function describeStatus(status) {
+  return status || "missing status";
 }
 
 function valueAfter(args, flag) {

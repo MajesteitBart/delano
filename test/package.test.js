@@ -122,6 +122,37 @@ test("install manifest includes shipped runtime script dependencies", () => {
   assert.ok(entries.has(".agents/schemas/metrics/delivery-event.schema.json"));
   assert.ok(entries.has(".agents/scripts/audit-context-files.mjs"));
   assert.ok(entries.has(".agents/scripts/check-text-safety.mjs"));
+  assert.ok(entries.has(".agents/hooks/codex-session-status.js"));
+  assert.ok(entries.has(".codex/hooks.json"));
+});
+
+test("status supports open brief output for startup context", () => {
+  const result = spawnSync("bash", [".agents/scripts/pm/status.sh", "--open", "--brief"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Delano open project status/);
+  assert.match(result.stdout, /open_tasks=|No open projects found\./);
+  assert.doesNotMatch(result.stdout, /Project:/);
+});
+
+test("Codex session status hook emits SessionStart context", () => {
+  const result = spawnSync(process.execPath, [".agents/hooks/codex-session-status.js"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const parsed = JSON.parse(result.stdout);
+  assert.equal(parsed.hookSpecificOutput.hookEventName, "SessionStart");
+  assert.match(parsed.hookSpecificOutput.additionalContext, /^Delano startup context\. Open projects:/);
+  if (parsed.hookSpecificOutput.additionalContext !== "Delano startup context. Open projects: none.") {
+    assert.match(parsed.hookSpecificOutput.additionalContext, /spec=/);
+    assert.match(parsed.hookSpecificOutput.additionalContext, /, plan=/);
+  }
+  assert.doesNotMatch(parsed.hookSpecificOutput.additionalContext, /\n/);
 });
 
 test("text safety check rejects bidi control characters", () => {
@@ -206,6 +237,27 @@ test("status transition validation rejects unresolved proposed transitions", () 
   assert.match(checkResult.stderr, /cannot transition to ready with unresolved dependency status: ready/);
 });
 
+test("status transition validation rejects task progress under planned project lifecycle", () => {
+  const checkResult = spawnSync(process.execPath, [
+    "scripts/check-status-transitions.mjs",
+    "--validate-transition",
+    "done",
+    "--dependency-statuses",
+    "done",
+    "--spec-status",
+    "planned",
+    "--plan-status",
+    "planned"
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr, /cannot transition to done while spec status is planned/);
+  assert.match(checkResult.stderr, /cannot transition to done while plan status is planned/);
+});
+
 test("status transition validation rejects existing ready tasks with unresolved dependencies", () => {
   const tmpDir = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "delano-ready-dependency-"));
   const projectDir = path.join(tmpDir, "sample-project");
@@ -247,6 +299,94 @@ depends_on: [T-001]
 
   assert.notEqual(checkResult.status, 0);
   assert.match(checkResult.stderr, /has status ready but depends on unresolved T-001/);
+});
+
+test("status transition validation rejects existing tasks ahead of parent lifecycle", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-planned-parent-"));
+  const projectDir = path.join(tmpDir, "sample-project");
+  const tasksDir = path.join(projectDir, "tasks");
+  fs.mkdirSync(tasksDir, { recursive: true });
+  fs.writeFileSync(path.join(projectDir, "spec.md"), `---
+status: planned
+---
+
+# Spec
+`);
+  fs.writeFileSync(path.join(projectDir, "plan.md"), `---
+status: planned
+---
+
+# Plan
+`);
+  fs.writeFileSync(path.join(tasksDir, "task.md"), `---
+id: T-001
+name: Done task
+status: done
+workstream: WS-A
+created: 2026-05-04T00:00:00Z
+updated: 2026-05-04T00:00:00Z
+depends_on: []
+---
+
+# Task: Done task
+`);
+
+  const checkResult = spawnSync(process.execPath, [
+    "scripts/check-status-transitions.mjs",
+    "--projects-root",
+    tmpDir
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr, /progressed task\(s\) but spec\.md status is planned/);
+  assert.match(checkResult.stderr, /progressed task\(s\) but plan\.md status is planned/);
+});
+
+test("status transition validation rejects closed task sets under open project lifecycle", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-open-parent-"));
+  const projectDir = path.join(tmpDir, "sample-project");
+  const tasksDir = path.join(projectDir, "tasks");
+  fs.mkdirSync(tasksDir, { recursive: true });
+  fs.writeFileSync(path.join(projectDir, "spec.md"), `---
+status: active
+---
+
+# Spec
+`);
+  fs.writeFileSync(path.join(projectDir, "plan.md"), `---
+status: active
+---
+
+# Plan
+`);
+  fs.writeFileSync(path.join(tasksDir, "task.md"), `---
+id: T-001
+name: Done task
+status: done
+workstream: WS-A
+created: 2026-05-04T00:00:00Z
+updated: 2026-05-04T00:00:00Z
+depends_on: []
+---
+
+# Task: Done task
+`);
+
+  const checkResult = spawnSync(process.execPath, [
+    "scripts/check-status-transitions.mjs",
+    "--projects-root",
+    tmpDir
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr, /has no open tasks but spec\.md status is active/);
+  assert.match(checkResult.stderr, /has no open tasks but plan\.md status is active/);
 });
 
 test("status transition validation rejects blocked transitions without owner and check-back", () => {

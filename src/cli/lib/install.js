@@ -6,6 +6,7 @@ const {
   readFileSync,
   rmSync,
   statSync,
+  writeFileSync,
 } = require("node:fs");
 const path = require("node:path");
 const readline = require("node:readline");
@@ -14,8 +15,16 @@ const { stdin, stdout } = require("node:process");
 const { CliError } = require("./errors");
 const { getPackageRoot, getPathType } = require("./runtime");
 
+const CODEX_HOOKS_TARGET = ".codex/hooks.json";
+const CODEX_SESSION_STATUS_SCRIPT = ".agents/hooks/codex-session-status.js";
+
 const SUPPORTED_AGENTS = ["claude", "codex", "opencode", "pi"];
 const INSTALL_CATEGORIES = [
+  {
+    name: "codex-hooks",
+    description: ".codex hook configuration and SessionStart shim",
+    matches: (target) => target.startsWith(".codex/") || target === CODEX_SESSION_STATUS_SCRIPT
+  },
   {
     name: "agent-runtime",
     description: ".agents runtime except skills",
@@ -67,6 +76,8 @@ const INSTALL_CATEGORY_ALIASES = new Map([
   ["agent-skills", "skills"],
   ["agents", "agent-runtime"],
   ["runtime", "agent-runtime"],
+  ["codex", "codex-hooks"],
+  ["codex-config", "codex-hooks"],
   ["context", "project-context"],
   ["templates", "project-templates"],
   ["project-state", "project-projects"],
@@ -531,6 +542,9 @@ function collectConflicts(plan) {
 
     const exactType = getPathType(item.targetPath);
     if (exactType) {
+      if (isNonBlockingExistingTarget(item.relativePath)) {
+        continue;
+      }
       conflicts.push({
         relativePath: item.relativePath,
         conflictPath: item.relativePath,
@@ -566,6 +580,7 @@ function printPlanSummary(plan, options) {
   console.log(`Force: ${options.force ? "yes" : "no"}`);
   console.log("");
   console.log("Note: --agents is accepted now for forward compatibility, but v1 base install still excludes top-level adapter entry docs by default.");
+  console.log("Note: .codex/hooks.json is merged when it already exists, and Codex runs the hook only after hooks are enabled and trusted.");
   console.log("Note: .project/context, .project/projects, and .project/registry are repo-owned after install; use --no-project-state or --only for update-safe refreshes.");
 }
 
@@ -605,7 +620,20 @@ async function confirmInstall(plan, options) {
 }
 
 function applyInstallPlan(plan, options) {
+  let appliedCount = 0;
+  let skippedCount = 0;
+
   for (const item of plan.items) {
+    if (item.relativePath === CODEX_HOOKS_TARGET) {
+      const result = applyCodexHooksConfig(item);
+      if (result === "skipped") {
+        skippedCount += 1;
+      } else {
+        appliedCount += 1;
+      }
+      continue;
+    }
+
     const existingType = getPathType(item.targetPath);
     if (existingType) {
       rmSync(item.targetPath, { recursive: true, force: true });
@@ -619,11 +647,159 @@ function applyInstallPlan(plan, options) {
     } catch {
       // Ignore mode-setting failures on platforms that do not preserve POSIX modes.
     }
+    appliedCount += 1;
   }
 
   console.log("");
-  console.log(`Installed ${plan.items.length} files into ${options.target}.`);
+  console.log(`Installed or updated ${appliedCount} files into ${options.target}.`);
+  if (skippedCount > 0) {
+    console.log(`Skipped ${skippedCount} non-blocking file(s).`);
+  }
+  if (plan.items.some((item) => item.relativePath === CODEX_HOOKS_TARGET)) {
+    console.log("");
+    console.log("Codex hook config installed or merged at .codex/hooks.json.");
+    console.log("To activate it, enable Codex hooks, then approve the project and hook trust prompts.");
+    console.log("For one session, run: codex --enable hooks");
+    console.log("For persistent config, set [features].hooks = true in ~/.codex/config.toml.");
+  }
   console.log("Recommended next step: run 'delano onboarding' to review AGENTS.md. The command asks for explicit approval before analysis.");
+}
+
+function isNonBlockingExistingTarget(relativePath) {
+  return relativePath === CODEX_HOOKS_TARGET;
+}
+
+function applyCodexHooksConfig(item) {
+  const existingType = getPathType(item.targetPath);
+  if (!existingType) {
+    mkdirSync(path.dirname(item.targetPath), { recursive: true });
+    copyFileSync(item.sourcePath, item.targetPath);
+    applySourceMode(item.sourcePath, item.targetPath);
+    return "installed";
+  }
+
+  if (existingType !== "file") {
+    console.warn(`Skipped ${CODEX_HOOKS_TARGET}: existing ${existingType} cannot be merged safely.`);
+    return "skipped";
+  }
+
+  let existingConfig;
+  try {
+    existingConfig = readJsonFile(item.targetPath);
+  } catch (error) {
+    console.warn(`Skipped ${CODEX_HOOKS_TARGET}: existing file is not valid JSON (${error.message}).`);
+    return "skipped";
+  }
+
+  const packagedConfig = readJsonFile(item.sourcePath);
+  const mergeResult = mergeCodexHooksConfig(existingConfig, packagedConfig);
+  if (!mergeResult.ok) {
+    console.warn(`Skipped ${CODEX_HOOKS_TARGET}: ${mergeResult.reason}`);
+    return "skipped";
+  }
+
+  if (mergeResult.changed) {
+    writeFileSync(item.targetPath, `${JSON.stringify(mergeResult.config, null, 2)}\n`, "utf8");
+    return "merged";
+  }
+
+  return "unchanged";
+}
+
+function mergeCodexHooksConfig(existingConfig, packagedConfig) {
+  if (!isPlainObject(existingConfig)) {
+    return { ok: false, reason: "existing config must be a JSON object." };
+  }
+  if (!isPlainObject(packagedConfig) || !isPlainObject(packagedConfig.hooks)) {
+    throw new CliError("Packaged .codex/hooks.json is missing a hooks object.", 1);
+  }
+
+  const packagedSessionStart = packagedConfig.hooks.SessionStart;
+  if (!Array.isArray(packagedSessionStart)) {
+    throw new CliError("Packaged .codex/hooks.json is missing hooks.SessionStart.", 1);
+  }
+
+  const nextConfig = deepClone(existingConfig);
+  if (nextConfig.hooks === undefined) {
+    nextConfig.hooks = {};
+  }
+  if (!isPlainObject(nextConfig.hooks)) {
+    return { ok: false, reason: "existing hooks field must be a JSON object." };
+  }
+  if (nextConfig.hooks.SessionStart === undefined) {
+    nextConfig.hooks.SessionStart = [];
+  }
+  if (!Array.isArray(nextConfig.hooks.SessionStart)) {
+    return { ok: false, reason: "existing hooks.SessionStart field must be an array." };
+  }
+
+  let changed = false;
+  for (const desiredGroup of packagedSessionStart) {
+    if (!hasDelanoSessionStatusHook(nextConfig.hooks.SessionStart, desiredGroup)) {
+      nextConfig.hooks.SessionStart.push(deepClone(desiredGroup));
+      changed = true;
+    }
+  }
+
+  return {
+    ok: true,
+    changed,
+    config: nextConfig
+  };
+}
+
+function hasDelanoSessionStatusHook(sessionStartGroups, desiredGroup) {
+  const desiredCommands = collectHookCommands([desiredGroup]);
+  for (const group of sessionStartGroups) {
+    const commands = collectHookCommands([group]);
+    if (commands.some((command) => command.includes("codex-session-status.js"))) {
+      return true;
+    }
+    if (commands.some((command) => desiredCommands.includes(command))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function collectHookCommands(groups) {
+  const commands = [];
+  for (const group of groups) {
+    if (!group || !Array.isArray(group.hooks)) {
+      continue;
+    }
+    for (const hook of group.hooks) {
+      if (hook && typeof hook.command === "string") {
+        commands.push(hook.command);
+      }
+    }
+  }
+  return commands;
+}
+
+function applySourceMode(sourcePath, targetPath) {
+  const sourceMode = statSync(sourcePath).mode & 0o777;
+  try {
+    chmodSync(targetPath, sourceMode);
+  } catch {
+    // Ignore mode-setting failures on platforms that do not preserve POSIX modes.
+  }
+}
+
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function readJsonFile(filePath) {
+  return JSON.parse(stripByteOrderMark(readFileSync(filePath, "utf8")));
+}
+
+function stripByteOrderMark(text) {
+  return text.charCodeAt(0) === 0xFEFF ? text.slice(1) : text;
 }
 
 function normalizeManifestEntries(rawManifest) {
@@ -686,5 +862,6 @@ module.exports = {
   printConflicts,
   printPlanSummary,
   readInstallManifest,
-  getMissingPackagedAssetMessage
+  getMissingPackagedAssetMessage,
+  mergeCodexHooksConfig
 };

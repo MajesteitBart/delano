@@ -7,5 +7,10 @@ Default hooks:
 - `post-tool-logger.js`
 - `user-prompt-logger.js`
 - `bash-worktree-fix.sh`
+- `codex-session-status.js`
 
-All hooks append JSONL records in `.agents/logs/`.
+The logging hooks append JSONL records in `.agents/logs/`.
+
+`codex-session-status.js` is used by the optional `.codex/hooks.json` SessionStart
+configuration. It emits `delano status --open --brief` context and fails open if
+the local runtime is not available.

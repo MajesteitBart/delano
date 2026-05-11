@@ -111,6 +111,7 @@ npx -y @bvdm/delano@latest onboarding --approve-agents-analysis
 npx -y @bvdm/delano@latest viewer
 npx -y @bvdm/delano@latest validate
 npx -y @bvdm/delano@latest status
+npx -y @bvdm/delano@latest status --open --brief
 npx -y @bvdm/delano@latest next -- --all
 ```
 
@@ -121,6 +122,7 @@ delano onboarding
 delano viewer
 delano validate
 delano status
+delano status --open --brief
 delano next -- --all
 delano init <slug> "<Project Name>" [owner] [lead]
 ```
@@ -130,6 +132,7 @@ The wrapper commands call the existing PM scripts under `.agents/scripts/pm/`. Y
 ```bash
 bash .agents/scripts/pm/validate.sh
 bash .agents/scripts/pm/status.sh
+bash .agents/scripts/pm/status.sh --open --brief
 bash .agents/scripts/pm/next.sh --all
 ```
 
@@ -160,6 +163,28 @@ The CLI does not bundle its own shell or Python runtime.
 
 The base install payload intentionally excludes top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, and `PI.md`. Those remain opt-in only.
 The base install payload includes `.delano/`, including the read-only viewer UI.
+The base install payload also includes `.codex/hooks.json`, a Codex `SessionStart` hook config that injects compact open-project context when Codex hooks are enabled. If a target repo already has `.codex/hooks.json`, `delano install` merges the Delano hook into the existing JSON instead of replacing it. Invalid or non-file hook configs are skipped without blocking the rest of the install.
+
+Codex hook activation is intentionally manual:
+
+1. Enable hooks for a session with `codex --enable hooks`, or persist the feature in `~/.codex/config.toml`:
+
+   ```toml
+   [features]
+   hooks = true
+   ```
+
+2. Start Codex in the repository and approve the project trust prompt for the repo-local `.codex/` layer. Codex records trusted projects in `~/.codex/config.toml`, for example:
+
+   ```toml
+   [projects."E:\\path\\to\\repo"]
+   trust_level = "trusted"
+   ```
+
+3. Approve the Delano `SessionStart` hook when Codex asks whether to trust it.
+
+Older docs and builds may refer to `[features].codex_hooks`; newer Codex builds warn that this key is deprecated in favor of `[features].hooks`.
+
 The installable `.project/context/` pack is seeded from generic templates during packaging; it does not ship Delano's own repo-specific context files into consumer repositories.
 After install, the recommended first step is `delano onboarding`, which requires explicit approval before it reviews `AGENTS.md`.
 
@@ -174,7 +199,7 @@ delano install --no-project-state --force --yes
 
 The interactive installer presents presets for updating the runtime while preserving project state, updating only skills and project templates, full install or repair, and custom category selection.
 
-Install categories are `agent-runtime`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`. The `--no-project-state` shortcut excludes `.project/context`, `.project/projects`, and `.project/registry`.
+Install categories are `agent-runtime`, `codex-hooks`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`. The `--no-project-state` shortcut excludes `.project/context`, `.project/projects`, and `.project/registry`.
 
 ## Optional AGENTS.md / CLAUDE.md snippet
 
