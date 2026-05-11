@@ -46,6 +46,11 @@ const STATUS_TONE = {
   "Blocked":     { dot: "var(--warn)" },
 };
 
+const NAV_STATE_KEY = "delano.viewer.navigation.v1";
+const NAV_STATE_VERSION = 1;
+const DEFAULT_WORKSPACE_ROUTE = "workspace-projects";
+const WORKSPACE_PAGE_SIZE = 10;
+
 function statusLabel(raw) {
   if (!raw) return "Planned";
   const s = String(raw).toLowerCase().replace(/[-_]+/g, " ").trim();
@@ -389,7 +394,7 @@ function getWorkspaceModel(index) {
     validation: [],
     progress: [],
     warnings: [],
-    counts: { current: 0, blockers: 0, validation: 0, progress: 0, warnings: 0 },
+    counts: { projects: 0, current: 0, blockers: 0, validation: 0, progress: 0, warnings: 0 },
   };
 
   if (!index) return model;
@@ -429,9 +434,95 @@ function getWorkspaceModel(index) {
   model.counts.validation = model.validation.length;
   model.counts.progress = model.progress.length;
   model.counts.warnings = model.warnings.length;
+  model.counts.projects = (index.projects || []).filter((p) => p.outline).length;
 
   return model;
 }
+
+function getProjectStats(index, project) {
+  const docs = (project.docs || []).map((p) => byPath(index.docs, p)).filter(Boolean);
+  const dashboard = getDashboardModel(project, docs);
+  const relatedAssets = docs.filter((doc) => !["task", "workstream"].includes(doc.role)).length;
+  const openTasks = dashboard.tasks.filter((task) => statusLabel(task.status) !== "Complete");
+  const latestDoc = docs
+    .slice()
+    .sort((a, b) => (b.updated || "").localeCompare(a.updated || ""))[0];
+
+  return {
+    project,
+    docs,
+    dashboard,
+    tasks: dashboard.tasks,
+    openTasks,
+    workstreams: dashboard.workstreams,
+    relatedAssets,
+    updated: latestDoc?.updated || project.created || "",
+  };
+}
+
+function formatShortDate(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function pageCountFor(items, pageSize = WORKSPACE_PAGE_SIZE) {
+  return Math.max(1, Math.ceil((items?.length || 0) / pageSize));
+}
+
+function clampPage(page, totalPages) {
+  const parsed = Number(page);
+  const next = Number.isFinite(parsed) ? Math.floor(parsed) : 1;
+  return Math.min(Math.max(1, next), Math.max(1, totalPages));
+}
+
+function paginateItems(items, page, pageSize = WORKSPACE_PAGE_SIZE) {
+  const totalPages = pageCountFor(items, pageSize);
+  const safePage = clampPage(page, totalPages);
+  const start = (safePage - 1) * pageSize;
+  return {
+    visible: (items || []).slice(start, start + pageSize),
+    safePage,
+    totalPages,
+  };
+}
+
+const LinkButton = ({ children, title, className = "", ...props }) => (
+  <button
+    {...props}
+    className={`link${className ? ` ${className}` : ""}`}
+    title={title || (typeof children === "string" ? children : undefined)}
+    type={props.type || "button"}
+  >
+    {children}
+  </button>
+);
+
+const Pagination = ({ page, totalPages, onPageChange }) => {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="pagination" aria-label="Pagination">
+      <button
+        className="btn"
+        type="button"
+        onClick={() => onPageChange(Math.max(1, page - 1))}
+        disabled={page === 1}
+      >
+        Previous
+      </button>
+      <span className="mono">Page {page} of {totalPages}</span>
+      <button
+        className="btn"
+        type="button"
+        onClick={() => onPageChange(Math.min(totalPages, page + 1))}
+        disabled={page === totalPages}
+      >
+        Next
+      </button>
+    </div>
+  );
+};
 
 /* ================================================================
    Reusable components
@@ -484,6 +575,7 @@ const NAV = [
 ];
 
 const GLOBAL_NAV = [
+  { id: "workspace-projects", label: "Projects", icon: I.grid, countKey: "projects" },
   { id: "workspace-current", label: "Open work", icon: I.list, countKey: "current" },
   { id: "workspace-progress", label: "Progress", icon: I.trend, countKey: "progress" },
   { id: "workspace-validation", label: "Validation", icon: I.check, countKey: "validation" },
@@ -492,6 +584,146 @@ const GLOBAL_NAV = [
 ];
 
 const GLOBAL_ROUTES = new Set(GLOBAL_NAV.map((item) => item.id));
+
+function readStoredNavigation() {
+  try {
+    const raw = window.localStorage.getItem(NAV_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.version === NAV_STATE_VERSION ? parsed : null;
+  } catch (_) {
+    return null;
+  }
+}
+
+function sanitizeWorkspacePages(value) {
+  const pages = {};
+  if (!value || typeof value !== "object") return pages;
+  GLOBAL_NAV.forEach((item) => {
+    const page = Number(value[item.id]);
+    if (Number.isFinite(page) && page > 1) pages[item.id] = Math.floor(page);
+  });
+  return pages;
+}
+
+function findProjectForDoc(index, docPath) {
+  if (!docPath) return null;
+  return (index.projects || []).find((project) => (project.docs || []).includes(docPath)) || null;
+}
+
+function projectHasWorkstream(project, wsPath) {
+  return !!project?.outline?.workstreams?.some((ws) => ws.path === wsPath);
+}
+
+function fallbackRouteForProject(project) {
+  return project?.outline ? "overview" : "list";
+}
+
+function makeDefaultNavigation(index) {
+  const firstProject = (index.projects || []).find((p) => p.outline) || (index.projects || [])[0] || null;
+  return {
+    projectSlug: firstProject?.slug || null,
+    route: DEFAULT_WORKSPACE_ROUTE,
+    section: null,
+    docPath: null,
+    wsPath: null,
+    workspacePages: {},
+  };
+}
+
+function restoreNavigation(index) {
+  const fallback = makeDefaultNavigation(index);
+  const stored = readStoredNavigation();
+  if (!stored) return fallback;
+
+  let project = (index.projects || []).find((p) => p.slug === stored.projectSlug) || null;
+  if (!project) project = (index.projects || []).find((p) => p.slug === fallback.projectSlug) || null;
+  if (!project) return fallback;
+
+  const workspacePages = sanitizeWorkspacePages(stored.workspacePages);
+  if (GLOBAL_ROUTES.has(stored.route)) {
+    return {
+      ...fallback,
+      projectSlug: project.slug,
+      route: stored.route,
+      workspacePages,
+    };
+  }
+
+  if (stored.route === "document" && stored.docPath) {
+    const docProject = findProjectForDoc(index, stored.docPath);
+    if (docProject) {
+      return {
+        projectSlug: docProject.slug,
+        route: "document",
+        section: stored.docPath,
+        docPath: stored.docPath,
+        wsPath: projectHasWorkstream(docProject, stored.wsPath) ? stored.wsPath : null,
+        workspacePages,
+      };
+    }
+  }
+
+  if (stored.route === "workstream" && projectHasWorkstream(project, stored.wsPath)) {
+    return {
+      projectSlug: project.slug,
+      route: "workstream",
+      section: null,
+      docPath: null,
+      wsPath: stored.wsPath,
+      workspacePages,
+    };
+  }
+
+  const projectRoutes = project.outline ? new Set(["overview", "workstreams", "tasks"]) : new Set(["list"]);
+  if (projectRoutes.has(stored.route)) {
+    return {
+      projectSlug: project.slug,
+      route: stored.route,
+      section: stored.section || (stored.route === "overview" ? "overview" : null),
+      docPath: null,
+      wsPath: null,
+      workspacePages,
+    };
+  }
+
+  return {
+    ...fallback,
+    projectSlug: project.slug,
+    route: fallbackRouteForProject(project),
+    section: project.outline ? "overview" : null,
+    workspacePages,
+  };
+}
+
+function getTaskNavigation(index, project, taskDoc) {
+  if (!index || !project?.outline || !taskDoc || taskDoc.role !== "task") return null;
+  const workstreams = project.outline.workstreams || [];
+  let parent = workstreams.find((ws) => (ws.tasks || []).includes(taskDoc.path)) || null;
+  if (!parent && taskDoc.workstreamId) {
+    parent = workstreams.find((ws) => ws.id === taskDoc.workstreamId) || null;
+  }
+
+  const tasks = (project.docs || [])
+    .map((path) => byPath(index.docs, path))
+    .filter((doc) => doc?.role === "task");
+  const tasksById = {};
+  tasks.forEach((task) => {
+    if (task.taskId) tasksById[String(task.taskId).toUpperCase()] = task;
+  });
+
+  return {
+    parent,
+    siblings: parent ? (parent.tasks || []).map((path) => byPath(index.docs, path)).filter(Boolean) : [],
+    tasksById,
+  };
+}
+
+function listValue(value) {
+  if (Array.isArray(value)) return value.map(String).filter(Boolean);
+  if (value == null || value === "") return [];
+  return [String(value)];
+}
 
 /* ================================================================
    Sidebar
@@ -680,12 +912,31 @@ function Topbar({ project, index, docPath, onOpenAction }) {
 /* ================================================================
    Overview
    ================================================================ */
-function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpenDoc }) {
+function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpenDoc, onOpenTasks }) {
   const [open, setOpen] = useState({ current: true, blockers: true, validation: false, progress: false, warnings: false });
   const toggle = (k) => setOpen((o) => ({ ...o, [k]: !o[k] }));
 
   const dashboard = useMemo(() => getDashboardModel(project, docs), [project, docs]);
-  const { tasks, currentWork, blockers, progressDocs, health, warnings, wsLookup } = dashboard;
+  const { tasks, blockers, progressDocs, health, warnings, workstreams, wsLookup } = dashboard;
+  const taskByPath = {};
+  tasks.forEach((task) => {
+    taskByPath[task.path] = task;
+  });
+  const openTasks = tasks
+    .filter((task) => statusLabel(task.status) !== "Complete")
+    .sort((a, b) => {
+      const rank = { Blocked: 0, "In Progress": 1, Planned: 2, Complete: 3 };
+      const statusDelta = (rank[statusLabel(a.status)] ?? 4) - (rank[statusLabel(b.status)] ?? 4);
+      if (statusDelta !== 0) return statusDelta;
+      return (b.updated || "").localeCompare(a.updated || "");
+    });
+  const workstreamRows = workstreams
+    .map((ws) => {
+      const wsTasks = (ws.tasks || []).map((path) => taskByPath[path]).filter(Boolean);
+      const openCount = wsTasks.filter((task) => statusLabel(task.status) !== "Complete").length;
+      return { ...ws, tasks: wsTasks, openCount };
+    })
+    .sort((a, b) => b.openCount - a.openCount || a.title.localeCompare(b.title));
 
   const nextAction = blockers.length
     ? "Resolve blocked tasks"
@@ -746,6 +997,59 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
         <Field label="Next action">{nextAction}</Field>
       </section>
 
+      <section className="overview-delivery">
+        <div className="delivery-panel">
+          <SectionHeader title="Workstreams" count={workstreams.length} />
+          {workstreamRows.length > 0 ? (
+            <div className="delivery-list">
+              {workstreamRows.map((ws) => (
+                <button className="delivery-row" key={ws.path} type="button" onClick={() => onOpenWorkstream(ws.path)}>
+                  <span className="delivery-row-main">
+                    <span className="delivery-title">{ws.title}</span>
+                    <span className="delivery-meta">{ws.tasks.length} task{ws.tasks.length !== 1 ? "s" : ""}</span>
+                  </span>
+                  <span className="delivery-row-right">
+                    <span className="mono delivery-count">{ws.openCount} open</span>
+                    <StatusChip>{ws.status || "Planned"}</StatusChip>
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="empty-state">No workstreams in this project.</div>
+          )}
+        </div>
+
+        <div className="delivery-panel">
+          <SectionHeader
+            title="Open tasks"
+            count={openTasks.length}
+            right={<button className="link-muted" type="button" onClick={onOpenTasks}>All tasks</button>}
+          />
+          {openTasks.length > 0 ? (
+            <div className="delivery-list">
+              {openTasks.slice(0, 7).map((task) => {
+                const ws = wsLookup[task.path];
+                return (
+                  <div className="delivery-task-row" key={task.path}>
+                    <LinkButton onClick={() => onOpenDoc(task.path)} title={task.title}>{task.title}</LinkButton>
+                    <span className="td-muted">{ws?.title || "Unassigned"}</span>
+                    <StatusChip>{task.status || "Planned"}</StatusChip>
+                  </div>
+                );
+              })}
+              {openTasks.length > 7 && (
+                <button className="delivery-more" type="button" onClick={onOpenTasks}>
+                  {openTasks.length - 7} more open task{openTasks.length - 7 !== 1 ? "s" : ""}
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="empty-state">No open tasks.</div>
+          )}
+        </div>
+      </section>
+
       <section className="overview-priority">
         <div className="overview-priority-main">
           <SectionHeader title="Warnings" count={warnings.length} collapsible open={open.warnings} onToggle={() => toggle("warnings")} />
@@ -775,7 +1079,7 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
               return (
                 <div className="preview-row preview-row-progress" key={i}>
                   <span className="mono preview-meta-time">{progressMeta}</span>
-                  <button className="link" onClick={() => onOpenDoc(doc.path)}>{doc.title}</button>
+                  <LinkButton onClick={() => onOpenDoc(doc.path)} title={doc.title}>{doc.title}</LinkButton>
                   <span className="preview-copy">{progressSnippet}</span>
                 </div>
               );
@@ -795,7 +1099,7 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
             return (
               <div className="preview-row validation-row" key={i}>
                 <span className={`chip ${chipClass}`}><span className="chip-dot" /> {label}</span>
-                <button className="link" onClick={() => onOpenDoc(task.path)}>{task.title}</button>
+                <LinkButton onClick={() => onOpenDoc(task.path)} title={task.title}>{task.title}</LinkButton>
                 <span className="td-muted">{(wsLookup[task.path]?.title) || "Unassigned"}</span>
               </div>
             );
@@ -811,16 +1115,16 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
 /* ================================================================
    Workspace Pages
    ================================================================ */
-function WorkspacePage({ index, view, onOpenProject, onOpenProjectDoc, onOpenProjectWorkstream }) {
+function WorkspacePage({ index, view, page, onPageChange, onOpenProject, onOpenProjectDoc, onOpenProjectWorkstream }) {
   const workspace = useMemo(() => getWorkspaceModel(index), [index]);
-  const [page, setPage] = useState(1);
-  const pageSize = 10;
-
-  useEffect(() => {
-    setPage(1);
-  }, [view]);
+  const projectStats = useMemo(
+    () => (index.projects || []).filter((p) => p.outline).map((project) => getProjectStats(index, project)),
+    [index]
+  );
+  const currentPage = page || 1;
 
   const titleMap = {
+    "workspace-projects": "Projects",
     "workspace-current": "Open work",
     "workspace-progress": "Progress",
     "workspace-validation": "Validation",
@@ -828,61 +1132,109 @@ function WorkspacePage({ index, view, onOpenProject, onOpenProjectDoc, onOpenPro
     "workspace-blockers": "Blockers",
   };
   const title = titleMap[view] || "Workspace";
+  const itemsForView =
+    view === "workspace-projects" ? projectStats :
+    view === "workspace-current" ? workspace.current :
+    view === "workspace-blockers" ? workspace.blockers :
+    view === "workspace-validation" ? workspace.validation :
+    view === "workspace-progress" ? workspace.progress :
+    view === "workspace-warnings" ? workspace.warnings :
+    [];
+
+  useEffect(() => {
+    const totalPages = pageCountFor(itemsForView);
+    const safePage = clampPage(currentPage, totalPages);
+    if (safePage !== currentPage) onPageChange(safePage);
+  }, [view, itemsForView.length, currentPage, onPageChange]);
 
   const projectButton = (project) => (
-    <button className="link" onClick={() => onOpenProject(project.slug)}>
+    <LinkButton onClick={() => onOpenProject(project.slug)} title={project.title}>
       {project.title}
-    </button>
+    </LinkButton>
   );
 
   const workstreamButton = (item) =>
     item.workstream ? (
-      <button className="link" onClick={() => onOpenProjectWorkstream(item.project.slug, item.workstream.path)}>
+      <LinkButton onClick={() => onOpenProjectWorkstream(item.project.slug, item.workstream.path)} title={item.workstream.title}>
         {item.workstream.title}
-      </button>
+      </LinkButton>
     ) : (
       <span className="td-muted">-</span>
     );
 
-  const renderTaskRows = (items, emptyText, kind) =>
-    items.length > 0 ? (
-      <div className="table table-workspace">
-        <div className="tr th">
-          <div>Task</div>
-          <div>Project</div>
-          <div>Workstream</div>
-          <div>State</div>
-        </div>
-        {items.map((task) => (
-          <div className="tr" key={`${task.project.slug}:${task.path}`}>
-            <div className="td-primary">
-              <button className="link" onClick={() => onOpenProjectDoc(task.project.slug, task.path)}>
-                {kind === "blocked" && <span className="dot dot-warn" />} {task.title}
-              </button>
-            </div>
-            <div>{projectButton(task.project)}</div>
-            <div>{workstreamButton(task)}</div>
-            <div>
-              <StatusChip>{task.status}</StatusChip>
-            </div>
-          </div>
+  const renderPagination = (pagination) => (
+    <Pagination page={pagination.safePage} totalPages={pagination.totalPages} onPageChange={onPageChange} />
+  );
+
+  const renderProjects = () =>
+    projectStats.length > 0 ? (
+      <div className="project-grid">
+        {projectStats.map((stat) => (
+          <button className="project-card" key={stat.project.slug} type="button" onClick={() => onOpenProject(stat.project.slug)}>
+            <span className="project-card-head">
+              <span className="project-card-title">{stat.project.title}</span>
+              <StatusChip>{stat.project.status || "Planned"}</StatusChip>
+            </span>
+            <span className="project-card-dates">
+              <span><span>Created</span> {formatShortDate(stat.project.created)}</span>
+              <span><span>Updated</span> {formatShortDate(stat.updated)}</span>
+            </span>
+            <span className="project-card-stats">
+              <span><strong>{stat.workstreams.length}</strong> Workstreams</span>
+              <span><strong>{stat.openTasks.length}</strong> Open tasks</span>
+              <span><strong>{stat.tasks.length}</strong> Tasks</span>
+              <span><strong>{stat.relatedAssets}</strong> Assets</span>
+            </span>
+          </button>
         ))}
       </div>
     ) : (
-      <div className="empty-state">{emptyText}</div>
+      <div className="empty-state">No projects found.</div>
     );
 
+  const renderTaskRows = (items, emptyText, kind) => {
+    const pagination = paginateItems(items, currentPage);
+    return (
+      <>
+        {pagination.visible.length > 0 ? (
+          <div className="table table-workspace">
+            <div className="tr th">
+              <div>Task</div>
+              <div>Project</div>
+              <div>Workstream</div>
+              <div>State</div>
+            </div>
+            {pagination.visible.map((task) => (
+              <div className="tr" key={`${task.project.slug}:${task.path}`}>
+                <div className="td-primary">
+                  <LinkButton onClick={() => onOpenProjectDoc(task.project.slug, task.path)} title={task.title}>
+                    {kind === "blocked" && <span className="dot dot-warn" />} {task.title}
+                  </LinkButton>
+                </div>
+                <div>{projectButton(task.project)}</div>
+                <div>{workstreamButton(task)}</div>
+                <div>
+                  <StatusChip>{task.status}</StatusChip>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty-state">{emptyText}</div>
+        )}
+        {renderPagination(pagination)}
+      </>
+    );
+  };
+
   const renderProgress = () => {
-    const totalPages = Math.max(1, Math.ceil(workspace.progress.length / pageSize));
-    const safePage = Math.min(page, totalPages);
-    const start = (safePage - 1) * pageSize;
-    const visible = workspace.progress.slice(start, start + pageSize);
+    const pagination = paginateItems(workspace.progress, currentPage);
 
     return (
       <>
-        {visible.length > 0 ? (
+        {pagination.visible.length > 0 ? (
           <div className="timeline timeline-workspace">
-            {visible.map((doc) => {
+            {pagination.visible.map((doc) => {
               const date = doc.updated
                 ? new Date(doc.updated).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
                 : "";
@@ -894,9 +1246,9 @@ function WorkspacePage({ index, view, onOpenProject, onOpenProjectDoc, onOpenPro
                   </div>
                   <div className="tl-body">
                     <div className="workspace-line">
-                      <button className="link" onClick={() => onOpenProjectDoc(doc.project.slug, doc.path)}>
+                      <LinkButton onClick={() => onOpenProjectDoc(doc.project.slug, doc.path)} title={doc.title}>
                         {doc.title}
-                      </button>
+                      </LinkButton>
                       <span className="td-muted-inline">{doc.project.title}</span>
                     </div>
                     <div className="td-muted small">{doc.snippet}</div>
@@ -908,50 +1260,48 @@ function WorkspacePage({ index, view, onOpenProject, onOpenProjectDoc, onOpenPro
         ) : (
           <div className="empty-state">No progress entries across projects.</div>
         )}
-        {workspace.progress.length > pageSize && (
-          <div className="pagination">
-            <button className="btn" type="button" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={safePage === 1}>
-              Previous
-            </button>
-            <span className="mono">Page {safePage} of {totalPages}</span>
-            <button className="btn" type="button" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>
-              Next
-            </button>
-          </div>
-        )}
+        {renderPagination(pagination)}
       </>
     );
   };
 
-  const renderWarnings = () =>
-    workspace.warnings.length > 0 ? (
-      <div className="table table-workspace-warnings">
-        <div className="tr th">
-          <div>Severity</div>
-          <div>Project</div>
-          <div>Note</div>
-          <div>Source</div>
-        </div>
-        {workspace.warnings.map((w, i) => (
-          <div className="tr" key={`${w.project.slug}:${i}`}>
-            <div>
-              <span className={`chip ${w.sev === "Medium" ? "chip-warn" : "chip-low"}`}>
-                <span className="chip-dot" /> {w.sev}
-              </span>
+  const renderWarnings = () => {
+    const pagination = paginateItems(workspace.warnings, currentPage);
+    return (
+      <>
+        {pagination.visible.length > 0 ? (
+          <div className="table table-workspace-warnings">
+            <div className="tr th">
+              <div>Severity</div>
+              <div>Project</div>
+              <div>Note</div>
+              <div>Source</div>
             </div>
-            <div>{projectButton(w.project)}</div>
-            <div className="td-primary">{w.note}</div>
-            <div className="td-muted">{w.ws}</div>
+            {pagination.visible.map((w, i) => (
+              <div className="tr" key={`${w.project.slug}:${w.note}:${i}`}>
+                <div>
+                  <span className={`chip ${w.sev === "Medium" ? "chip-warn" : "chip-low"}`}>
+                    <span className="chip-dot" /> {w.sev}
+                  </span>
+                </div>
+                <div>{projectButton(w.project)}</div>
+                <div className="td-primary">{w.note}</div>
+                <div className="td-muted">{w.ws}</div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-    ) : (
-      <div className="empty-state" style={{ color: "var(--ok)" }}>
-        No warnings across projects.
-      </div>
+        ) : (
+          <div className="empty-state" style={{ color: "var(--ok)" }}>
+            No warnings across projects.
+          </div>
+        )}
+        {renderPagination(pagination)}
+      </>
     );
+  };
 
   const renderBody = () => {
+    if (view === "workspace-projects") return renderProjects();
     if (view === "workspace-current") return renderTaskRows(workspace.current, "No active tasks across projects.");
     if (view === "workspace-blockers") return renderTaskRows(workspace.blockers, "No blockers across projects.", "blocked");
     if (view === "workspace-validation") return renderTaskRows(workspace.validation, "No tasks to validate across projects.");
@@ -961,6 +1311,7 @@ function WorkspacePage({ index, view, onOpenProject, onOpenProjectDoc, onOpenPro
   };
 
   const count =
+    view === "workspace-projects" ? workspace.counts.projects :
     view === "workspace-current" ? workspace.counts.current :
     view === "workspace-blockers" ? workspace.counts.blockers :
     view === "workspace-validation" ? workspace.counts.validation :
@@ -1012,7 +1363,7 @@ function ProjectWorkstreamsPage({ index, project, docs, onOpenWorkstream, onOpen
                       {tasks.map((task) => (
                         <button className="outline-subitem" key={task.path} onClick={() => onOpenDoc(task.path)} type="button">
                           <span className="mono">{task.taskId || task.path.split("/").pop()?.replace(/\.md$/, "")}</span>
-                          <span>{task.title}</span>
+                    <span title={task.title}>{task.title}</span>
                           <StatusChip>{task.status || "Planned"}</StatusChip>
                         </button>
                       ))}
@@ -1052,11 +1403,11 @@ function ProjectTasksPage({ project, docs, onOpenDoc, onOpenWorkstream }) {
               return (
                 <div className="tr" key={task.path}>
                   <div className="td-primary">
-                    <button className="link" onClick={() => onOpenDoc(task.path)} type="button">{task.title}</button>
+                    <LinkButton onClick={() => onOpenDoc(task.path)} title={task.title}>{task.title}</LinkButton>
                   </div>
                   <div>
                     {ws ? (
-                      <button className="link" onClick={() => onOpenWorkstream(ws.path)} type="button">{ws.title}</button>
+                      <LinkButton onClick={() => onOpenWorkstream(ws.path)} title={ws.title}>{ws.title}</LinkButton>
                     ) : (
                       <span className="td-muted">Unassigned</span>
                     )}
@@ -1097,15 +1448,15 @@ function DashboardPage({ project, docs, view, onOpenWorkstream, onOpenDoc }) {
           return (
             <div className="tr" key={i}>
               <div className="td-primary">
-                <button className="link" onClick={() => onOpenDoc(task.path)}>
+                <LinkButton onClick={() => onOpenDoc(task.path)} title={task.title}>
                   {task.title}
-                </button>
+                </LinkButton>
               </div>
               <div>
                 {ws ? (
-                  <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
+                  <LinkButton onClick={() => onOpenWorkstream(ws.path)} title={ws.title}>
                     {ws.title}
-                  </button>
+                  </LinkButton>
                 ) : (
                   <span className="td-muted">-</span>
                 )}
@@ -1135,15 +1486,15 @@ function DashboardPage({ project, docs, view, onOpenWorkstream, onOpenDoc }) {
           return (
             <div className="tr" key={i}>
               <div className="td-primary">
-                <button className="link" onClick={() => onOpenDoc(task.path)}>
+                <LinkButton onClick={() => onOpenDoc(task.path)} title={task.title}>
                   <span className="dot dot-warn" /> {task.title}
-                </button>
+                </LinkButton>
               </div>
               <div>
                 {ws ? (
-                  <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
+                  <LinkButton onClick={() => onOpenWorkstream(ws.path)} title={ws.title}>
                     {ws.title}
-                  </button>
+                  </LinkButton>
                 ) : (
                   <span className="td-muted">-</span>
                 )}
@@ -1172,15 +1523,15 @@ function DashboardPage({ project, docs, view, onOpenWorkstream, onOpenDoc }) {
           return (
             <div className="tr" key={i}>
               <div className="td-primary">
-                <button className="link" onClick={() => onOpenDoc(task.path)}>
+                <LinkButton onClick={() => onOpenDoc(task.path)} title={task.title}>
                   {task.title}
-                </button>
+                </LinkButton>
               </div>
               <div>
                 {ws ? (
-                  <button className="link" onClick={() => onOpenWorkstream(ws.path)}>
+                  <LinkButton onClick={() => onOpenWorkstream(ws.path)} title={ws.title}>
                     {ws.title}
-                  </button>
+                  </LinkButton>
                 ) : (
                   <span className="td-muted">-</span>
                 )}
@@ -1213,9 +1564,9 @@ function DashboardPage({ project, docs, view, onOpenWorkstream, onOpenDoc }) {
               </div>
               <div className="tl-body">
                 <div>
-                  <button className="link" onClick={() => onOpenDoc(doc.path)}>
+                  <LinkButton onClick={() => onOpenDoc(doc.path)} title={doc.title}>
                     {doc.title}
-                  </button>
+                  </LinkButton>
                 </div>
                 <div className="td-muted small">{doc.snippet}</div>
               </div>
@@ -1389,9 +1740,13 @@ function WorkstreamDetail({ index, project, wsPath, onBack, onOpenDoc }) {
                     <span className="cb">
                       {done && <Icon d={<path d="M5 12.5l4 4 10-11" />} size={11} />}
                     </span>
-                    <button className="link" onClick={() => onOpenDoc(t.path)}>
+                    <LinkButton onClick={() => onOpenDoc(t.path, wsPath)} title={t.title}>
                       {t.title}
-                    </button>
+                    </LinkButton>
+                    <span className="checklist-meta">
+                      <StatusChip>{t.status || "Planned"}</StatusChip>
+                      <span className="mono">{t.taskId || t.path.split("/").pop()?.replace(/\.md$/, "")}</span>
+                    </span>
                   </li>
                 );
               })}
@@ -1441,23 +1796,15 @@ function WorkstreamDetail({ index, project, wsPath, onBack, onOpenDoc }) {
           </div>
 
           <div className="side-block">
-            <div className="side-head">
-              Subtasks <span className="count">{tasks.length}</span>
-            </div>
-            <ul className="side-list">
-              {tasks.map((t, i) => (
-                <li key={i} onClick={() => onOpenDoc(t.path)}>
-                  <span className="sl-name">{t.title}</span>
-                  <span className="sl-right">
-                    <StatusChip>{t.status}</StatusChip>
-                    <Icon d={I.chevR} size={13} />
-                  </span>
-                </li>
-              ))}
-              {!tasks.length && (
-                <li style={{ cursor: "default", color: "var(--ink-50)" }}>None</li>
-              )}
-            </ul>
+            <div className="side-head">Task summary</div>
+            <dl className="dl">
+              <dt>Total</dt>
+              <dd className="mono">{tasks.length}</dd>
+              <dt>Open</dt>
+              <dd className="mono">{tasks.filter((task) => statusLabel(task.status) !== "Complete").length}</dd>
+              <dt>Complete</dt>
+              <dd className="mono">{tasks.filter((task) => statusLabel(task.status) === "Complete").length}</dd>
+            </dl>
           </div>
         </aside>
       </div>
@@ -1468,7 +1815,7 @@ function WorkstreamDetail({ index, project, wsPath, onBack, onOpenDoc }) {
 /* ================================================================
    Document Reader
    ================================================================ */
-function DocumentReader({ doc, onBack, onOpenAction }) {
+function DocumentReader({ doc, project, index, onBack, onOpenAction, onOpenDoc, onOpenWorkstream, onOpenTasks }) {
   if (!doc) {
     return (
       <div className="page">
@@ -1478,6 +1825,43 @@ function DocumentReader({ doc, onBack, onOpenAction }) {
   }
 
   const props = Object.entries(doc.frontmatter || {});
+  const taskNav = getTaskNavigation(index, project, doc);
+  const taskReference = (value) => {
+    if (!taskNav) return null;
+    return taskNav.tasksById[String(value || "").trim().toUpperCase()] || null;
+  };
+  const renderMetaValue = (key, value) => {
+    const values = listValue(value);
+
+    if (doc.role === "task" && key === "workstream" && taskNav?.parent) {
+      return (
+        <LinkButton onClick={() => onOpenWorkstream(taskNav.parent.path)} title={taskNav.parent.title}>
+          {values.join(", ") || taskNav.parent.id || taskNav.parent.title}
+        </LinkButton>
+      );
+    }
+
+    if (doc.role === "task" && ["depends_on", "conflicts_with"].includes(key) && values.length) {
+      return values.map((item, index) => {
+        const relatedTask = taskReference(item);
+        return (
+          <React.Fragment key={`${key}:${item}`}>
+            {index > 0 && <span className="meta-separator">,</span>}
+            {relatedTask ? (
+              <LinkButton onClick={() => onOpenDoc(relatedTask.path, taskNav?.parent?.path || null)} title={relatedTask.title}>
+                {item}
+              </LinkButton>
+            ) : (
+              <span>{item}</span>
+            )}
+          </React.Fragment>
+        );
+      });
+    }
+
+    if (Array.isArray(value)) return value.join(", ");
+    return String(value ?? "");
+  };
   const fmtDate = (d) =>
     d
       ? new Date(d).toLocaleString("en-US", {
@@ -1503,26 +1887,75 @@ function DocumentReader({ doc, onBack, onOpenAction }) {
         />
       </div>
 
-      <aside className="doc-meta-panel" aria-label="Document metadata">
-        <div className="doc-meta-title">Metadata</div>
-        <dl className="dl doc-meta-list">
-          <dt>Path</dt>
-          <dd className="mono">{doc.path}</dd>
-          {doc.status && (
-            <>
-              <dt>Status</dt>
-              <dd><StatusChip>{doc.status}</StatusChip></dd>
-            </>
-          )}
-          <dt>Updated</dt>
-          <dd>{fmtDate(doc.updated)}</dd>
-          {props.map(([k, v]) => (
-            <React.Fragment key={k}>
-              <dt>{k}</dt>
-              <dd>{Array.isArray(v) ? v.join(", ") : String(v ?? "")}</dd>
-            </React.Fragment>
-          ))}
-        </dl>
+      <aside className="doc-side" aria-label="Document context">
+        {doc.role === "task" && taskNav && (
+          <div className="side-block task-nav-block">
+            <div className="side-head">Task navigation</div>
+            <div className="task-parent">
+              <div className="side-label">Parent workstream</div>
+              {taskNav.parent ? (
+                <button className="task-parent-link" type="button" onClick={() => onOpenWorkstream(taskNav.parent.path)}>
+                  <span>{taskNav.parent.title}</span>
+                  <Icon d={I.chevR} size={13} />
+                </button>
+              ) : (
+                <div className="empty-state">No parent workstream found.</div>
+              )}
+            </div>
+            <div className="task-nav-actions">
+              <button className="link-muted" type="button" onClick={onOpenTasks}>All project tasks</button>
+            </div>
+            <div className="side-label side-label-list">
+              Sibling tasks <span className="count">{taskNav.siblings.length}</span>
+            </div>
+            <ul className="side-list task-sibling-list">
+              {taskNav.siblings.map((task) => {
+                const isCurrent = task.path === doc.path;
+                return (
+                  <li key={task.path} className={isCurrent ? "is-current" : ""}>
+                    <button
+                      className="side-list-button"
+                      type="button"
+                      onClick={() => onOpenDoc(task.path, taskNav.parent?.path || null)}
+                      disabled={isCurrent}
+                    >
+                      <span className="sl-name">{task.title}</span>
+                      <span className="sl-right">
+                        <StatusChip>{task.status || "Planned"}</StatusChip>
+                        {!isCurrent && <Icon d={I.chevR} size={13} />}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+              {!taskNav.siblings.length && (
+                <li className="side-list-empty">No siblings</li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        <div className="doc-meta-panel" aria-label="Document metadata">
+          <div className="doc-meta-title">Metadata</div>
+          <dl className="dl doc-meta-list">
+            <dt>Path</dt>
+            <dd className="mono">{doc.path}</dd>
+            {doc.status && (
+              <>
+                <dt>Status</dt>
+                <dd><StatusChip>{doc.status}</StatusChip></dd>
+              </>
+            )}
+            <dt>Updated</dt>
+            <dd>{fmtDate(doc.updated)}</dd>
+            {props.map(([k, v]) => (
+              <React.Fragment key={k}>
+                <dt>{k}</dt>
+                <dd>{renderMetaValue(k, v)}</dd>
+              </React.Fragment>
+            ))}
+          </dl>
+        </div>
       </aside>
     </div>
   );
@@ -1606,23 +2039,45 @@ function DocumentList({ index, project, docs, onOpenDoc }) {
 function App() {
   const [index, setIndex] = useState(null);
   const [projectSlug, setProjectSlug] = useState(null);
-  const [route, setRoute] = useState("overview");
+  const [route, setRoute] = useState(DEFAULT_WORKSPACE_ROUTE);
   const [section, setSection] = useState(null);
   const [docPath, setDocPath] = useState(null);
   const [doc, setDoc] = useState(null);
   const [wsPath, setWsPath] = useState(null);
+  const [workspacePages, setWorkspacePages] = useState({});
 
   // Load index on mount
   useEffect(() => {
     fetch("/api/index")
       .then((r) => r.json())
       .then((data) => {
+        const nav = restoreNavigation(data);
         setIndex(data);
-        // Default to first project with outline, or first project
-        const firstProject = data.projects.find((p) => p.outline) || data.projects[0];
-        if (firstProject) setProjectSlug(firstProject.slug);
+        setProjectSlug(nav.projectSlug);
+        setRoute(nav.route);
+        setSection(nav.section);
+        setDocPath(nav.docPath);
+        setWsPath(nav.wsPath);
+        setWorkspacePages(nav.workspacePages);
       });
   }, []);
+
+  useEffect(() => {
+    if (!index || !projectSlug) return;
+    try {
+      window.localStorage.setItem(NAV_STATE_KEY, JSON.stringify({
+        version: NAV_STATE_VERSION,
+        projectSlug,
+        route,
+        section,
+        docPath,
+        wsPath,
+        workspacePages,
+      }));
+    } catch (_) {
+      /* ignore unavailable storage */
+    }
+  }, [index, projectSlug, route, section, docPath, wsPath, workspacePages]);
 
   // Load doc when docPath changes
   useEffect(() => {
@@ -1642,6 +2097,16 @@ function App() {
     if (main) main.scrollTo(0, 0);
   }, [route, wsPath, docPath]);
 
+  const handleWorkspacePageChange = useCallback((view, nextPage) => {
+    const page = Math.max(1, Math.floor(Number(nextPage) || 1));
+    setWorkspacePages((pages) => ({ ...pages, [view]: page }));
+  }, []);
+
+  const updateCurrentWorkspacePage = useCallback(
+    (nextPage) => handleWorkspacePageChange(route, nextPage),
+    [handleWorkspacePageChange, route]
+  );
+
   if (!index) {
     return (
       <div style={{ padding: "48px", color: "var(--ink-50)", fontFamily: "var(--font-sans)" }}>
@@ -1656,13 +2121,9 @@ function App() {
   const handleSelectProject = (slug) => {
     setProjectSlug(slug);
     const p = index.projects.find((pp) => pp.slug === slug);
-    if (p?.outline) {
-      setRoute("overview");
-      setSection("overview");
-    } else {
-      setRoute("list");
-      setSection(null);
-    }
+    const nextRoute = fallbackRouteForProject(p);
+    setRoute(nextRoute);
+    setSection(nextRoute === "overview" ? "overview" : null);
     setDocPath(null);
     setDoc(null);
     setWsPath(null);
@@ -1686,19 +2147,23 @@ function App() {
     setRoute("workstream");
     setWsPath(path);
     setSection(null);
+    setDocPath(null);
+    setDoc(null);
   };
 
-  const handleOpenDoc = (path) => {
+  const handleOpenDoc = (path, contextWsPath) => {
     setRoute("document");
     setDocPath(path);
     setSection(path);
+    if (contextWsPath !== undefined) setWsPath(contextWsPath);
   };
 
   const handleOpenProject = (slug) => {
     const p = index.projects.find((pp) => pp.slug === slug);
     setProjectSlug(slug);
-    setRoute(p?.outline ? "overview" : "list");
-    setSection(p?.outline ? "overview" : null);
+    const nextRoute = fallbackRouteForProject(p);
+    setRoute(nextRoute);
+    setSection(nextRoute === "overview" ? "overview" : null);
     setWsPath(null);
     setDocPath(null);
     setDoc(null);
@@ -1758,12 +2223,25 @@ function App() {
       />
     );
   } else if (route === "document" && docPath) {
-    mainContent = <DocumentReader doc={doc} onBack={handleBack} onOpenAction={handleOpenAction} />;
+    mainContent = (
+      <DocumentReader
+        doc={doc}
+        project={project}
+        index={index}
+        onBack={handleBack}
+        onOpenAction={handleOpenAction}
+        onOpenDoc={handleOpenDoc}
+        onOpenWorkstream={handleOpenWorkstream}
+        onOpenTasks={() => handleNavigate("tasks")}
+      />
+    );
   } else if (GLOBAL_ROUTES.has(route)) {
     mainContent = (
       <WorkspacePage
         index={index}
         view={route}
+        page={workspacePages[route] || 1}
+        onPageChange={updateCurrentWorkspacePage}
         onOpenProject={handleOpenProject}
         onOpenProjectDoc={handleOpenProjectDoc}
         onOpenProjectWorkstream={handleOpenProjectWorkstream}
@@ -1797,6 +2275,7 @@ function App() {
         scrollTarget={section}
         onOpenWorkstream={handleOpenWorkstream}
         onOpenDoc={handleOpenDoc}
+        onOpenTasks={() => handleNavigate("tasks")}
       />
     );
   } else {

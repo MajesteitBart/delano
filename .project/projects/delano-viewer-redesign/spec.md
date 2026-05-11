@@ -2,9 +2,9 @@
 name: Delano Viewer Redesign
 slug: delano-viewer-redesign
 owner: bart
-status: active
+status: complete
 created: 2026-05-04T20:00:00Z
-updated: 2026-05-11T09:52:00Z
+updated: 2026-05-11T15:26:00Z
 outcome: The Delano viewer adopts the Keendoc design language with a sidebar-driven dashboard, Overview and Workstream Detail pages, and a document reader that preserves full markdown rendering.
 uncertainty: low
 probe_required: false
@@ -65,3 +65,4 @@ Server tested at `http://127.0.0.1:3977` on 2026-05-04:
 - React app mounts with Babel standalone JSX transpilation (1381 lines, 29 components/functions)
 - 2026-05-07: Dashboard sidebar items changed from Overview section jumps to dedicated dashboard pages. Browser smoke test at `http://127.0.0.1:3977` confirmed `Current Work` and `Warnings` render as separate page titles with active sidebar state; `/`, `/app.jsx`, and `/api/index` returned 200.
 - 2026-05-08: Follow-up redesign changed the left sidebar from selected-project dashboard navigation to workspace-level navigation. Browser smoke test at `http://127.0.0.1:3977/` confirmed aggregate Open work, Progress, Validation, Warnings, and Blockers routes render with count badges; Progress shows 10 rows with `Page 1 of 4`; console reported 0 errors.
+- 2026-05-11: WS-A closeout completed the remaining viewer UX tasks. Browser smoke test at `http://127.0.0.1:3978/` confirmed Projects dashboard fallback, persisted workspace route/page restore, shared pagination across workspace views, Overview workstream/open-task priority, workstream detail task de-duplication, and task-detail parent/sibling navigation; console reported 0 errors. Generated assets were rebuilt with `npm run build:assets`.

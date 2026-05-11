@@ -1,9 +1,9 @@
 ---
 name: Delano Viewer Redesign
-status: active
+status: done
 lead: bart
 created: 2026-05-04T20:00:00Z
-updated: 2026-05-11T09:52:00Z
+updated: 2026-05-11T15:26:00Z
 linear_project_id:
 risk_level: low
 spec_status_at_plan_time: complete
@@ -57,5 +57,4 @@ No prototype probe was required for the initial redesign. A later live-design pa
 
 ## Remaining Delivery Risks
 
-- The selected-project source-contract list may still belong in the main project overview instead of the sidebar.
-- The workspace aggregate model depends on existing role/status metadata quality.
+- Closed 2026-05-11. Remaining risk is limited to source metadata quality: workspace aggregates depend on existing role/status fields.
