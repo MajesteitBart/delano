@@ -82,9 +82,42 @@ if (!statusOutput) {
   process.exit(0);
 }
 
+const additionalContext = formatStatusContext(statusOutput);
+
 console.log(JSON.stringify({
   hookSpecificOutput: {
     hookEventName: "SessionStart",
-    additionalContext: `Delano startup context:\n${statusOutput}`
+    additionalContext
   }
 }));
+
+function formatStatusContext(rawStatusOutput) {
+  const lines = rawStatusOutput.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const projectLines = lines.filter((line) => (
+    !line.startsWith("Delano ") &&
+    !/^=+$/.test(line) &&
+    !line.startsWith("No open projects")
+  ));
+
+  if (projectLines.length === 0) {
+    return "Delano startup context. Open projects: none.";
+  }
+
+  const projects = projectLines.map(formatProjectLine);
+  return `Delano startup context. Open projects: ${projects.join("; ")}.`;
+}
+
+function formatProjectLine(line) {
+  const match = line.match(/^(\S+)\s+spec=(\S+)\s+plan=(\S+)\s+open_tasks=(\d+)\s+total_tasks=(\d+)$/);
+  if (!match) {
+    return line;
+  }
+
+  const [, slug, spec, plan, openTasks, totalTasks] = match;
+  return `${slug} (spec=${spec}, plan=${plan}, open_tasks=${openTasks}, total_tasks=${totalTasks})`;
+}
+
+module.exports = {
+  formatProjectLine,
+  formatStatusContext
+};

@@ -89,13 +89,27 @@ The base install path copies only the approved allowlist payload:
 
 It does not install top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, or `PI.md`. Those remain opt-in.
 It also does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`.
-The `.codex/hooks.json` file configures a Codex `SessionStart` hook that adds `delano status --open --brief` context on session startup and resume. It is inert until Codex hooks are enabled. If `.codex/hooks.json` already exists, `delano install` merges the Delano hook into the existing JSON instead of replacing it. Invalid or non-file hook configs are skipped without blocking the rest of the install.
-To activate it, add this to your Codex `config.toml`:
+The `.codex/hooks.json` file configures a Codex `SessionStart` hook that adds compact open-project context on session startup and resume. It is inert until Codex hooks are enabled. If `.codex/hooks.json` already exists, `delano install` merges the Delano hook into the existing JSON instead of replacing it. Invalid or non-file hook configs are skipped without blocking the rest of the install.
 
-```toml
-[features]
-codex_hooks = true
-```
+Codex hook activation is intentionally manual:
+
+1. Enable hooks for a session with `codex --enable hooks`, or persist the feature in `~/.codex/config.toml`:
+
+   ```toml
+   [features]
+   hooks = true
+   ```
+
+2. Start Codex in the repository and approve the project trust prompt for the repo-local `.codex/` layer. Codex records trusted projects in `~/.codex/config.toml`, for example:
+
+   ```toml
+   [projects."E:\\path\\to\\repo"]
+   trust_level = "trusted"
+   ```
+
+3. Approve the Delano `SessionStart` hook when Codex asks whether to trust it.
+
+Older docs and builds may refer to `[features].codex_hooks`; newer Codex builds warn that this key is deprecated in favor of `[features].hooks`.
 
 The packaged `.project/context/` files are generic starter templates. They are seeded into the target repo during install and should be rewritten to match that repo's actual context.
 After install, `.project/context/`, `.project/projects/`, and `.project/registry/` are repo-owned state. Do not include them in forced refreshes unless you are intentionally replacing that local state.

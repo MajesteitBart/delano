@@ -580,7 +580,7 @@ function printPlanSummary(plan, options) {
   console.log(`Force: ${options.force ? "yes" : "no"}`);
   console.log("");
   console.log("Note: --agents is accepted now for forward compatibility, but v1 base install still excludes top-level adapter entry docs by default.");
-  console.log("Note: .codex/hooks.json is merged when it already exists, and Codex runs the hook only after codex_hooks is enabled in config.toml.");
+  console.log("Note: .codex/hooks.json is merged when it already exists, and Codex runs the hook only after hooks are enabled and trusted.");
   console.log("Note: .project/context, .project/projects, and .project/registry are repo-owned after install; use --no-project-state or --only for update-safe refreshes.");
 }
 
@@ -658,9 +658,9 @@ function applyInstallPlan(plan, options) {
   if (plan.items.some((item) => item.relativePath === CODEX_HOOKS_TARGET)) {
     console.log("");
     console.log("Codex hook config installed or merged at .codex/hooks.json.");
-    console.log("To activate it, add this to your Codex config.toml:");
-    console.log("[features]");
-    console.log("codex_hooks = true");
+    console.log("To activate it, enable Codex hooks, then approve the project and hook trust prompts.");
+    console.log("For one session, run: codex --enable hooks");
+    console.log("For persistent config, set [features].hooks = true in ~/.codex/config.toml.");
   }
   console.log("Recommended next step: run 'delano onboarding' to review AGENTS.md. The command asks for explicit approval before analysis.");
 }

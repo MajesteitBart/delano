@@ -147,7 +147,10 @@ test("Codex session status hook emits SessionStart context", () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   const parsed = JSON.parse(result.stdout);
   assert.equal(parsed.hookSpecificOutput.hookEventName, "SessionStart");
-  assert.match(parsed.hookSpecificOutput.additionalContext, /Delano open project status/);
+  assert.match(parsed.hookSpecificOutput.additionalContext, /^Delano startup context\. Open projects:/);
+  assert.match(parsed.hookSpecificOutput.additionalContext, /spec=/);
+  assert.match(parsed.hookSpecificOutput.additionalContext, /, plan=/);
+  assert.doesNotMatch(parsed.hookSpecificOutput.additionalContext, /\n/);
 });
 
 test("text safety check rejects bidi control characters", () => {
