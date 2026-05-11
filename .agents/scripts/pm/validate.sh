@@ -497,6 +497,8 @@ fi
 
 if [[ -n "$status_transition_check" ]]; then
   echo ""
+  echo "Project lifecycle and status transition check"
+  echo "---------------------------------------------"
   if command -v node >/dev/null 2>&1; then
     if node "$status_transition_check"; then
       true

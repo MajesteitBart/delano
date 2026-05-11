@@ -22,6 +22,24 @@
       "requires": ["all local depends_on task statuses are done"]
     },
     {
+      "id": "progressed-task-requires-active-project",
+      "status": "in-progress|done",
+      "description": "A task must not start or complete while the parent project spec or plan is still planned.",
+      "requires": [
+        "spec.status is active or complete",
+        "plan.status is active or done"
+      ]
+    },
+    {
+      "id": "closed-task-set-requires-closed-project",
+      "status": "done|deferred",
+      "description": "A project with no open tasks must not remain open through stale spec or plan statuses.",
+      "requires": [
+        "spec.status is complete or deferred",
+        "plan.status is done or deferred"
+      ]
+    },
+    {
       "id": "blocked-owner-check-back",
       "status": "blocked",
       "description": "A blocked task must name who owns unblocking and when to check back.",
