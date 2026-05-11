@@ -1,9 +1,9 @@
 ---
 name: Delano Viewer Redesign
-status: done
+status: active
 lead: bart
 created: 2026-05-04T20:00:00Z
-updated: 2026-05-08T09:44:35Z
+updated: 2026-05-11T09:52:00Z
 linear_project_id:
 risk_level: low
 spec_status_at_plan_time: complete

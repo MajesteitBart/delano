@@ -1,9 +1,9 @@
 ---
 name: WS-A Workspace Navigation and Viewer UX
 owner: bart
-status: done
+status: active
 created: 2026-05-08T09:44:35Z
-updated: 2026-05-08T09:44:35Z
+updated: 2026-05-11T12:15:00Z
 ---
 
 # Workstream: WS-A Workspace Navigation and Viewer UX
