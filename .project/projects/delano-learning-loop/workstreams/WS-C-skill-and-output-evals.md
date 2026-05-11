@@ -1,9 +1,9 @@
 ---
 name: WS-C Skill and Output Evals
 owner: bart
-status: planned
+status: done
 created: 2026-04-28T23:14:00Z
-updated: 2026-04-28T23:14:00Z
+updated: 2026-05-11T12:44:37Z
 ---
 
 # Workstream: WS-C Skill and Output Evals
