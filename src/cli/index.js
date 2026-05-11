@@ -116,6 +116,7 @@ function getGeneralHelp() {
     "  npx -y @bvdm/delano@latest --yes",
     "  delano viewer",
     "  delano validate",
+    "  delano status --open --brief",
     "  delano next -- --all",
     "",
     "Shorthand:",

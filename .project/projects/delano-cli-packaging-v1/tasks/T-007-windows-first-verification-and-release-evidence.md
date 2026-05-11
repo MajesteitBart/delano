@@ -4,7 +4,7 @@ name: Windows-first verification and release evidence
 status: done
 workstream: WS-D
 created: 2026-04-03T12:00:36Z
-updated: 2026-05-04T00:00:00Z
+updated: 2026-05-11T00:00:00Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -51,3 +51,4 @@ Verify the packaged CLI and wrapper commands in the current Windows-first enviro
 - 2026-05-04: Investigated manual publish run `25316513025`, which passed the explicit OIDC check and still failed at npm publish with `E404`. Updated the workflow to print the trusted publishing identity values before publishing and to clear `NODE_AUTH_TOKEN` for the publish step so npm uses OIDC instead of any setup-node token fallback. Validation pending after this patch.
 - 2026-05-04: Investigated saved job log `tmp/job-logs.txt`; clearing `NODE_AUTH_TOKEN` changed the publish failure from `E404` to `ENEEDAUTH`, confirming setup-node's generated npm auth config was still forcing token authentication. Removed `registry-url` from `actions/setup-node` and delete the generated npm user config before publish so npm can use trusted publishing directly. Validation passed: `npm run check:package-manifest`; `npm test`; `bash .agents/scripts/pm/validate.sh`.
 - 2026-05-04: Operator identified the npm token as revoked/expired. Reverted publish workflow to the setup-node npm registry path and restored `NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` on the publish step so the renewed GitHub secret is used for npm publication. Validation passed: `npm run check:package-manifest`; `npm test`; `bash .agents/scripts/pm/validate.sh`.
+- 2026-05-11: Added compact open-project status output and optional Codex SessionStart hook packaging. `delano status --open --brief` passed, hook install smoke for `--only codex-hooks` passed, and `.codex/hooks.json` now merges with existing valid hook config instead of blocking or overwriting. Validation passed: `npm run build:assets`; `npm test` (63/63); `npm run check:package-manifest`; `bash .agents/scripts/pm/validate.sh`.

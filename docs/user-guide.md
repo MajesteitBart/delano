@@ -81,6 +81,7 @@ Defaults:
 The base install path copies only the approved allowlist payload:
 
 - `.agents/`
+- `.codex/hooks.json`
 - `.project/`
 - `.delano/`
 - `HANDBOOK.md`
@@ -88,6 +89,14 @@ The base install path copies only the approved allowlist payload:
 
 It does not install top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, or `PI.md`. Those remain opt-in.
 It also does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`.
+The `.codex/hooks.json` file configures a Codex `SessionStart` hook that adds `delano status --open --brief` context on session startup and resume. It is inert until Codex hooks are enabled. If `.codex/hooks.json` already exists, `delano install` merges the Delano hook into the existing JSON instead of replacing it. Invalid or non-file hook configs are skipped without blocking the rest of the install.
+To activate it, add this to your Codex `config.toml`:
+
+```toml
+[features]
+codex_hooks = true
+```
+
 The packaged `.project/context/` files are generic starter templates. They are seeded into the target repo during install and should be rewritten to match that repo's actual context.
 After install, `.project/context/`, `.project/projects/`, and `.project/registry/` are repo-owned state. Do not include them in forced refreshes unless you are intentionally replacing that local state.
 
@@ -115,7 +124,7 @@ delano install --exclude project-context,project-projects,project-registry --for
 
 Use `delano install --interactive` when you want the CLI to show presets instead of remembering flags. The menu includes update-safe runtime refresh, skills plus project templates, full install or repair, and custom category selection.
 
-Supported install categories are `agent-runtime`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`.
+Supported install categories are `agent-runtime`, `codex-hooks`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`.
 
 ## Dependencies
 
@@ -145,6 +154,7 @@ npx -y @bvdm/delano@latest onboarding --approve-agents-analysis
 npx -y @bvdm/delano@latest viewer
 npx -y @bvdm/delano@latest validate
 npx -y @bvdm/delano@latest status
+npx -y @bvdm/delano@latest status --open --brief
 npx -y @bvdm/delano@latest next -- --all
 ```
 
@@ -155,6 +165,7 @@ delano onboarding
 delano viewer
 delano validate
 delano status
+delano status --open --brief
 delano next -- --all
 ```
 
@@ -169,6 +180,7 @@ Wrapper commands map directly to:
 ```bash
 bash .agents/scripts/pm/validate.sh
 bash .agents/scripts/pm/status.sh
+bash .agents/scripts/pm/status.sh --open --brief
 bash .agents/scripts/pm/next.sh --all
 bash .agents/scripts/pm/init.sh <slug> "<Project Name>" [owner] [lead]
 ```

@@ -122,6 +122,32 @@ test("install manifest includes shipped runtime script dependencies", () => {
   assert.ok(entries.has(".agents/schemas/metrics/delivery-event.schema.json"));
   assert.ok(entries.has(".agents/scripts/audit-context-files.mjs"));
   assert.ok(entries.has(".agents/scripts/check-text-safety.mjs"));
+  assert.ok(entries.has(".agents/hooks/codex-session-status.js"));
+  assert.ok(entries.has(".codex/hooks.json"));
+});
+
+test("status supports open brief output for startup context", () => {
+  const result = spawnSync("bash", [".agents/scripts/pm/status.sh", "--open", "--brief"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Delano open project status/);
+  assert.match(result.stdout, /open_tasks=/);
+  assert.doesNotMatch(result.stdout, /Project:/);
+});
+
+test("Codex session status hook emits SessionStart context", () => {
+  const result = spawnSync(process.execPath, [".agents/hooks/codex-session-status.js"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const parsed = JSON.parse(result.stdout);
+  assert.equal(parsed.hookSpecificOutput.hookEventName, "SessionStart");
+  assert.match(parsed.hookSpecificOutput.additionalContext, /Delano open project status/);
 });
 
 test("text safety check rejects bidi control characters", () => {
