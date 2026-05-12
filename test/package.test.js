@@ -258,6 +258,24 @@ test("status transition validation rejects task progress under planned project l
   assert.match(checkResult.stderr, /cannot transition to done while plan status is planned/);
 });
 
+test("status transition validation rejects task progress under planned workstream lifecycle", () => {
+  const checkResult = spawnSync(process.execPath, [
+    "scripts/check-status-transitions.mjs",
+    "--validate-transition",
+    "done",
+    "--dependency-statuses",
+    "done",
+    "--workstream-status",
+    "planned"
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr, /cannot transition to done while workstream status is planned/);
+});
+
 test("status transition validation rejects existing ready tasks with unresolved dependencies", () => {
   const tmpDir = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "delano-ready-dependency-"));
   const projectDir = path.join(tmpDir, "sample-project");
@@ -343,6 +361,62 @@ depends_on: []
   assert.notEqual(checkResult.status, 0);
   assert.match(checkResult.stderr, /progressed task\(s\) but spec\.md status is planned/);
   assert.match(checkResult.stderr, /progressed task\(s\) but plan\.md status is planned/);
+});
+
+test("status transition validation rejects existing tasks ahead of workstream lifecycle", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-planned-workstream-"));
+  const projectDir = path.join(tmpDir, "sample-project");
+  const workstreamsDir = path.join(projectDir, "workstreams");
+  const tasksDir = path.join(projectDir, "tasks");
+  fs.mkdirSync(workstreamsDir, { recursive: true });
+  fs.mkdirSync(tasksDir, { recursive: true });
+  fs.writeFileSync(path.join(projectDir, "spec.md"), `---
+status: active
+---
+
+# Spec
+`);
+  fs.writeFileSync(path.join(projectDir, "plan.md"), `---
+status: active
+---
+
+# Plan
+`);
+  fs.writeFileSync(path.join(workstreamsDir, "WS-A-sample.md"), `---
+name: WS-A Sample
+status: planned
+owner: team
+created: 2026-05-04T00:00:00Z
+updated: 2026-05-04T00:00:00Z
+---
+
+# Workstream: WS-A Sample
+`);
+  fs.writeFileSync(path.join(tasksDir, "task.md"), `---
+id: T-001
+name: Done task
+status: done
+workstream: WS-A
+created: 2026-05-04T00:00:00Z
+updated: 2026-05-04T00:00:00Z
+depends_on: []
+---
+
+# Task: Done task
+`);
+
+  const checkResult = spawnSync(process.execPath, [
+    "scripts/check-status-transitions.mjs",
+    "--projects-root",
+    tmpDir
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr, /has status done but workstream WS-A status is planned/);
+  assert.match(checkResult.stderr, /WS-A-sample\.md has no open tasks but status is planned/);
 });
 
 test("status transition validation rejects closed task sets under open project lifecycle", () => {

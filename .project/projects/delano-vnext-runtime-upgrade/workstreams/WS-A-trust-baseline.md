@@ -1,10 +1,10 @@
 ---
 id: WS-A
 name: Trust Baseline
-status: planned
+status: done
 owner: bart
 created: 2026-04-29T21:57:00Z
-updated: 2026-04-29T21:57:00Z
+updated: 2026-05-12T10:52:38Z
 child_project: delano-trust-safety-runtime
 ---
 

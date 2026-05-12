@@ -1,9 +1,9 @@
 ---
 name: WS-D Presets, Adapters, and Onboarding
 owner: delano-team
-status: planned
+status: done
 created: 2026-05-10T09:02:02Z
-updated: 2026-05-10T09:02:02Z
+updated: 2026-05-12T10:52:38Z
 ---
 
 # Workstream: WS-D Presets, Adapters, and Onboarding

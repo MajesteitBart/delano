@@ -7,6 +7,17 @@ const { getOnboardingHelp, runOnboarding } = require("./commands/onboarding");
 const { runInstall, getInstallHelp } = require("./commands/install");
 const { runViewer, getViewerHelp } = require("./commands/viewer");
 const { createWrapperCommand } = require("./commands/wrapper");
+const {
+  getProjectHelp,
+  getTaskHelp,
+  getUpdateHelp,
+  getWorkstreamHelp,
+  parseTaskArgs,
+  runProjectCommand,
+  runTaskCommand,
+  runUpdateCommand,
+  runWorkstreamCommand
+} = require("./commands/state");
 
 const wrapperCommands = {
   init: createWrapperCommand("init"),
@@ -39,6 +50,26 @@ const commands = {
     run: runViewer,
     help: getViewerHelp
   },
+  project: {
+    description: "Create, show, and patch Delano project contracts.",
+    run: runProjectCommand,
+    help: getProjectHelp
+  },
+  workstream: {
+    description: "Add and patch Delano workstream contracts.",
+    run: runWorkstreamCommand,
+    help: getWorkstreamHelp
+  },
+  task: {
+    description: "Add and patch Delano task contracts with scoped lifecycle rollups.",
+    run: runTaskCommand,
+    help: getTaskHelp
+  },
+  update: {
+    description: "Add project progress updates from the project update template.",
+    run: runUpdateCommand,
+    help: getUpdateHelp
+  },
   init: wrapperCommands.init,
   "import-spec-kit": wrapperCommands["import-spec-kit"],
   research: wrapperCommands.research,
@@ -48,11 +79,7 @@ const commands = {
 };
 
 function isInstallShorthand(argv) {
-  if (argv.length === 0) {
-    return false;
-  }
-
-  return argv[0].startsWith("-");
+  return argv.length > 0 && argv[0].startsWith("-");
 }
 
 function resolveInvocation(argv) {
@@ -109,6 +136,10 @@ function getGeneralHelp() {
     "  onboarding Analyze AGENTS.md with the approval-first onboarding skill",
     "  install    Install the approved Delano runtime payload",
     "  viewer     Launch the read-only local UI for .project contracts",
+    "  project    Create, show, and patch project contracts",
+    "  workstream Add and patch workstream contracts",
+    "  task       Add and patch task contracts with scoped lifecycle rollups",
+    "  update     Add a progress update from .project/templates",
     "  init            Run .agents/scripts/pm/init.sh in the current Delano repo",
     "  import-spec-kit Create a planned project from a Spec Kit-style markdown artifact",
     "  research        Create repo-native research intake files for a project",
@@ -127,6 +158,12 @@ function getGeneralHelp() {
     "  delano --target ../my-repo --yes",
     "  npx -y @bvdm/delano@latest --yes",
     "  delano viewer",
+    "  delano project create my-project --name \"My Project\" --owner team",
+    "  delano workstream add my-project WS-A --name \"API Foundation\" --owner backend-team",
+    "  delano task add my-project T-001 --name \"Build endpoint\" --workstream WS-A",
+    "  delano task start my-project T-001",
+    "  delano task close my-project T-001 --evidence \"Implemented and tested\"",
+    "  delano update add my-project --message \"Implemented endpoint smoke test\"",
     "  delano import-spec-kit reminder-email-preferences docs/spec-kit/fixtures/minimal-spec-kit-project.md --json",
     "  delano research my-project api-options --title \"API options\" --question \"Which API shape should we use?\" --json",
     "  delano validate",
@@ -229,6 +266,8 @@ module.exports = {
   getGeneralHelp,
   getImportSpecKitHelp,
   getResearchHelp,
+  getTaskHelp,
+  parseTaskArgs,
   resolveInvocation,
   run
 };
