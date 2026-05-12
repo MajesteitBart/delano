@@ -12,7 +12,7 @@ function createWrapperCommand(scriptName, options = {}) {
         return options.help();
       }
 
-      return [
+      const lines = [
         "Usage:",
         `  delano ${scriptName} [-- <script-args>]`,
         "",
@@ -20,7 +20,18 @@ function createWrapperCommand(scriptName, options = {}) {
         `  - Resolves the current Delano repository by searching upward for .project/ and .agents/scripts/pm/.`,
         `  - Runs .agents/scripts/pm/${scriptName}.sh through bash.`,
         "  - Pass '--' to make argument passthrough explicit when needed."
-      ].join("\n");
+      ];
+
+      if (scriptName === "status") {
+        lines.push(
+          "",
+          "Status examples:",
+          "  delano status --open --brief",
+          "  delano status -- --open --brief"
+        );
+      }
+
+      return lines.join("\n");
     }
   };
 }

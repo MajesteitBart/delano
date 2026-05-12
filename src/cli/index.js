@@ -130,6 +130,7 @@ function getGeneralHelp() {
     "  delano import-spec-kit reminder-email-preferences docs/spec-kit/fixtures/minimal-spec-kit-project.md --json",
     "  delano research my-project api-options --title \"API options\" --question \"Which API shape should we use?\" --json",
     "  delano validate",
+    "  delano status --open --brief",
     "  delano next -- --all",
     "",
     "Shorthand:",

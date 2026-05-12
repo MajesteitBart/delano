@@ -43,7 +43,8 @@ function getViewerHelp() {
     "  -h, --help       Show help",
     "",
     "Environment:",
-    "  DELANO_VIEWER_PORT or PORT overrides the default port 3977."
+    "  DELANO_VIEWER_PORT or PORT sets the starting port, defaulting to 3977.",
+    "  If that port is busy, the viewer starts on the next available port."
   ].join("\n");
 }
 

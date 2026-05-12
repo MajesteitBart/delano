@@ -22,3 +22,10 @@ output/
 tmp/
 
 pack-output.json
+
+# Impeccable live local runtime artifacts
+.impeccable/live/annotations/
+.impeccable/live/sessions/
+.impeccable/live/server.json
+.impeccable/live/*.log
+.impeccable/live/*.png

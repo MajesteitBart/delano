@@ -2,13 +2,13 @@
 name: Delano Multi-Agent Execution
 slug: delano-multi-agent-execution
 owner: bart
-status: planned
+status: complete
 created: 2026-04-28T23:14:00Z
-updated: 2026-04-28T23:14:00Z
+updated: 2026-05-11T12:44:37Z
 outcome: Delano supports parallel coding agents with explicit file leases, conflict-zone checks, stream-aware task selection, and required handoff summaries.
 uncertainty: medium
 probe_required: true
-probe_status: not-started
+probe_status: completed
 ---
 
 # Spec: Delano Multi-Agent Execution
@@ -64,7 +64,7 @@ probe_status: not-started
 - Optional GitHub or Linear credentials only for later apply-capable sync work.
 
 ## Acceptance Criteria
-- [ ] Project tasks are represented as Delano task contracts.
-- [ ] Workstreams identify owned files or runtime areas before implementation begins.
-- [ ] Validation can run after contract creation.
-- [ ] Implementation tasks include evidence requirements in their Definition of Done.
+- [x] Project tasks are represented as Delano task contracts.
+- [x] Workstreams identify owned files or runtime areas before implementation begins.
+- [x] Validation can run after contract creation.
+- [x] Implementation tasks include evidence requirements in their Definition of Done.

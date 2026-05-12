@@ -2,13 +2,13 @@
 name: Delano Trust and Safety Runtime
 slug: delano-trust-safety-runtime
 owner: bart
-status: planned
+status: complete
 created: 2026-04-28T23:14:00Z
-updated: 2026-04-28T23:14:00Z
+updated: 2026-05-11T12:44:37Z
 outcome: Delano has safer defaults for logging, path output, package metadata, and agent entry instructions so operators can trust the runtime before deeper contract automation lands.
 uncertainty: medium
 probe_required: true
-probe_status: not-started
+probe_status: completed
 ---
 
 # Spec: Delano Trust and Safety Runtime
@@ -65,7 +65,7 @@ probe_status: not-started
 - Optional GitHub or Linear credentials only for later apply-capable sync work.
 
 ## Acceptance Criteria
-- [ ] Project tasks are represented as Delano task contracts.
-- [ ] Workstreams identify owned files or runtime areas before implementation begins.
-- [ ] Validation can run after contract creation.
-- [ ] Implementation tasks include evidence requirements in their Definition of Done.
+- [x] Project tasks are represented as Delano task contracts.
+- [x] Workstreams identify owned files or runtime areas before implementation begins.
+- [x] Validation can run after contract creation.
+- [x] Implementation tasks include evidence requirements in their Definition of Done.

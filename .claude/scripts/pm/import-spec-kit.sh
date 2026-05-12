@@ -30,11 +30,11 @@ USAGE
 }
 
 resolve_python() {
-  if command -v python3 >/dev/null 2>&1; then
+  if command -v python3 >/dev/null 2>&1 && python3 -c "import sys" >/dev/null 2>&1; then
     PYTHON_CMD=(python3)
-  elif command -v py >/dev/null 2>&1; then
+  elif command -v py >/dev/null 2>&1 && py -3 -c "import sys" >/dev/null 2>&1; then
     PYTHON_CMD=(py -3)
-  elif command -v python >/dev/null 2>&1; then
+  elif command -v python >/dev/null 2>&1 && python -c "import sys" >/dev/null 2>&1; then
     PYTHON_CMD=(python)
   else
     echo "Error: Python runtime not found. Install python3, python, or py -3." >&2
@@ -161,6 +161,10 @@ root = Path.cwd()
 source_text = source_path.read_text(encoding="utf-8")
 now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 today = now[:10]
+
+def write_file(path, text):
+    with path.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write(text)
 
 heading_match = re.search(r"^#\s+(?:Specification|Spec):\s+(.+?)\s*$", source_text, re.MULTILINE | re.IGNORECASE)
 if project_name_arg:
@@ -327,7 +331,7 @@ Pending. Run a delivery probe before activating this spec.
 
 Imported by `delano import-spec-kit`. Review before activation.
 """
-(project_dir / "spec.md").write_text(spec, encoding="utf-8")
+write_file(project_dir / "spec.md", spec)
 
 plan = f"""---
 name: {yaml_scalar(project_name)}
@@ -385,9 +389,9 @@ If the import is wrong, remove `.project/projects/{slug}` before external sync o
 - Imported task boundaries may need workstream refinement.
 - Clarifications may block activation.
 """
-(project_dir / "plan.md").write_text(plan, encoding="utf-8")
+write_file(project_dir / "plan.md", plan)
 
-(project_dir / "decisions.md").write_text("# Decisions\n\nTrack key project decisions with context and rationale.\n", encoding="utf-8")
+write_file(project_dir / "decisions.md", "# Decisions\n\nTrack key project decisions with context and rationale.\n")
 
 workstream = f"""---
 name: WS-A Imported Delivery Foundation
@@ -422,7 +426,7 @@ Normalize and execute the imported Spec Kit-style task set under Delano governan
 - Tasks have evidence logs.
 - Validation passes before closure.
 """
-(project_dir / "workstreams" / "WS-A-imported-delivery-foundation.md").write_text(workstream, encoding="utf-8")
+write_file(project_dir / "workstreams" / "WS-A-imported-delivery-foundation.md", workstream)
 
 def slugify(text):
     text = re.sub(r"^T\d+\s+", "", text.strip(), flags=re.IGNORECASE)
@@ -524,7 +528,7 @@ Imported from Spec Kit-style source task: `{raw}`
 
 - {now}: Imported from Spec Kit-style markdown by `delano import-spec-kit`.
 """
-    (project_dir / "tasks" / f"{task_id}-{task_slug}.md").write_text(task, encoding="utf-8")
+    write_file(project_dir / "tasks" / f"{task_id}-{task_slug}.md", task)
 
 update = f"""# Imported from Spec Kit-style artifact
 
@@ -552,7 +556,7 @@ Imported `{source_display}` into Delano project `{slug}`.
 
 Review the generated project, then run Delano validation and a probe before activation.
 """
-(project_dir / "updates" / f"{today}-imported-from-spec-kit.md").write_text(update, encoding="utf-8")
+write_file(project_dir / "updates" / f"{today}-imported-from-spec-kit.md", update)
 PY
 
 validation_status="skipped"

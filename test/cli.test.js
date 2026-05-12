@@ -1,12 +1,17 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 
 const { commands, getGeneralHelp, getImportSpecKitHelp, getResearchHelp, resolveInvocation } = require("../src/cli");
 const {
+  applyInstallPlan,
   applyInstallPreset,
+  collectConflicts,
   filterManifestEntries,
+  mergeCodexHooksConfig,
   normalizeManifestEntries,
   parseAgentList,
   parseCategoryList,
@@ -91,10 +96,11 @@ test("agent parsing normalizes values and removes duplicates", () => {
 });
 
 test("install category parsing supports practical aliases", () => {
-  assert.deepEqual(parseCategoryList("agent-skills,templates,context", "--only"), [
+  assert.deepEqual(parseCategoryList("agent-skills,templates,context,codex", "--only"), [
     "skills",
     "project-templates",
-    "project-context"
+    "project-context",
+    "codex-hooks"
   ]);
 });
 
@@ -130,7 +136,7 @@ test("install presets encode update-safe choices", () => {
 test("interactive category selection accepts numbers names and all", () => {
   assert.equal(parseInteractiveCategorySelection("all"), null);
   assert.equal(parseInteractiveCategorySelection(""), null);
-  assert.deepEqual(parseInteractiveCategorySelection("2, project-templates"), [
+  assert.deepEqual(parseInteractiveCategorySelection("3, project-templates"), [
     "skills",
     "project-templates"
   ]);
@@ -194,6 +200,108 @@ test("install manifest filtering narrows updates before conflict detection", () 
       ".project/templates/spec.md"
     ]
   );
+});
+
+test("existing Codex hooks config does not block install conflict detection", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-codex-hooks-conflict-"));
+  const targetRoot = path.join(tmpDir, "target");
+  const sourcePath = path.join(tmpDir, "hooks-source.json");
+  const targetPath = path.join(targetRoot, ".codex", "hooks.json");
+
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.writeFileSync(sourcePath, "{}\n", "utf8");
+  fs.writeFileSync(targetPath, "{}\n", "utf8");
+
+  const conflicts = collectConflicts({
+    targetRoot,
+    items: [{
+      relativePath: ".codex/hooks.json",
+      sourcePath,
+      targetPath
+    }]
+  });
+
+  assert.deepEqual(conflicts, []);
+});
+
+test("Codex hooks config merge preserves existing hooks and appends Delano once", () => {
+  const existingConfig = {
+    hooks: {
+      PreToolUse: [{
+        matcher: "Bash",
+        hooks: [{ type: "command", command: "node ./pre-tool.js" }]
+      }],
+      SessionStart: [{
+        matcher: "clear",
+        hooks: [{ type: "command", command: "node ./clear-notes.js" }]
+      }]
+    }
+  };
+  const packagedConfig = {
+    hooks: {
+      SessionStart: [{
+        matcher: "startup|resume",
+        hooks: [{
+          type: "command",
+          command: "node \"$(git rev-parse --show-toplevel)/.agents/hooks/codex-session-status.js\"",
+          timeout: 5
+        }]
+      }]
+    }
+  };
+
+  const firstMerge = mergeCodexHooksConfig(existingConfig, packagedConfig);
+  assert.equal(firstMerge.ok, true);
+  assert.equal(firstMerge.changed, true);
+  assert.equal(firstMerge.config.hooks.PreToolUse.length, 1);
+  assert.equal(firstMerge.config.hooks.SessionStart.length, 2);
+
+  const secondMerge = mergeCodexHooksConfig(firstMerge.config, packagedConfig);
+  assert.equal(secondMerge.ok, true);
+  assert.equal(secondMerge.changed, false);
+  assert.equal(secondMerge.config.hooks.SessionStart.length, 2);
+});
+
+test("install plan merges an existing Codex hooks config", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-codex-hooks-merge-"));
+  const sourcePath = path.join(tmpDir, "source-hooks.json");
+  const targetRoot = path.join(tmpDir, "target");
+  const targetPath = path.join(targetRoot, ".codex", "hooks.json");
+
+  fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+  fs.writeFileSync(sourcePath, JSON.stringify({
+    hooks: {
+      SessionStart: [{
+        matcher: "startup|resume",
+        hooks: [{
+          type: "command",
+          command: "node \"$(git rev-parse --show-toplevel)/.agents/hooks/codex-session-status.js\"",
+          timeout: 5
+        }]
+      }]
+    }
+  }), "utf8");
+  fs.writeFileSync(targetPath, `\uFEFF${JSON.stringify({
+    hooks: {
+      UserPromptSubmit: [{
+        hooks: [{ type: "command", command: "node ./prompt-check.js" }]
+      }]
+    }
+  })}`, "utf8");
+
+  applyInstallPlan({
+    items: [{
+      relativePath: ".codex/hooks.json",
+      sourcePath,
+      targetPath
+    }],
+    targetRoot
+  }, { target: targetRoot });
+
+  const merged = JSON.parse(fs.readFileSync(targetPath, "utf8"));
+  assert.equal(merged.hooks.UserPromptSubmit.length, 1);
+  assert.equal(merged.hooks.SessionStart.length, 1);
+  assert.match(merged.hooks.SessionStart[0].hooks[0].command, /codex-session-status\.js/);
 });
 
 test("findDelanoRoot locates the repo root from a nested path", () => {

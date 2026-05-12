@@ -771,7 +771,19 @@ function render() {
   });
   document.querySelectorAll('[data-doc]').forEach((el) => el.onclick = () => loadDoc(el.dataset.doc));
   document.querySelectorAll('[data-status]').forEach((el) => el.onclick = () => { state.status = el.dataset.status; render(); });
-  document.querySelectorAll('[data-role]').forEach((el) => el.onclick = () => { state.role = el.dataset.role; state.workstream = null; render(); });
+  document.querySelectorAll('[data-role]').forEach((el) => el.onclick = () => {
+    state.role = el.dataset.role;
+    state.workstream = null;
+    if (state.role !== 'all') {
+      const firstInRole = currentDocs().find((doc) => doc.role === state.role);
+      if (firstInRole) {
+        if (state.role === 'workstream') state.workstream = firstInRole.path;
+        loadDoc(firstInRole.path);
+        return;
+      }
+    }
+    render();
+  });
   document.querySelectorAll('[data-workstream]').forEach((el) => el.onclick = () => { state.workstream = el.dataset.workstream; state.role = 'all'; loadDoc(el.dataset.doc); });
   document.querySelectorAll('[data-clear-workstream]').forEach((el) => el.onclick = () => { state.workstream = null; render(); });
   document.querySelectorAll('[data-outline-toggle]').forEach((el) => el.onclick = () => { state.outlineOpen = !state.outlineOpen; render(); });

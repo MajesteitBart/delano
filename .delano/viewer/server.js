@@ -12,7 +12,16 @@ const { spawn, spawnSync } = require('node:child_process');
 const repoRoot = path.resolve(process.env.DELANO_VIEWER_ROOT || path.resolve(__dirname, '..', '..'));
 const projectRoot = path.join(repoRoot, '.project');
 const publicRoot = path.join(__dirname, 'public');
-const port = Number(process.env.DELANO_VIEWER_PORT || process.env.PORT || 3977);
+const DEFAULT_PORT = 3977;
+const MAX_PORT = 65535;
+const MAX_PORT_ATTEMPTS = 100;
+const startPort = normalizePort(process.env.DELANO_VIEWER_PORT || process.env.PORT, DEFAULT_PORT);
+
+function normalizePort(value, fallback) {
+  const parsed = Number(value || fallback);
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_PORT) return fallback;
+  return parsed;
+}
 
 function isInside(parent, child) {
   const rel = path.relative(parent, child);
@@ -332,6 +341,7 @@ function sendStatic(res, pathname) {
   const ext = path.extname(resolved).toLowerCase();
   const mimeMap = {
     '.js': 'text/javascript',
+    '.jsx': 'text/javascript',
     '.css': 'text/css',
     '.svg': 'image/svg+xml',
     '.png': 'image/png',
@@ -340,7 +350,7 @@ function sendStatic(res, pathname) {
     '.webp': 'image/webp',
     '.ico': 'image/x-icon',
   };
-  const isText = ext === '.js' || ext === '.css' || ext === '.svg' || ext === '' || ext === '.html';
+  const isText = ext === '.js' || ext === '.jsx' || ext === '.css' || ext === '.svg' || ext === '' || ext === '.html';
   const type = mimeMap[ext] || 'text/html';
   const headers = isText ? { 'content-type': `${type}; charset=utf-8` } : { 'content-type': type };
   res.writeHead(200, headers);
@@ -384,6 +394,37 @@ const server = http.createServer((req, res) => {
   }
 });
 
-server.listen(port, '127.0.0.1', () => {
-  console.log(`Delano read-only viewer: http://127.0.0.1:${port}`);
-});
+function listenWithPortFallback(server, firstPort, host = '127.0.0.1') {
+  let port = firstPort;
+  let attempts = 0;
+
+  const listen = () => {
+    server.once('error', onError);
+    server.listen(port, host);
+  };
+
+  const onError = (error) => {
+    if (error.code === 'EADDRINUSE' && port < MAX_PORT && attempts < MAX_PORT_ATTEMPTS) {
+      attempts += 1;
+      port += 1;
+      listen();
+      return;
+    }
+
+    console.error(`Failed to start Delano viewer on ${host}:${port}: ${error.message}`);
+    process.exitCode = 1;
+  };
+
+  const onListening = () => {
+    server.removeListener('error', onError);
+    const address = server.address();
+    const actualPort = typeof address === 'object' && address ? address.port : port;
+    const skipped = actualPort !== firstPort ? ` (${firstPort} was unavailable)` : '';
+    console.log(`Delano read-only viewer: http://${host}:${actualPort}${skipped}`);
+  };
+
+  server.on('listening', onListening);
+  listen();
+}
+
+listenWithPortFallback(server, startPort);

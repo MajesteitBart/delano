@@ -29,11 +29,11 @@ USAGE
 }
 
 resolve_python() {
-  if command -v python3 >/dev/null 2>&1; then
+  if command -v python3 >/dev/null 2>&1 && python3 -c "import sys" >/dev/null 2>&1; then
     PYTHON_CMD=(python3)
-  elif command -v py >/dev/null 2>&1; then
+  elif command -v py >/dev/null 2>&1 && py -3 -c "import sys" >/dev/null 2>&1; then
     PYTHON_CMD=(py -3)
-  elif command -v python >/dev/null 2>&1; then
+  elif command -v python >/dev/null 2>&1 && python -c "import sys" >/dev/null 2>&1; then
     PYTHON_CMD=(python)
   else
     echo "Error: Python runtime not found. Install python3, python, or py -3." >&2

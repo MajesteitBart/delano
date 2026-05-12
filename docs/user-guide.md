@@ -81,6 +81,7 @@ Defaults:
 The base install path copies only the approved allowlist payload:
 
 - `.agents/`
+- `.codex/hooks.json`
 - `.project/`
 - `.delano/`
 - `HANDBOOK.md`
@@ -88,6 +89,28 @@ The base install path copies only the approved allowlist payload:
 
 It does not install top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, or `PI.md`. Those remain opt-in.
 It also does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`.
+The `.codex/hooks.json` file configures a Codex `SessionStart` hook that adds compact open-project context on session startup and resume. It is inert until Codex hooks are enabled. If `.codex/hooks.json` already exists, `delano install` merges the Delano hook into the existing JSON instead of replacing it. Invalid or non-file hook configs are skipped without blocking the rest of the install.
+
+Codex hook activation is intentionally manual:
+
+1. Enable hooks for a session with `codex --enable hooks`, or persist the feature in `~/.codex/config.toml`:
+
+   ```toml
+   [features]
+   hooks = true
+   ```
+
+2. Start Codex in the repository and approve the project trust prompt for the repo-local `.codex/` layer. Codex records trusted projects in `~/.codex/config.toml`, for example:
+
+   ```toml
+   [projects."E:\\path\\to\\repo"]
+   trust_level = "trusted"
+   ```
+
+3. Approve the Delano `SessionStart` hook when Codex asks whether to trust it.
+
+Older docs and builds may refer to `[features].codex_hooks`; newer Codex builds warn that this key is deprecated in favor of `[features].hooks`.
+
 The packaged `.project/context/` files are generic starter templates. They are seeded into the target repo during install and should be rewritten to match that repo's actual context.
 After install, `.project/context/`, `.project/projects/`, and `.project/registry/` are repo-owned state. Do not include them in forced refreshes unless you are intentionally replacing that local state.
 
@@ -115,7 +138,7 @@ delano install --exclude project-context,project-projects,project-registry --for
 
 Use `delano install --interactive` when you want the CLI to show presets instead of remembering flags. The menu includes update-safe runtime refresh, skills plus project templates, full install or repair, and custom category selection.
 
-Supported install categories are `agent-runtime`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`.
+Supported install categories are `agent-runtime`, `codex-hooks`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`.
 
 ## Dependencies
 
@@ -145,6 +168,7 @@ npx -y @bvdm/delano@latest onboarding --approve-agents-analysis
 npx -y @bvdm/delano@latest viewer
 npx -y @bvdm/delano@latest validate
 npx -y @bvdm/delano@latest status
+npx -y @bvdm/delano@latest status --open --brief
 npx -y @bvdm/delano@latest next -- --all
 ```
 
@@ -155,6 +179,7 @@ delano onboarding
 delano viewer
 delano validate
 delano status
+delano status --open --brief
 delano next -- --all
 delano import-spec-kit <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
 delano research <project-slug> <research-slug> [--title <title>] [--question <question>] [--json]
@@ -171,6 +196,7 @@ Wrapper commands map directly to:
 ```bash
 bash .agents/scripts/pm/validate.sh
 bash .agents/scripts/pm/status.sh
+bash .agents/scripts/pm/status.sh --open --brief
 bash .agents/scripts/pm/next.sh --all
 bash .agents/scripts/pm/init.sh <slug> "<Project Name>" [owner] [lead]
 bash .agents/scripts/pm/import-spec-kit.sh <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]

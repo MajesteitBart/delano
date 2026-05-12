@@ -3,8 +3,9 @@
 Minimal local frontend for browsing `.project` markdown contracts.
 
 - Read-only: serves files from `.project` and does not write delivery state.
-- Default URL: `http://127.0.0.1:3977`
-- Override port: `DELANO_VIEWER_PORT=3987 npm run viewer`
+- Default starting URL: `http://127.0.0.1:3977`
+- Override starting port: `DELANO_VIEWER_PORT=3987 npm run viewer`
+- Multiple viewers can run at once. If the starting port is already in use, the viewer tries the next available port and prints the actual URL.
 
 Run from the repository root:
 
