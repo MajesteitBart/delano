@@ -19,7 +19,9 @@ for (const requiredRule of [
   "ready-dependencies-done",
   "blocked-owner-check-back",
   "progressed-task-requires-active-project",
-  "closed-task-set-requires-closed-project"
+  "closed-task-set-requires-closed-project",
+  "progressed-task-requires-active-workstream",
+  "closed-task-set-requires-closed-workstream"
 ]) {
   if (!rules.some((rule) => rule.id === requiredRule)) {
     errors.push(`status transition contract missing rule: ${requiredRule}`);
@@ -38,6 +40,15 @@ for (const projectDir of listDirectories(projectsRoot)) {
   const specFrontmatter = existsSync(specPath) ? parseFrontmatter(specPath) : null;
   const planFrontmatter = existsSync(planPath) ? parseFrontmatter(planPath) : null;
   const hasProjectLifecycle = Boolean(specFrontmatter || planFrontmatter);
+  const workstreams = collectWorkstreams(projectDir);
+  const workstreamSummaries = new Map();
+  for (const [workstreamId, workstream] of workstreams.entries()) {
+    workstreamSummaries.set(workstreamId, {
+      workstream,
+      totalTaskCount: 0,
+      openTaskCount: 0
+    });
+  }
   const tasksDir = path.join(projectDir, "tasks");
   if (!existsSync(tasksDir)) continue;
 
@@ -52,6 +63,12 @@ for (const projectDir of listDirectories(projectsRoot)) {
     totalTaskCount += 1;
     if (!isClosedTaskStatus(status)) openTaskCount += 1;
     if (isProgressedTaskStatus(status)) progressedTaskCount += 1;
+    const taskWorkstream = frontmatter.workstream || "";
+    if (taskWorkstream && workstreamSummaries.has(taskWorkstream)) {
+      const summary = workstreamSummaries.get(taskWorkstream);
+      summary.totalTaskCount += 1;
+      if (!isClosedTaskStatus(status)) summary.openTaskCount += 1;
+    }
     tasks.set(id, { file: taskFile, frontmatter });
   }
 
@@ -69,6 +86,18 @@ for (const projectDir of listDirectories(projectsRoot)) {
   for (const [taskId, task] of tasks.entries()) {
     const status = task.frontmatter.status || "";
     const dependencies = parseList(task.frontmatter.depends_on || "[]");
+    const taskWorkstream = task.frontmatter.workstream || "";
+    const workstream = taskWorkstream ? workstreams.get(taskWorkstream) : null;
+
+    if (isProgressedTaskStatus(status)) {
+      if (!taskWorkstream) {
+        errors.push(`${toRepoPath(task.file)} has status ${status} but is missing workstream frontmatter; expected an existing workstream id.`);
+      } else if (!workstream) {
+        errors.push(`${toRepoPath(task.file)} has status ${status} but workstream ${taskWorkstream} does not exist; expected an existing workstream id.`);
+      } else {
+        validateTaskWorkstreamLifecycle({ task, workstream });
+      }
+    }
 
     if (["ready", "in-progress", "done"].includes(status)) {
       for (const dependencyId of dependencies) {
@@ -90,6 +119,10 @@ for (const projectDir of listDirectories(projectsRoot)) {
       }
     }
   }
+
+  for (const summary of workstreamSummaries.values()) {
+    validateWorkstreamLifecycle(summary);
+  }
 }
 
 finish();
@@ -105,7 +138,8 @@ function parseTransitionArgs(args) {
   const blockedCheckBack = valueAfter(args, "--blocked-check-back");
   const specStatus = valueAfter(args, "--spec-status");
   const planStatus = valueAfter(args, "--plan-status");
-  return { nextStatus, dependencyStatuses, blockedOwner, blockedCheckBack, specStatus, planStatus };
+  const workstreamStatus = valueAfter(args, "--workstream-status");
+  return { nextStatus, dependencyStatuses, blockedOwner, blockedCheckBack, specStatus, planStatus, workstreamStatus };
 }
 
 function validateTransitionRequest(request) {
@@ -123,6 +157,12 @@ function validateTransitionRequest(request) {
     }
     if (request.planStatus && !isActiveOrClosedPlanStatus(request.planStatus)) {
       errors.push(`cannot transition to ${request.nextStatus} while plan status is ${request.planStatus}; expected active or done`);
+    }
+    if (request.nextStatus === "in-progress" && request.workstreamStatus && !isActiveWorkstreamStatus(request.workstreamStatus)) {
+      errors.push(`cannot transition to in-progress while workstream status is ${request.workstreamStatus}; expected active`);
+    }
+    if (request.nextStatus === "done" && request.workstreamStatus && !isActiveOrClosedWorkstreamStatus(request.workstreamStatus)) {
+      errors.push(`cannot transition to done while workstream status is ${request.workstreamStatus}; expected active or done`);
     }
   }
 
@@ -153,6 +193,24 @@ function validateProjectLifecycle(request) {
   }
 }
 
+function validateTaskWorkstreamLifecycle({ task, workstream }) {
+  const status = task.frontmatter.status || "";
+  const workstreamStatus = workstream.frontmatter.status || "";
+  if (status === "in-progress" && !isActiveWorkstreamStatus(workstreamStatus)) {
+    errors.push(`${toRepoPath(task.file)} has status in-progress but workstream ${workstream.id} status is ${describeStatus(workstreamStatus)}; expected active.`);
+  }
+  if (status === "done" && !isActiveOrClosedWorkstreamStatus(workstreamStatus)) {
+    errors.push(`${toRepoPath(task.file)} has status done but workstream ${workstream.id} status is ${describeStatus(workstreamStatus)}; expected active or done.`);
+  }
+}
+
+function validateWorkstreamLifecycle({ workstream, totalTaskCount, openTaskCount }) {
+  const workstreamStatus = workstream.frontmatter.status || "";
+  if (totalTaskCount > 0 && openTaskCount === 0 && !isClosedWorkstreamStatus(workstreamStatus)) {
+    errors.push(`${toRepoPath(workstream.file)} has no open tasks but status is ${describeStatus(workstreamStatus)}; expected done or deferred.`);
+  }
+}
+
 function isProgressedTaskStatus(status) {
   return ["in-progress", "done"].includes(status);
 }
@@ -174,6 +232,18 @@ function isClosedSpecStatus(status) {
 }
 
 function isClosedPlanStatus(status) {
+  return ["done", "deferred"].includes(status);
+}
+
+function isActiveWorkstreamStatus(status) {
+  return status === "active";
+}
+
+function isActiveOrClosedWorkstreamStatus(status) {
+  return ["active", "done"].includes(status);
+}
+
+function isClosedWorkstreamStatus(status) {
   return ["done", "deferred"].includes(status);
 }
 
@@ -242,6 +312,17 @@ function listMarkdownFiles(root) {
   return readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
     .map((entry) => path.join(root, entry.name));
+}
+
+function collectWorkstreams(projectDir) {
+  const workstreamsDir = path.join(projectDir, "workstreams");
+  const workstreams = new Map();
+  for (const workstreamFile of listMarkdownFiles(workstreamsDir)) {
+    const frontmatter = parseFrontmatter(workstreamFile);
+    const id = frontmatter.id || path.basename(workstreamFile, ".md").match(/^(WS-[A-Za-z0-9]+)/)?.[1] || "";
+    if (id) workstreams.set(id, { id, file: workstreamFile, frontmatter });
+  }
+  return workstreams;
 }
 
 function resolveRepoRoot(startDir) {

@@ -1,7 +1,7 @@
 ---
 id: T-005
 name: Define preset and adapter manifest model
-status: ready
+status: done
 workstream: WS-D
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -23,9 +23,9 @@ Define how Delano can describe agent integrations, workflow presets, install cat
 
 ## Acceptance Criteria
 
-- [ ] A manifest proposal lists fields, ownership, generated files, and validation expectations.
-- [ ] At least two example presets are described.
-- [ ] Install/update conflict behavior is preserved.
+- [x] A manifest proposal lists fields, ownership, generated files, and validation expectations.
+- [x] At least two example presets are described.
+- [x] Install/update conflict behavior is preserved.
 
 ## Technical Notes
 
@@ -35,12 +35,13 @@ Define how Delano can describe agent integrations, workflow presets, install cat
 
 ## Definition of Done
 
-- [ ] Implementation or documentation complete.
-- [ ] Delano validation passes.
-- [ ] Relevant tests or text safety checks pass.
-- [ ] Evidence is recorded in this task or an update note.
-- [ ] Docs are updated where user-facing behavior changes.
+- [x] Implementation or documentation complete.
+- [x] Delano validation passes.
+- [x] Relevant tests or text safety checks pass.
+- [x] Evidence is recorded in this task or an update note.
+- [x] Docs are updated where user-facing behavior changes.
 
 ## Evidence Log
 
 - 2026-05-10T09:02:02Z: Task created from Spec Kit integration plan conversion.
+- 2026-05-10T12:02:00Z: Added `docs/presets-and-adapters.md`, adapter manifest schema proposal, and experimental Spec Kit adapter manifest. Documented Spec Kit interop, prototype-first, and enterprise-audit preset examples while preserving Delano conflict-first install semantics.

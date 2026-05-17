@@ -1,9 +1,9 @@
 ---
 name: Delano Spec Kit Interop and Authoring Layer
-status: planned
+status: done
 lead: bart
 created: 2026-05-10T09:02:02Z
-updated: 2026-05-10T09:02:02Z
+updated: 2026-05-12T10:34:21Z
 linear_project_id:
 risk_level: medium
 spec_status_at_plan_time: planned

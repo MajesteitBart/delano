@@ -2,9 +2,9 @@
 name: Delano Spec Kit Interop and Authoring Layer
 slug: delano-spec-kit-interop
 owner: delano-team
-status: planned
+status: complete
 created: 2026-05-10T09:02:02Z
-updated: 2026-05-10T09:02:02Z
+updated: 2026-05-12T10:34:21Z
 outcome: Delano can accept Spec Kit-style intent artifacts and guide new users from idea to governed delivery without weakening evidence, validation, sync, multi-agent, or closeout contracts.
 uncertainty: medium
 probe_required: true

@@ -1,9 +1,9 @@
 ---
 name: WS-A Authoring and Import Layer
 owner: delano-team
-status: planned
+status: done
 created: 2026-05-10T09:02:02Z
-updated: 2026-05-10T09:02:02Z
+updated: 2026-05-12T10:52:38Z
 ---
 
 # Workstream: WS-A Authoring and Import Layer

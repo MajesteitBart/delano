@@ -72,6 +72,8 @@ delano install --yes
 delano viewer
 delano validate
 delano init <slug> "<Project Name>" [owner] [lead]
+delano import-spec-kit <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
+delano research <project-slug> <research-slug> [--title <title>] [--question <question>] [--json]
 ```
 
 Command intent:
@@ -80,6 +82,8 @@ Command intent:
 - `delano viewer` launches the read-only local UI for `.project` contracts
 - `delano validate` checks whether the runtime and required assets are in place
 - `delano init` creates a delivery project inside a repository that already has Delano installed
+- `delano import-spec-kit` creates a planned Delano project from the first supported Spec Kit-style markdown fixture and then runs validation
+- `delano research` creates repo-native research intake files inside an existing Delano project and then runs validation
 
 `delano init` usage:
 
@@ -94,7 +98,35 @@ Notes:
 - `lead` defaults to `owner`
 - this is the right command for an agent to scaffold a new delivery project after `delano install`
 
+`delano import-spec-kit` usage:
+
+```bash
+delano import-spec-kit <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
+```
+
+Notes:
+
+- the source markdown must use the initial supported shape documented in `docs/spec-kit/import-contract.md`
+- agents should prefer named options over positional metadata, and `--json` when parsing the result
+- imported artifacts start in planned/ready states and still have to pass Delano validation, probe, and evidence gates
+- the command is additive and refuses to overwrite an existing `.project/projects/<slug>/` folder
+
+`delano research` usage:
+
+```bash
+delano research <project-slug> <research-slug> [--title <title>] [--question <question>] [--owner <owner>] [--json]
+```
+
+Notes:
+
+- use this before mutating `spec.md`, `plan.md`, workstreams, or tasks when intent is unclear
+- research files live under `.project/projects/<project-slug>/research/<research-slug>/`
+- agents should use `--json` when parsing the result
+- research findings must fold forward into canonical Delano artifacts or be explicitly closed as no-action
+
 ## How to use Delano after install
+
+For a fast guided path, start with [Delano in the First 15 Minutes](docs/first-15-minutes.md).
 
 Recommended first step:
 
@@ -125,6 +157,8 @@ delano status
 delano status --open --brief
 delano next -- --all
 delano init <slug> "<Project Name>" [owner] [lead]
+delano import-spec-kit <slug> <source-md> --json
+delano research <project-slug> <research-slug> --title "Research title" --question "Primary question" --json
 ```
 
 The wrapper commands call the existing PM scripts under `.agents/scripts/pm/`. You can also run those scripts directly:
@@ -134,6 +168,7 @@ bash .agents/scripts/pm/validate.sh
 bash .agents/scripts/pm/status.sh
 bash .agents/scripts/pm/status.sh --open --brief
 bash .agents/scripts/pm/next.sh --all
+bash .agents/scripts/pm/research.sh <project-slug> <research-slug> --title "Research title" --question "Primary question" --json
 ```
 
 The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files read-only. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port. It indexes `.project/context`, `.project/templates`, and `.project/projects`, then derives artifact roles, statuses, project outlines, task/workstream relationships, snippets, and rendered markdown for local inspection.

@@ -13,6 +13,8 @@ conflicts_with: []
 parallel: true
 priority: medium
 estimate: M
+story_id:
+acceptance_criteria_ids: []
 ---
 
 # Task: <task-title>
@@ -21,6 +23,10 @@ estimate: M
 
 ## Acceptance Criteria
 - [ ]
+
+## Traceability
+- Story: <story_id or none>
+- Acceptance criteria: <acceptance criteria ids or none>
 
 ## Technical Notes
 

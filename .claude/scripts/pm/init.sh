@@ -32,7 +32,7 @@ cat > "$project_dir/spec.md" <<SPEC
 name: $name
 slug: $slug
 owner: $owner
-status: draft
+status: planned
 created: $now
 updated: $now
 outcome: <measurable target>
@@ -49,6 +49,12 @@ probe_status: <pending|skipped|completed>
 
 ## Outcome and Success Metrics
 
+## User Stories
+- US-001: As a <user>, I want <capability>, so that <outcome>.
+
+## Acceptance Scenarios
+- AC-001: Given <context>, when <action>, then <observable result>.
+
 ## Scope
 ### In Scope
 ### Out of Scope
@@ -56,6 +62,12 @@ probe_status: <pending|skipped|completed>
 ## Functional Requirements
 
 ## Non-Functional Requirements
+
+## Assumptions
+- <assumption to validate>
+
+## Needs Clarification
+- <question that must be answered before activation or execution>
 
 ## Hypotheses and Unknowns
 
@@ -81,14 +93,31 @@ created: $now
 updated: $now
 linear_project_id:
 risk_level: <low|medium|high>
-spec_status_at_plan_time: <approved|active>
+spec_status_at_plan_time: planned
 ---
 
 # Delivery Plan: $name
 
 ## What Changed After Probe
 
+## Technical Context
+
 ## Architecture Decisions
+
+## Policy and Contract Checks
+- [ ] `.project` remains the execution source of truth
+- [ ] Probe decision is explicit
+- [ ] Evidence gates are defined before handoff
+- [ ] External sync writes require dry-run or operator approval
+
+## Generated Artifact Map
+- `spec.md`: <source or generation notes>
+- `plan.md`: <source or generation notes>
+- `workstreams/`: <source or generation notes>
+- `tasks/`: <source or generation notes>
+
+## Complexity Exceptions
+- <exception, rationale, and owner>
 
 ## Probe-Driven Architecture Changes
 

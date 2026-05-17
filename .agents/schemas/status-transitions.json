@@ -40,6 +40,23 @@
       ]
     },
     {
+      "id": "progressed-task-requires-active-workstream",
+      "status": "in-progress|done",
+      "description": "A task must not start or complete before its parent workstream has started.",
+      "requires": [
+        "in-progress tasks require workstream.status active",
+        "done tasks require workstream.status active or done"
+      ]
+    },
+    {
+      "id": "closed-task-set-requires-closed-workstream",
+      "status": "done|deferred",
+      "description": "A workstream with no open tasks must not remain open through a stale status.",
+      "requires": [
+        "workstream.status is done or deferred"
+      ]
+    },
+    {
       "id": "blocked-owner-check-back",
       "status": "blocked",
       "description": "A blocked task must name who owns unblocking and when to check back.",

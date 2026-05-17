@@ -1,7 +1,7 @@
 ---
 id: T-008
 name: Plan release and closeout learning loop
-status: blocked
+status: done
 workstream: WS-E
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -11,8 +11,6 @@ github_pr:
 depends_on: [T-004, T-005, T-006, T-007]
 conflicts_with: []
 parallel: false
-blocked_owner: delano-team
-blocked_check_back: 2026-05-11T09:00:00Z
 priority: medium
 estimate: S
 ---
@@ -25,9 +23,9 @@ Prepare release checklist and closeout criteria for the Spec Kit interop project
 
 ## Acceptance Criteria
 
-- [ ] Release gates are documented.
-- [ ] Closeout captures lessons for future authoring/preset work.
-- [ ] Open follow-ups are explicitly deferred or converted into tasks.
+- [x] Release gates are documented.
+- [x] Closeout captures lessons for future authoring/preset work.
+- [x] Open follow-ups are explicitly deferred or converted into tasks.
 
 ## Technical Notes
 
@@ -37,16 +35,13 @@ Prepare release checklist and closeout criteria for the Spec Kit interop project
 
 ## Definition of Done
 
-- [ ] Implementation or documentation complete.
-- [ ] Delano validation passes.
-- [ ] Relevant tests or text safety checks pass.
-- [ ] Evidence is recorded in this task or an update note.
-- [ ] Docs are updated where user-facing behavior changes.
+- [x] Implementation or documentation complete.
+- [x] Delano validation passes.
+- [x] Relevant tests or text safety checks pass.
+- [x] Evidence is recorded in this task or an update note.
+- [x] Docs are updated where user-facing behavior changes.
 
 ## Evidence Log
 
 - 2026-05-10T09:02:02Z: Task created from Spec Kit integration plan conversion.
-
-## Blocker
-
-Blocked until prerequisite local Delano task dependencies are completed.
+- 2026-05-10T12:42:00Z: Added `docs/spec-kit-interop-release-closeout.md` with release gates, closeout learning prompts, explicit deferred follow-ups, closeout criteria, and final handoff template. Linked from `docs/user-guide.md`.

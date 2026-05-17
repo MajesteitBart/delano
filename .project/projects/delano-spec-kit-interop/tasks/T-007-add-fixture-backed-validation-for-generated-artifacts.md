@@ -1,7 +1,7 @@
 ---
 id: T-007
 name: Add fixture-backed validation for generated artifacts
-status: blocked
+status: done
 workstream: WS-E
 created: 2026-05-10T09:02:02Z
 updated: 2026-05-10T09:02:02Z
@@ -11,8 +11,6 @@ github_pr:
 depends_on: [T-001, T-002, T-003]
 conflicts_with: []
 parallel: false
-blocked_owner: delano-team
-blocked_check_back: 2026-05-11T09:00:00Z
 priority: high
 estimate: L
 ---
@@ -25,9 +23,9 @@ Add tests or validation fixtures proving imported/generated artifacts remain val
 
 ## Acceptance Criteria
 
-- [ ] Fixtures cover a happy path and at least one unsupported/clarification path.
-- [ ] `delano validate`, text safety, and relevant tests pass.
-- [ ] Evidence is logged before closure.
+- [x] Fixtures cover a happy path and at least one unsupported/clarification path.
+- [x] `delano validate`, text safety, and relevant tests pass.
+- [x] Evidence is logged before closure.
 
 ## Technical Notes
 
@@ -37,16 +35,13 @@ Add tests or validation fixtures proving imported/generated artifacts remain val
 
 ## Definition of Done
 
-- [ ] Implementation or documentation complete.
-- [ ] Delano validation passes.
-- [ ] Relevant tests or text safety checks pass.
-- [ ] Evidence is recorded in this task or an update note.
-- [ ] Docs are updated where user-facing behavior changes.
+- [x] Implementation or documentation complete.
+- [x] Delano validation passes.
+- [x] Relevant tests or text safety checks pass.
+- [x] Evidence is recorded in this task or an update note.
+- [x] Docs are updated where user-facing behavior changes.
 
 ## Evidence Log
 
 - 2026-05-10T09:02:02Z: Task created from Spec Kit integration plan conversion.
-
-## Blocker
-
-Blocked until prerequisite local Delano task dependencies are completed.
+- 2026-05-10T12:28:00Z: Added `scripts/check-spec-kit-interop-fixtures.mjs`, `npm run check:spec-kit-interop`, and a Node test wrapper. The fixture check runs `delano import-spec-kit` and `delano research` in JSON mode, verifies generated files, requires default validation to pass, and cleans up smoke artifacts.

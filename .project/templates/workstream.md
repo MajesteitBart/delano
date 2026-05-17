@@ -1,4 +1,5 @@
 ---
+id: WS-A
 name: WS-A API Foundation
 owner: backend-team
 status: planned
