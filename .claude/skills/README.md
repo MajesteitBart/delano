@@ -5,6 +5,7 @@ Handbook-aligned skill contracts.
 Core workflow skills:
 
 - `discovery-skill`
+- `research-skill`
 - `prototype-skill`
 - `planning-skill`
 - `breakdown-skill`
