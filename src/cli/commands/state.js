@@ -655,7 +655,7 @@ function summarizeProject(project, slug) {
 
 function requireValue(values, index, flag) {
   const value = values[index + 1];
-  if (!value || value.startsWith("-")) {
+  if (value === undefined || value === "") {
     throw new CliError(`${flag} requires a value.`, 1);
   }
   return value;

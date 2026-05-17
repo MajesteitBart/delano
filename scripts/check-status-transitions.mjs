@@ -89,8 +89,14 @@ for (const projectDir of listDirectories(projectsRoot)) {
     const taskWorkstream = task.frontmatter.workstream || "";
     const workstream = taskWorkstream ? workstreams.get(taskWorkstream) : null;
 
-    if (workstream && isProgressedTaskStatus(status)) {
-      validateTaskWorkstreamLifecycle({ task, workstream });
+    if (isProgressedTaskStatus(status)) {
+      if (!taskWorkstream) {
+        errors.push(`${toRepoPath(task.file)} has status ${status} but is missing workstream frontmatter; expected an existing workstream id.`);
+      } else if (!workstream) {
+        errors.push(`${toRepoPath(task.file)} has status ${status} but workstream ${taskWorkstream} does not exist; expected an existing workstream id.`);
+      } else {
+        validateTaskWorkstreamLifecycle({ task, workstream });
+      }
     }
 
     if (["ready", "in-progress", "done"].includes(status)) {

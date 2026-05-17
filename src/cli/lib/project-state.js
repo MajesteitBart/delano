@@ -197,7 +197,7 @@ function appendSectionEntry(file, sectionName, entry) {
   const escaped = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const headingPattern = new RegExp(`(\\n## ${escaped}\\n)`);
   if (headingPattern.test(file.text)) {
-    file.text = file.text.replace(headingPattern, `$1\n${trimmedEntry}\n`);
+    file.text = file.text.replace(headingPattern, (match) => `${match}\n${trimmedEntry}\n`);
     return;
   }
 
@@ -418,6 +418,7 @@ function applyTaskAction({ project, task, action, timestamp, evidence, owner, ch
   const previousStatus = task.frontmatter.status || "";
   if (["start", "close"].includes(action)) {
     assertDependenciesDone(project, task, action);
+    assertTaskWorkstreamExists(project, task, action);
   }
 
   if (action === "open") {
@@ -474,6 +475,16 @@ function applyTaskRollups({ project, task, action, previousStatus, timestamp, ch
   if (["close", "defer"].includes(action)) {
     closeWorkstreamIfDone(project, workstream, timestamp, changes);
     closeProjectIfDone(project, timestamp, changes);
+  }
+}
+
+function assertTaskWorkstreamExists(project, task, action) {
+  const workstreamId = String(task.frontmatter.workstream || "").trim();
+  if (!workstreamId) {
+    throw new CliError(`Cannot ${action} ${relativeProjectPath(project, task.path)} because it has no workstream frontmatter.`, 1);
+  }
+  if (!findWorkstream(project, workstreamId)) {
+    throw new CliError(`Cannot ${action} ${relativeProjectPath(project, task.path)} because workstream ${workstreamId} does not exist in this project.`, 1);
   }
 }
 
@@ -781,8 +792,8 @@ function fillProgressUpdate(text, options) {
   const escaped = heading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(`(## ${escaped}\\n)-[ \\t]*(?:None / <blocker>)?`);
   return text
-    .replace(pattern, `$1- ${options.message}`)
-    .replace(/(## Blockers\n)- None \/ <blocker>/, "$1- None");
+    .replace(pattern, (_match, heading) => `${heading}- ${options.message}`)
+    .replace(/(## Blockers\n)- None \/ <blocker>/, (_match, heading) => `${heading}- None`);
 }
 
 function normalizeUpdateSection(section, status) {

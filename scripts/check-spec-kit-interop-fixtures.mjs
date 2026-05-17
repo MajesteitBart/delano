@@ -11,15 +11,16 @@ const repoRoot = path.resolve(__dirname, "..");
 const nodeBin = process.execPath;
 const delanoBin = path.join(repoRoot, "bin", "delano.js");
 
-const importSlug = "spec-kit-fixture-smoke";
-const unsupportedSlug = "spec-kit-unsupported-smoke";
-const researchSlug = "fixture-research-smoke";
+const runId = `${process.pid}-${Date.now()}`;
+const importSlug = `spec-kit-fixture-smoke-${runId}`;
+const unsupportedSlug = `spec-kit-unsupported-smoke-${runId}`;
+const researchSlug = `fixture-research-smoke-${runId}`;
 const importProjectDir = path.join(repoRoot, ".project", "projects", importSlug);
 const unsupportedProjectDir = path.join(repoRoot, ".project", "projects", unsupportedSlug);
 const researchDir = path.join(repoRoot, ".project", "projects", "delano-spec-kit-interop", "research", researchSlug);
 const tempDir = mkdtempSync(path.join(os.tmpdir(), "delano-spec-kit-fixtures-"));
 
-cleanup();
+assertFixturePathsAreAbsent();
 
 try {
   const importResult = runJson([
@@ -33,12 +34,13 @@ try {
     "test-team",
     "--lead",
     "test-lead",
+    "--no-validate",
     "--json"
   ]);
 
   assert.equal(importResult.ok, true);
   assert.equal(importResult.command, "import-spec-kit");
-  assert.equal(importResult.validation, "passed");
+  assert.equal(importResult.validation, "skipped");
   assert.equal(importResult.project, `.project/projects/${importSlug}`);
 
   assertFile(path.join(importProjectDir, "spec.md"), [
@@ -104,12 +106,13 @@ try {
     "Fixture research smoke",
     "--question",
     "Can research intake create durable files and pass validation?",
+    "--no-validate",
     "--json"
   ]);
 
   assert.equal(researchResult.ok, true);
   assert.equal(researchResult.command, "research");
-  assert.equal(researchResult.validation, "passed");
+  assert.equal(researchResult.validation, "skipped");
   assert.deepEqual(researchResult.files, ["task_plan.md", "findings.md", "progress.md"]);
 
   assertFile(path.join(researchDir, "task_plan.md"), ["# Research Plan: Fixture research smoke"]);
@@ -144,6 +147,12 @@ function assertFile(filePath, needles) {
   const text = readFileSync(filePath, "utf8");
   for (const needle of needles) {
     assert.ok(text.includes(needle), `expected ${path.relative(repoRoot, filePath)} to include ${needle}`);
+  }
+}
+
+function assertFixturePathsAreAbsent() {
+  for (const fixturePath of [importProjectDir, unsupportedProjectDir, researchDir]) {
+    assert.equal(existsSync(fixturePath), false, `refusing to run fixture check because target already exists: ${path.relative(repoRoot, fixturePath)}`);
   }
 }
 

@@ -135,7 +135,11 @@ if [[ ! "$slug" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
   exit 1
 fi
 
+invocation_cwd="$PWD"
 root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [[ "$source_md" != /* ]]; then
+  source_md="$invocation_cwd/$source_md"
+fi
 cd "$root"
 
 if [[ ! -f "$source_md" ]]; then
@@ -581,7 +585,11 @@ fi
 
 if [[ "$json" == "true" ]]; then
   project_json="$(printf '%s' "$project_dir" | json_escape)"
-  source_json="$(printf '%s' "$source_md" | json_escape)"
+  source_display="$source_md"
+  case "$source_display" in
+    "$root"/*) source_display="${source_display#"$root/"}" ;;
+  esac
+  source_json="$(printf '%s' "$source_display" | json_escape)"
   validation_json="$(printf '%s' "$validation_status" | json_escape)"
   if [[ "$ok" == "true" ]]; then
     printf '{"ok":true,"command":"import-spec-kit","project":%s,"source":%s,"validation":%s}\n' "$project_json" "$source_json" "$validation_json"

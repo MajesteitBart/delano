@@ -3,7 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { execFileSync } = require("node:child_process");
+const { execFileSync, spawnSync } = require("node:child_process");
 
 const { commands, getGeneralHelp, getImportSpecKitHelp, getResearchHelp, resolveInvocation } = require("../src/cli");
 const {
@@ -32,6 +32,10 @@ function createTempDelanoRepo() {
   for (const template of fs.readdirSync(sourceTemplates)) {
     fs.copyFileSync(path.join(sourceTemplates, template), path.join(repo, ".project", "templates", template));
   }
+  fs.copyFileSync(
+    path.join(process.cwd(), ".agents", "scripts", "pm", "import-spec-kit.sh"),
+    path.join(repo, ".agents", "scripts", "pm", "import-spec-kit.sh")
+  );
 
   return repo;
 }
@@ -185,6 +189,58 @@ test("task lifecycle commands patch existing artifacts and roll up parent status
   assert.match(fs.readFileSync(workstreamPath, "utf8"), /status: done/);
   assert.match(fs.readFileSync(path.join(projectDir, "spec.md"), "utf8"), /status: complete/);
   assert.match(fs.readFileSync(path.join(projectDir, "plan.md"), "utf8"), /status: done/);
+});
+
+test("task lifecycle refuses progressed tasks with missing workstreams", () => {
+  const repo = createTempDelanoRepo();
+
+  runDelano(repo, ["project", "create", "sample-project", "--name", "Sample Project", "--json"]);
+  runDelano(repo, ["workstream", "add", "sample-project", "WS-A", "--name", "Runtime", "--json"]);
+  runDelano(repo, ["task", "add", "sample-project", "T-001", "--name", "Implement runtime", "--workstream", "WS-A", "--json"]);
+
+  const taskPath = path.join(repo, ".project", "projects", "sample-project", "tasks", "T-001-implement-runtime.md");
+  fs.writeFileSync(taskPath, fs.readFileSync(taskPath, "utf8").replace(/^workstream: WS-A$/m, "workstream: WS-Z"), "utf8");
+
+  const startResult = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "task", "start", "sample-project", "T-001", "--json"], {
+    cwd: repo,
+    encoding: "utf8"
+  });
+  assert.notEqual(startResult.status, 0);
+  assert.match(startResult.stderr + startResult.stdout, /workstream WS-Z does not exist/);
+
+  fs.writeFileSync(taskPath, fs.readFileSync(taskPath, "utf8").replace(/^status: ready$/m, "status: in-progress"), "utf8");
+  const validateResult = spawnSync(process.execPath, [path.join(process.cwd(), "scripts", "check-status-transitions.mjs"), "--projects-root", path.join(repo, ".project", "projects")], {
+    cwd: process.cwd(),
+    encoding: "utf8"
+  });
+  assert.notEqual(validateResult.status, 0);
+  assert.match(validateResult.stderr + validateResult.stdout, /workstream WS-Z does not exist/);
+});
+
+test("text option values remain literal when they start with dashes or contain replacement tokens", () => {
+  const repo = createTempDelanoRepo();
+
+  runDelano(repo, ["project", "create", "sample-project", "--name", "Sample Project", "--json"]);
+  runDelano(repo, ["update", "add", "sample-project", "--message", "cost was $1 and match $&", "--section", "completed", "--json"]);
+  runDelano(repo, ["update", "add", "sample-project", "--message", "- fixed validation", "--json"]);
+
+  const updatesDir = path.join(repo, ".project", "projects", "sample-project", "updates");
+  const updates = fs.readdirSync(updatesDir).map((file) => fs.readFileSync(path.join(updatesDir, file), "utf8")).join("\n");
+  assert.match(updates, /- cost was \$1 and match \$&/);
+  assert.match(updates, /- - fixed validation/);
+});
+
+test("import-spec-kit resolves relative source paths from the caller directory", () => {
+  const repo = createTempDelanoRepo();
+  const docsDir = path.join(repo, "docs");
+  fs.mkdirSync(docsDir, { recursive: true });
+  fs.copyFileSync(path.join(process.cwd(), "docs", "spec-kit", "fixtures", "minimal-spec-kit-project.md"), path.join(docsDir, "input.md"));
+
+  const output = JSON.parse(runDelano(docsDir, ["import-spec-kit", "relative-source", "input.md", "--name", "Relative Source", "--no-validate", "--json"]));
+
+  assert.equal(output.ok, true);
+  assert.equal(output.source, "docs/input.md");
+  assert.ok(fs.existsSync(path.join(repo, ".project", "projects", "relative-source", "spec.md")));
 });
 
 test("import-spec-kit help is agent-oriented", () => {
