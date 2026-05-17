@@ -472,10 +472,54 @@ function applyTaskRollups({ project, task, action, previousStatus, timestamp, ch
     promoteWorkstreamToActive(project, workstream, timestamp, changes);
   }
 
+  if (action === "close") {
+    openDependencyReadyTasks(project, task, timestamp, changes);
+  }
+
   if (["close", "defer"].includes(action)) {
     closeWorkstreamIfDone(project, workstream, timestamp, changes);
     closeProjectIfDone(project, timestamp, changes);
   }
+}
+
+function openDependencyReadyTasks(project, completedTask, timestamp, changes) {
+  const completedTaskId = String(completedTask.frontmatter.id || "").trim();
+  if (!completedTaskId) {
+    return;
+  }
+
+  for (const candidate of project.tasks) {
+    if (candidate === completedTask || !isDependencyOnlyBlockedTask(project, candidate, completedTaskId)) {
+      continue;
+    }
+
+    setFrontmatter(candidate, "status", "ready");
+    setFrontmatter(candidate, "updated", timestamp);
+    removeFrontmatter(candidate, "blocked_owner");
+    removeFrontmatter(candidate, "blocked_check_back");
+    appendEvidence(candidate, timestamp, `Opened automatically because dependencies are done after ${completedTaskId} closed.`);
+    changes.push(`${relativeProjectPath(project, candidate.path)} status -> ready`);
+  }
+}
+
+function isDependencyOnlyBlockedTask(project, task, completedTaskId) {
+  if ((task.frontmatter.status || "") !== "blocked") {
+    return false;
+  }
+
+  const dependencies = parseInlineList(task.frontmatter.depends_on || "[]");
+  if (!dependencies.includes(completedTaskId)) {
+    return false;
+  }
+  if (!dependencies.every((dependencyId) => findTask(project, dependencyId)?.frontmatter.status === "done")) {
+    return false;
+  }
+
+  const owner = String(task.frontmatter.blocked_owner || "").trim().toLowerCase();
+  if (!owner) {
+    return true;
+  }
+  return ["dependency", "dependencies", "delano", "delano-cli", "system", "auto", "automation"].includes(owner);
 }
 
 function assertTaskWorkstreamExists(project, task, action) {

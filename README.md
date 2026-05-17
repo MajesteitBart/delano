@@ -15,7 +15,7 @@ The npm package is intentionally thin. It distributes the approved runtime paylo
 ## Delano CLI
 
 - Package: `@bvdm/delano`
-- Current package version: `0.2.4`
+- Current package version: `0.2.7`
 - Binary: `delano`
 - Commands: `onboarding`, `install`, `viewer`, `init`, `validate`, `status`, `next`
 - Primary goal: bootstrap a repo safely, expose local delivery state clearly, and keep runtime gates verifiable

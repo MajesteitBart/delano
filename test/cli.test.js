@@ -191,6 +191,35 @@ test("task lifecycle commands patch existing artifacts and roll up parent status
   assert.match(fs.readFileSync(path.join(projectDir, "plan.md"), "utf8"), /status: done/);
 });
 
+test("closing a task opens dependency-only blocked dependents", () => {
+  const repo = createTempDelanoRepo();
+
+  runDelano(repo, ["project", "create", "sample-project", "--name", "Sample Project", "--json"]);
+  runDelano(repo, ["workstream", "add", "sample-project", "WS-A", "--name", "Runtime", "--json"]);
+  runDelano(repo, ["task", "add", "sample-project", "T-001", "--name", "Build foundation", "--workstream", "WS-A", "--json"]);
+  runDelano(repo, ["task", "add", "sample-project", "T-002", "--name", "Use foundation", "--workstream", "WS-A", "--depends-on", "T-001", "--json"]);
+  runDelano(repo, ["task", "add", "sample-project", "T-003", "--name", "External review", "--workstream", "WS-A", "--depends-on", "T-001", "--json"]);
+  runDelano(repo, ["task", "block", "sample-project", "T-002", "--owner", "dependency", "--check-back", "2026-05-18", "--reason", "Waiting on T-001.", "--json"]);
+  runDelano(repo, ["task", "block", "sample-project", "T-003", "--owner", "vendor", "--check-back", "2026-05-18", "--reason", "Waiting on external review.", "--json"]);
+  runDelano(repo, ["task", "start", "sample-project", "T-001", "--json"]);
+
+  const output = JSON.parse(runDelano(repo, ["task", "close", "sample-project", "T-001", "--evidence", "Foundation complete", "--json"]));
+
+  const projectDir = path.join(repo, ".project", "projects", "sample-project");
+  const openedTask = fs.readFileSync(path.join(projectDir, "tasks", "T-002-use-foundation.md"), "utf8");
+  const externalBlockedTask = fs.readFileSync(path.join(projectDir, "tasks", "T-003-external-review.md"), "utf8");
+
+  assert.match(output.changes.join("\n"), /tasks\/T-002-use-foundation\.md status -> ready/);
+  assert.match(openedTask, /^status: ready$/m);
+  assert.doesNotMatch(openedTask, /^blocked_owner:/m);
+  assert.doesNotMatch(openedTask, /^blocked_check_back:/m);
+  assert.match(openedTask, /Opened automatically because dependencies are done after T-001 closed/);
+  assert.match(externalBlockedTask, /^status: blocked$/m);
+  assert.match(externalBlockedTask, /^blocked_owner: vendor$/m);
+  assert.match(fs.readFileSync(path.join(projectDir, "workstreams", "WS-A-runtime.md"), "utf8"), /^status: active$/m);
+  assert.match(fs.readFileSync(path.join(projectDir, "spec.md"), "utf8"), /^status: active$/m);
+});
+
 test("task lifecycle refuses progressed tasks with missing workstreams", () => {
   const repo = createTempDelanoRepo();
 
