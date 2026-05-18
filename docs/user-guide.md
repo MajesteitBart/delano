@@ -30,14 +30,14 @@ npx -y @bvdm/delano@latest install --yes
 Install into another directory:
 
 ```bash
-npx -y @bvdm/delano@latest --target /path/to/repo --yes
+npx -y @bvdm/delano@latest --target <repo> --yes
 ```
 
 If the package is already installed in your repo or globally:
 
 ```bash
 delano --yes
-delano --target /path/to/repo --yes
+delano --target <repo> --yes
 ```
 
 ## Global npm install
@@ -103,7 +103,7 @@ Codex hook activation is intentionally manual:
 2. Start Codex in the repository and approve the project trust prompt for the repo-local `.codex/` layer. Codex records trusted projects in `~/.codex/config.toml`, for example:
 
    ```toml
-   [projects."E:\\path\\to\\repo"]
+   [projects."<repo>"]
    trust_level = "trusted"
    ```
 
@@ -211,6 +211,17 @@ If you are new to Delano or evaluating the Spec Kit interop path, start with [`f
 
 For release review of the interop work itself, use [`spec-kit-interop-release-closeout.md`](spec-kit-interop-release-closeout.md).
 
+## Focused user docs
+
+Use the focused guides when you need more than the quick path:
+
+- [`cli-reference.md`](cli-reference.md) for the full CLI surface, lifecycle commands, JSON output, task close behavior, and validation commands.
+- [`viewer-guide.md`](viewer-guide.md) for starting and using the read-only local UI.
+- [`agent-operator-guide.md`](agent-operator-guide.md) for instructing coding agents, assigning work, and preserving evidence discipline.
+- [`spec-kit-and-research.md`](spec-kit-and-research.md) for Spec Kit-style import, the research skill, and fold-forward rules.
+- [`research-intake.md`](research-intake.md) for the detailed research file lifecycle.
+- [`spec-kit/import-contract.md`](spec-kit/import-contract.md) for the accepted first import shape and mapping rules.
+
 ## Day-to-day workflow
 
 1. Install or validate the runtime.
@@ -237,9 +248,9 @@ Run a probe when the team would otherwise be approving a spec based on guesswork
 
 If uncertainty is already low, record that and move on.
 
-## v1.1 boundaries
+## Runtime boundaries
 
-This release stays intentionally narrow:
+Delano stays intentionally narrow:
 
 - npm is the product surface
 - `.project` remains repo-owned after install
@@ -250,6 +261,11 @@ This release stays intentionally narrow:
 
 ## Read next
 
+- `docs/README.md` for the user documentation index
+- `docs/cli-reference.md` for the command reference
+- `docs/viewer-guide.md` for the read-only UI workflow
+- `docs/agent-operator-guide.md` for instructing agents
+- `docs/spec-kit-and-research.md` for import and research workflows
 - `README.md` for the short overview
 - `HANDBOOK.md` for the full operating model
 - `.agents/scripts/README.md` for the runtime scripts

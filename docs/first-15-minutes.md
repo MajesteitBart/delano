@@ -23,7 +23,7 @@ You need:
 Install Delano into the target repository:
 
 ```bash
-cd /path/to/repo
+cd <repo>
 npx -y @bvdm/delano@latest --yes
 ```
 

@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/Logo.png" alt="Delano" width="360">
+</p>
+
 # Delano
 
 Delano is an agent-agnostic delivery runtime. It keeps planning, execution, and evidence on disk so teams can work with different coding agents without changing the operating model every time.
@@ -17,7 +21,7 @@ The npm package is intentionally thin. It distributes the approved runtime paylo
 - Package: `@bvdm/delano`
 - Current package version: `0.2.8`
 - Binary: `delano`
-- Commands: `onboarding`, `install`, `viewer`, `init`, `validate`, `status`, `next`
+- Commands: `onboarding`, `install`, `viewer`, `project`, `workstream`, `task`, `update`, `init`, `import-spec-kit`, `research`, `validate`, `status`, `next`
 - Primary goal: bootstrap a repo safely, expose local delivery state clearly, and keep runtime gates verifiable
 
 ## Recent main changes
@@ -46,14 +50,14 @@ npx -y @bvdm/delano@latest install --yes
 To install into a different directory:
 
 ```bash
-npx -y @bvdm/delano@latest --target /path/to/repo --yes
+npx -y @bvdm/delano@latest --target <repo> --yes
 ```
 
 If you already have the package installed locally, the same flow is:
 
 ```bash
 delano --yes
-delano --target /path/to/repo --yes
+delano --target <repo> --yes
 ```
 
 ## Global CLI install
@@ -67,7 +71,7 @@ npm install -g @bvdm/delano
 Typical flow in a repository:
 
 ```bash
-cd /path/to/repo
+cd <repo>
 delano install --yes
 delano viewer
 delano validate
@@ -212,7 +216,7 @@ Codex hook activation is intentionally manual:
 2. Start Codex in the repository and approve the project trust prompt for the repo-local `.codex/` layer. Codex records trusted projects in `~/.codex/config.toml`, for example:
 
    ```toml
-   [projects."E:\\path\\to\\repo"]
+   [projects."<repo>"]
    trust_level = "trusted"
    ```
 
@@ -320,7 +324,12 @@ If npm publish fails after the package checks pass, verify that the npm trusted 
 
 ## Read next
 
+- `docs/README.md` for the user documentation index
 - `docs/user-guide.md` for the practical user flow
+- `docs/cli-reference.md` for the CLI command reference
+- `docs/viewer-guide.md` for the read-only viewer workflow
+- `docs/agent-operator-guide.md` for instructing agents
+- `docs/spec-kit-and-research.md` for Spec Kit-style import and research intake
 - `HANDBOOK.md` for the full operating model
 - `.agents/scripts/README.md` for the runtime script inventory
 - `AGENTS.md` for adapter-neutral instructions

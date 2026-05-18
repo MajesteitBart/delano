@@ -329,6 +329,12 @@ function openTarget(target, file) {
 
 function sendStatic(res, pathname) {
   if (pathname === '/favicon.ico') {
+    const faviconPath = path.join(publicRoot, 'favicon.png');
+    if (fs.existsSync(faviconPath)) {
+      res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=86400' });
+      res.end(fs.readFileSync(faviconPath));
+      return;
+    }
     res.writeHead(204, { 'cache-control': 'max-age=86400' });
     res.end();
     return;

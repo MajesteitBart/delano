@@ -859,19 +859,8 @@ function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProje
 
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <div className="brand-mark">
-          <Icon
-            d={
-              <>
-                <rect x="3.5" y="3.5" width="17" height="17" rx="3" />
-                <path d="M8 8h6a4 4 0 0 1 0 8H8z" />
-              </>
-            }
-            size={18}
-          />
-        </div>
-        <span className="brand-name">Delano</span>
+      <div className="brand" aria-label="Delano">
+        <img className="brand-logo" src="/delano-logo.svg" alt="Delano" />
       </div>
 
       <div className="nav-section">Workspace</div>
