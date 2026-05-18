@@ -1225,11 +1225,29 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
    Workspace Pages
    ================================================================ */
 function WorkspacePage({ index, view, page, onPageChange, onOpenProject, onOpenProjectDoc, onOpenProjectWorkstream }) {
+  const [projectFilter, setProjectFilter] = useState("all");
   const workspace = useMemo(() => getWorkspaceModel(index), [index]);
   const projectStats = useMemo(
     () => (index.projects || []).filter((p) => p.outline).map((project) => getProjectStats(index, project)),
     [index]
   );
+  const projectFilterCounts = useMemo(() => {
+    const active = projectStats.filter((stat) => statusLabel(stat.project.status) !== "Complete").length;
+    return {
+      all: projectStats.length,
+      active,
+      complete: projectStats.length - active,
+    };
+  }, [projectStats]);
+  const filteredProjectStats = useMemo(() => {
+    if (projectFilter === "active") {
+      return projectStats.filter((stat) => statusLabel(stat.project.status) !== "Complete");
+    }
+    if (projectFilter === "complete") {
+      return projectStats.filter((stat) => statusLabel(stat.project.status) === "Complete");
+    }
+    return projectStats;
+  }, [projectFilter, projectStats]);
   const currentPage = page || 1;
 
   const titleMap = {
@@ -1242,7 +1260,7 @@ function WorkspacePage({ index, view, page, onPageChange, onOpenProject, onOpenP
   };
   const title = titleMap[view] || "Workspace";
   const itemsForView =
-    view === "workspace-projects" ? projectStats :
+    view === "workspace-projects" ? filteredProjectStats :
     view === "workspace-current" ? workspace.current :
     view === "workspace-blockers" ? workspace.blockers :
     view === "workspace-validation" ? workspace.validation :
@@ -1275,10 +1293,31 @@ function WorkspacePage({ index, view, page, onPageChange, onOpenProject, onOpenP
     <Pagination page={pagination.safePage} totalPages={pagination.totalPages} onPageChange={onPageChange} />
   );
 
+  const projectFilterControl = view === "workspace-projects" ? (
+    <div className="project-filter" aria-label="Project status filter">
+      {[
+        ["all", "All"],
+        ["active", "Active"],
+        ["complete", "Complete"],
+      ].map(([value, label]) => (
+        <button
+          className={"project-filter-option" + (projectFilter === value ? " is-active" : "")}
+          type="button"
+          onClick={() => setProjectFilter(value)}
+          aria-pressed={projectFilter === value}
+          key={value}
+        >
+          <span>{label}</span>
+          <span className="mono">{projectFilterCounts[value]}</span>
+        </button>
+      ))}
+    </div>
+  ) : null;
+
   const renderProjects = () =>
-    projectStats.length > 0 ? (
+    filteredProjectStats.length > 0 ? (
       <div className="project-grid">
-        {projectStats.map((stat) => (
+        {filteredProjectStats.map((stat) => (
           <button className="project-card" key={stat.project.slug} type="button" onClick={() => onOpenProject(stat.project.slug)}>
             <span className="project-card-head">
               <span className="project-card-title">{stat.project.title}</span>
@@ -1298,7 +1337,7 @@ function WorkspacePage({ index, view, page, onPageChange, onOpenProject, onOpenP
         ))}
       </div>
     ) : (
-      <div className="empty-state">No projects found.</div>
+      <div className="empty-state">No projects match this filter.</div>
     );
 
   const renderTaskRows = (items, emptyText, kind) => {
@@ -1420,7 +1459,7 @@ function WorkspacePage({ index, view, page, onPageChange, onOpenProject, onOpenP
   };
 
   const count =
-    view === "workspace-projects" ? workspace.counts.projects :
+    view === "workspace-projects" ? filteredProjectStats.length :
     view === "workspace-current" ? workspace.counts.current :
     view === "workspace-blockers" ? workspace.counts.blockers :
     view === "workspace-validation" ? workspace.counts.validation :
@@ -1430,9 +1469,8 @@ function WorkspacePage({ index, view, page, onPageChange, onOpenProject, onOpenP
 
   return (
     <div className="page">
-      <h1 className="page-title">{title}</h1>
       <section className="block">
-        <SectionHeader title={title} count={count} />
+        <SectionHeader title={title} count={count} right={projectFilterControl} />
         {renderBody()}
       </section>
     </div>

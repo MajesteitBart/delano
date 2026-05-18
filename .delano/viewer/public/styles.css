@@ -641,6 +641,40 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
 }
 
 /* ---------- Workspace dashboard ---------- */
+.project-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+}
+.project-filter-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 3px;
+  color: var(--ink-50);
+  font-size: 12.5px;
+  line-height: 1;
+  transition: background 90ms, color 90ms;
+}
+.project-filter-option:hover {
+  background: var(--line-soft);
+  color: var(--ink);
+}
+.project-filter-option.is-active {
+  background: var(--ink);
+  color: var(--bg);
+}
+.project-filter-option .mono {
+  font-size: 11px;
+  color: currentColor;
+  opacity: 0.72;
+}
 .project-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
