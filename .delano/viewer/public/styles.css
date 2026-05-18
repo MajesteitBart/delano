@@ -47,6 +47,17 @@ body {
 button { font-family: inherit; font-size: inherit; color: inherit; background: none; border: none; cursor: pointer; padding: 0; }
 .mono { font-family: var(--font-mono); font-size: 12.5px; letter-spacing: -0.01em; }
 .small { font-size: 12px; }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* ---------- App shell ---------- */
 .app {
@@ -234,6 +245,31 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
   background: var(--ink); color: var(--bg); border-color: var(--ink);
 }
 .btn-primary:hover { background: oklch(0.13 0.008 80); color: var(--bg); }
+.copy-btn {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  color: var(--ink-40);
+  text-decoration: none;
+  transition: background 90ms, border-color 90ms, color 90ms;
+}
+.copy-btn:hover,
+.copy-btn:focus-visible {
+  background: var(--line-soft);
+  border-color: var(--line);
+  color: var(--ink);
+  outline: none;
+}
+.copy-btn.is-copied {
+  background: var(--ok-soft);
+  border-color: color-mix(in oklch, var(--ok) 30%, var(--line));
+  color: var(--ok);
+}
+.copy-btn svg { pointer-events: none; }
 
 /* ---------- Page ---------- */
 .content { padding: 36px 48px 64px; max-width: 1320px; width: 100%; align-self: center; }
@@ -453,7 +489,7 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
 .summary-tight > .field:first-child { padding-left: 0; }
 .doc-reader-page {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 400px);
   gap: 44px;
   align-items: start;
 }
@@ -470,7 +506,7 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
   margin-bottom: 6px;
 }
 .content-reader-head-c .doc-reader-main .page-title {
-  max-width: 17ch;
+  max-width: 100%;
 }
 .doc-meta-panel {
   position: sticky;
@@ -481,7 +517,7 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
   overflow: hidden;
 }
 .doc-side {
-  min-width: 0;
+  min-width: 400px;
   position: sticky;
   top: 86px;
   display: flex;
@@ -505,6 +541,10 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
 .doc-meta-list dd {
   overflow-wrap: anywhere;
 }
+.copy-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
 .field-label {
   font-size: 11px;
@@ -515,6 +555,7 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
   margin-bottom: 6px;
 }
 .field-value { font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.field-id { color: var(--ink-50); }
 
 /* health */
 .health { display: flex; align-items: center; gap: 10px; }
@@ -867,6 +908,12 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
   flex: none;
   color: var(--ink-50);
 }
+.task-id-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-50);
+}
 
 .decisions { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
 .decisions li {
@@ -938,26 +985,42 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
 
 .dl {
   margin: 0; padding: 8px 0;
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 .dl dt {
-  padding: 8px 14px;
+  width: 100%;
+  padding: 8px 14px 0;
   font-size: 12px;
   color: var(--ink-50);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dl dt > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .dl dd {
   margin: 0;
-  padding: 8px 14px;
+  padding: 4px 14px 8px;
   font-size: 13px;
   color: var(--ink);
   display: flex; align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+  flex: 1;
+  min-width: 0;
 }
 
 .side-list { margin: 0; padding: 0; list-style: none; }
@@ -1209,6 +1272,10 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
   .doc-reader-page,
   .two-col { grid-template-columns: 1fr; }
   .doc-side,
-  .col-side { position: static; }
+  .col-side {
+    min-width: 0;
+    width: 100%;
+    position: static;
+  }
   .outline-subitem { grid-template-columns: 1fr; gap: 5px; }
 }

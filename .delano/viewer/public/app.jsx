@@ -16,6 +16,8 @@ const I = {
   block:     <><circle cx="12" cy="12" r="8.5"/><path d="M6 6l12 12"/></>,
   trend:     <><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></>,
   check:     <><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M8 12.5l3 3 5-6"/></>,
+  checkMark:  <path d="M5 12.5l4 4 10-11"/>,
+  copy:       <><rect x="8" y="4" width="11" height="14" rx="1.5"/><path d="M16 18v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h2"/></>,
   warn:      <><path d="M12 3.5 21 19H3z"/><path d="M12 10v4.5"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></>,
   doc:       <><path d="M6 3.5h8l4 4V20.5H6z"/><path d="M14 3.5V8h4"/></>,
   plan:      <><path d="M4 5.5h16"/><path d="M4 12h16"/><path d="M4 18.5h10"/></>,
@@ -80,6 +82,72 @@ const escapeHtml = (s) =>
 
 const titleCase = (s) =>
   String(s || "").replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+
+const normalizeCopyValue = (value) => {
+  if (value == null) return "";
+  if (Array.isArray(value)) return value.map((item) => String(item).trim()).filter(Boolean).join(", ");
+  if (typeof value === "boolean" || typeof value === "number") return String(value);
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value).trim();
+};
+
+const isCopyableMetaKey = (key) => {
+  const normalized = String(key || "").toLowerCase();
+  return (
+    normalized === "id" ||
+    normalized === "slug" ||
+    normalized === "workstream" ||
+    normalized === "depends_on" ||
+    normalized === "conflicts_with" ||
+    /(?:^|_)(?:id|ids)$/.test(normalized)
+  );
+};
+
+const copyLabelFromMetaKey = (key, role) => {
+  const normalized = String(key || "").toLowerCase();
+  if (normalized === "id" && role) return `${titleCase(role)} ID`;
+  if (normalized === "workstream") return "workstream ID";
+  if (normalized === "depends_on") return "dependency IDs";
+  if (normalized === "conflicts_with") return "conflict IDs";
+  return normalized.replace(/_/g, " ") || "value";
+};
+
+async function copyTextToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (_) {
+      /* fall through */
+    }
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.setAttribute("readonly", "");
+  textArea.style.position = "fixed";
+  textArea.style.top = "-1000px";
+  textArea.style.opacity = "0";
+  document.body.appendChild(textArea);
+  textArea.select();
+  let ok = false;
+  try {
+    ok = document.execCommand("copy");
+  } catch (_) {
+    ok = false;
+  }
+  document.body.removeChild(textArea);
+  return ok;
+}
+
+function announceCopy(label) {
+  const live = document.getElementById("copy-live");
+  if (!live) return;
+  live.textContent = "";
+  window.setTimeout(() => {
+    live.textContent = `Copied ${label || "value"}`;
+  }, 10);
+}
 
 const formatShortDateTime = (value) => {
   if (!value) return "";
@@ -527,10 +595,48 @@ const Pagination = ({ page, totalPages, onPageChange }) => {
 /* ================================================================
    Reusable components
    ================================================================ */
-const Field = ({ label, children, mono }) => (
+const CopyButton = ({ value, label = "value", className = "" }) => {
+  const [copied, setCopied] = useState(false);
+  const text = normalizeCopyValue(value);
+
+  useEffect(() => {
+    if (!copied) return undefined;
+    const timeout = window.setTimeout(() => setCopied(false), 1200);
+    return () => window.clearTimeout(timeout);
+  }, [copied]);
+
+  if (!text) return null;
+
+  const stateLabel = copied ? `Copied ${label}` : `Copy ${label}`;
+  const handleClick = async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const ok = await copyTextToClipboard(text);
+    if (!ok) return;
+    setCopied(true);
+    announceCopy(label);
+  };
+
+  return (
+    <button
+      className={`copy-btn${copied ? " is-copied" : ""}${className ? ` ${className}` : ""}`}
+      type="button"
+      onClick={handleClick}
+      aria-label={stateLabel}
+      title={stateLabel}
+    >
+      <Icon d={copied ? I.checkMark : I.copy} size={13} />
+    </button>
+  );
+};
+
+const Field = ({ label, children, mono, copyValue, copyLabel }) => (
   <div className="field">
     <div className="field-label">{label}</div>
-    <div className={"field-value" + (mono ? " mono" : "")}>{children}</div>
+    <div className={"field-value" + (mono ? " mono" : "")}>
+      {children}
+      <CopyButton value={copyValue} label={copyLabel || label} />
+    </div>
   </div>
 );
 
@@ -986,7 +1092,10 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
       </div>
 
       <section className="summary overview-summary">
-        <Field label="Project">{project.title}</Field>
+        <Field label="Project" copyValue={project.slug} copyLabel="project ID">
+          <span>{project.title}</span>
+          <span className="field-id mono">{project.slug}</span>
+        </Field>
         <Field label="Status"><StatusChip>{project.status || "Planned"}</StatusChip></Field>
         <Field label="Health">
           <span className="health">
@@ -1735,6 +1844,7 @@ function WorkstreamDetail({ index, project, wsPath, onBack, onOpenDoc }) {
             <ul className="checklist">
               {tasks.map((t, i) => {
                 const done = statusLabel(t.status) === "Complete";
+                const taskId = t.taskId || t.path.split("/").pop()?.replace(/\.md$/, "");
                 return (
                   <li key={i} className={done ? "done" : ""}>
                     <span className="cb">
@@ -1745,7 +1855,10 @@ function WorkstreamDetail({ index, project, wsPath, onBack, onOpenDoc }) {
                     </LinkButton>
                     <span className="checklist-meta">
                       <StatusChip>{t.status || "Planned"}</StatusChip>
-                      <span className="mono">{t.taskId || t.path.split("/").pop()?.replace(/\.md$/, "")}</span>
+                      <span className="task-id-copy mono">
+                        <span>{taskId}</span>
+                        <CopyButton value={taskId} label="task ID" />
+                      </span>
                     </span>
                   </li>
                 );
@@ -1784,12 +1897,22 @@ function WorkstreamDetail({ index, project, wsPath, onBack, onOpenDoc }) {
                   <dd>{owner}</dd>
                 </>
               )}
-              <dt>Source path</dt>
-              <dd className="mono small">{wsPath}</dd>
+              <dt>
+                <span>Source path</span>
+                <CopyButton value={wsPath} label="source path" />
+              </dt>
+              <dd className="mono small">
+                <span className="copy-value">{wsPath}</span>
+              </dd>
               {wsOutline?.id && (
                 <>
-                  <dt>ID</dt>
-                  <dd className="mono">{wsOutline.id}</dd>
+                  <dt>
+                    <span>ID</span>
+                    <CopyButton value={wsOutline.id} label="workstream ID" />
+                  </dt>
+                  <dd className="mono">
+                    <span>{wsOutline.id}</span>
+                  </dd>
                 </>
               )}
             </dl>
@@ -1938,8 +2061,13 @@ function DocumentReader({ doc, project, index, onBack, onOpenAction, onOpenDoc, 
         <div className="doc-meta-panel" aria-label="Document metadata">
           <div className="doc-meta-title">Metadata</div>
           <dl className="dl doc-meta-list">
-            <dt>Path</dt>
-            <dd className="mono">{doc.path}</dd>
+            <dt>
+              <span>Path</span>
+              <CopyButton value={doc.path} label="source path" />
+            </dt>
+            <dd className="mono">
+              <span className="copy-value">{doc.path}</span>
+            </dd>
             {doc.status && (
               <>
                 <dt>Status</dt>
@@ -1948,12 +2076,22 @@ function DocumentReader({ doc, project, index, onBack, onOpenAction, onOpenDoc, 
             )}
             <dt>Updated</dt>
             <dd>{fmtDate(doc.updated)}</dd>
-            {props.map(([k, v]) => (
-              <React.Fragment key={k}>
-                <dt>{k}</dt>
-                <dd>{renderMetaValue(k, v)}</dd>
-              </React.Fragment>
-            ))}
+            {props.map(([k, v]) => {
+              const copyable = isCopyableMetaKey(k);
+              return (
+                <React.Fragment key={k}>
+                  <dt>
+                    <span>{k}</span>
+                    {copyable && (
+                      <CopyButton value={v} label={copyLabelFromMetaKey(k, doc.role)} />
+                    )}
+                  </dt>
+                  <dd>
+                    {renderMetaValue(k, v)}
+                  </dd>
+                </React.Fragment>
+              );
+            })}
           </dl>
         </div>
       </aside>
@@ -2305,6 +2443,7 @@ function App() {
         <div className="content content-reader-head-c">{mainContent}</div>
 
       </div>
+      <div id="copy-live" className="sr-only" aria-live="polite" aria-atomic="true"></div>
     </div>
   );
 }
