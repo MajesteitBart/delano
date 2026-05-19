@@ -82,10 +82,7 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
 .brand {
   display: flex;
   align-items: center;
-  min-height: 42px;
-  padding: 0;
-  border-bottom: none;
-  margin-bottom: 0;
+  padding: 0 10px
 }
 .brand-logo {
   display: block;

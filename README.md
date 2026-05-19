@@ -1,10 +1,46 @@
 <p align="center">
-  <img src="docs/images/Logo.png" alt="Delano" width="360">
+  <img src="docs/images/delano-logo.svg" alt="Delano" width="340">
 </p>
 
-# Delano
+<p align="center">
+  <strong>File-backed delivery contracts for coding agents and operators.</strong>
+</p>
 
-Delano is an agent-agnostic delivery runtime. It keeps planning, execution, and evidence on disk so teams can work with different coding agents without changing the operating model every time.
+<p align="center">
+  <a href="#one-command-bootstrap">Install</a>
+  &middot;
+  <a href="#delano-cli">CLI</a>
+  &middot;
+  <a href="#local-viewer">Viewer</a>
+  &middot;
+  <a href="docs/delano-brandbook.html">Brand book</a>
+  &middot;
+  <a href="HANDBOOK.md">Handbook</a>
+</p>
+
+Delano is an agent-agnostic delivery runtime. It keeps planning, execution, validation, and evidence on disk so maintainers, operators, and different coding agents can work from the same operating model without depending on one vendor workflow.
+
+The product posture is a local dossier: warm paper, ledger ink, visible source paths, and quiet status signals. The interface and runtime both treat `.project/` as the source of truth.
+
+## At a glance
+
+| Surface | Role |
+| --- | --- |
+| `HANDBOOK.md` | Canonical operating model |
+| `.project/` | File-backed delivery contracts: specs, plans, workstreams, tasks, decisions, updates, evidence |
+| `.agents/` | Shared runtime: scripts, rules, hooks, skills, adapters |
+| `.delano/` | Read-only local viewer for inspecting `.project` state |
+| `docs/delano-brandbook.html` | Brand book for the Delano visual language |
+
+## Quick start
+
+```bash
+npx -y @bvdm/delano@latest --yes
+npx -y @bvdm/delano@latest viewer
+npx -y @bvdm/delano@latest validate
+```
+
+The viewer opens a localhost-only read surface for `.project` contracts. Validation checks that the runtime, contracts, package payload, and local gates still line up.
 
 ## What Delano is
 
@@ -16,10 +52,22 @@ Delano is an agent-agnostic delivery runtime. It keeps planning, execution, and 
 
 The npm package is intentionally thin. It distributes the approved runtime payload, includes the read-only viewer UI, and wraps the existing shell-based PM scripts. It does not replace the handbook, the file contracts, or the underlying bash/Python execution layer.
 
+## Design language
+
+Delano's visual system is intentionally quiet and document-like. The brand mark identifies the source; it does not decorate the interface.
+
+- **Creative north star:** The Local Dossier.
+- **Palette:** warm document ground, paper surface, ledger ink, hairline dividers, restrained slate selection, and forest identity through the logo assets.
+- **Typography:** Inter for product and documentation text, JetBrains Mono for provenance and exact paths. Red Hat Display belongs only inside the supplied wordmark artwork.
+- **Shape:** small 4px to 6px radii, 1px hairlines, open ledger rows instead of stacked cards.
+- **Motion:** brief, functional feedback only.
+
+See [DESIGN.md](DESIGN.md) and the [Delano Brand Book](docs/delano-brandbook.html) for the full system.
+
 ## Delano CLI
 
 - Package: `@bvdm/delano`
-- Current package version: `0.2.8`
+- Current package version: `0.2.9`
 - Binary: `delano`
 - Commands: `onboarding`, `install`, `viewer`, `project`, `workstream`, `task`, `update`, `init`, `import-spec-kit`, `research`, `validate`, `status`, `next`
 - Primary goal: bootstrap a repo safely, expose local delivery state clearly, and keep runtime gates verifiable
@@ -175,7 +223,13 @@ bash .agents/scripts/pm/next.sh --all
 bash .agents/scripts/pm/research.sh <project-slug> <research-slug> --title "Research title" --question "Primary question" --json
 ```
 
-The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files read-only. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port. It indexes `.project/context`, `.project/templates`, and `.project/projects`, then derives artifact roles, statuses, project outlines, task/workstream relationships, snippets, and rendered markdown for local inspection.
+## Local viewer
+
+The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files read-only. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port.
+
+It indexes `.project/context`, `.project/templates`, and `.project/projects`, then derives artifact roles, statuses, project outlines, task/workstream relationships, snippets, and rendered markdown for local inspection.
+
+The viewer follows the same design language as the brand book: source paths stay visible, status is shown with labels and dots, and dense project state is separated with hairlines rather than decorative cards.
 
 ## Required dependencies
 
