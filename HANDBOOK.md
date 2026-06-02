@@ -4,7 +4,7 @@
 
 Version: 3.3
 Last updated: 2026-06-02
-Runtime/package compatibility: covers `@bvdm/delano` through 0.2.9
+Runtime/package compatibility: covers `@bvdm/delano` through 0.2.10
 
 ---
 
@@ -507,6 +507,8 @@ optional branches: `blocked`, `deferred`
 
 Current artifact scans and proposed transitions are strict for local task dependencies: `ready`, `in-progress`, and `done` tasks fail validation when they depend on unresolved local tasks.
 
+Probe and outcome rules are policy gates unless a local validator or review workflow enforces them directly. They still belong in the handbook because agents and operators must not treat schema pass/fail as the whole approval model.
+
 ### 7.4 Native CLI lifecycle rollups
 
 The native `delano project`, `delano workstream`, and `delano task` commands patch existing contracts rather than regenerating them.
@@ -819,7 +821,7 @@ Import and research are intake paths, not approval paths. Imported artifacts and
 
 **Entry criteria**
 
-- `plan.md` complete
+- planning complete and `plan.md` ready for breakdown
 
 **Primary components**
 
@@ -978,7 +980,13 @@ At minimum:
 3. escalate contested files immediately
 4. avoid force-merge conflict resolution
 
-### 10.4 Progress update location
+### 10.4 Progress update locations
+
+Native CLI updates created with `delano update add` are flat dated files under:
+
+`.project/projects/<slug>/updates/<date>-<slug>.md`
+
+For manual multi-stream coordination, teams may also use a nested stream convention:
 
 `.project/projects/<slug>/updates/<task-id>/stream-<id>.md`
 

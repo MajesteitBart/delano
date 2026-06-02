@@ -1,6 +1,6 @@
 {
   "name": "@bvdm/delano",
-  "version": "0.2.9",
+  "version": "0.2.10",
   "description": "CLI for the Delano delivery runtime.",
   "license": "MIT",
   "repository": {

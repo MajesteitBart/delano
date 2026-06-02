@@ -67,7 +67,7 @@ See [DESIGN.md](DESIGN.md) and the [Delano Brand Book](docs/delano-brandbook.htm
 ## Delano CLI
 
 - Package: `@bvdm/delano`
-- Current package version: `0.2.9`
+- Current package version: `0.2.10`
 - Binary: `delano`
 - Commands: `onboarding`, `install`, `viewer`, `project`, `workstream`, `task`, `update`, `init`, `import-spec-kit`, `research`, `validate`, `status`, `next`
 - Primary goal: bootstrap a repo safely, expose local delivery state clearly, and keep runtime gates verifiable
