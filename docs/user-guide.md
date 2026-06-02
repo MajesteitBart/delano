@@ -142,7 +142,7 @@ Supported install categories are `agent-runtime`, `codex-hooks`, `skills`, `view
 
 ## Dependencies
 
-Delano v1.1 expects:
+Delano currently expects:
 
 - `node` 18+
 - `bash`
