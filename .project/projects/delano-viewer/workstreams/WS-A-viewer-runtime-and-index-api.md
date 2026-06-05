@@ -22,7 +22,7 @@ Provide the local read-only server, markdown indexing, document APIs, project ou
 ## Dependencies
 
 - Existing `.project` folder layout.
-- Node.js 18 or newer.
+- Node.js 22 or newer.
 - Local system opener and optional VS Code CLI for open actions.
 
 ## Risks

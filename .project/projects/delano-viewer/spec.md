@@ -112,7 +112,7 @@ probe_status: completed
 - Whether browser automation can be made reliable enough to become part of the normal viewer quality gate.
 
 ## Dependencies
-- Node.js 18 or newer.
+- Node.js 22 or newer.
 - The existing Delano `.project` contract layout.
 - The `code` CLI for VS Code open actions, when that button is used.
 - A system opener such as Windows Explorer, `open`, or `xdg-open` for folder open actions.

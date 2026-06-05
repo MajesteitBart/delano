@@ -144,7 +144,7 @@ Supported install categories are `agent-runtime`, `codex-hooks`, `skills`, `view
 
 Delano currently expects:
 
-- `node` 18+
+- `node` 22+
 - `bash`
 - `git`
 - `python3`, `python`, or `py`

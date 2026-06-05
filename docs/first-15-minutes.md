@@ -14,7 +14,7 @@ You can use this guide with a Spec Kit-style markdown file, or with a plain idea
 
 You need:
 
-- `node` 18 or newer;
+- `node` 22 or newer;
 - `bash`;
 - `git`;
 - `python3` or compatible Python runtime;

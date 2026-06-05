@@ -235,7 +235,7 @@ The viewer follows the same design language as the brand book: source paths stay
 
 Delano assumes these tools are available:
 
-- `node` 18 or newer
+- `node` 22 or newer
 - `bash`
 - `git`
 - `python3` or compatible `python` / `py`

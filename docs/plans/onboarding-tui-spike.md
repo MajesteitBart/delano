@@ -20,7 +20,7 @@ The registry item depends on `ink` and pulls additional registry dependencies fo
 
 ## Delano fit
 
-Delano is a CommonJS Node CLI with a Node 18+ engine contract. Ink's latest published line now targets Node 22+, so this branch uses Ink 5.x with React 18 to keep Delano's existing runtime floor.
+Delano is a CommonJS Node CLI with a Node 22+ engine contract. That matches Ink's current runtime floor, so this branch uses Ink 7.x with React 19.
 
 Pulling in the full Termcn registry path would still mean JSX or TypeScript build assumptions plus registry-generated theme, animation, big text, and input layers. The better fit is a small native Ink component set that borrows the setup-flow visual language without adopting the whole registry stack.
 
