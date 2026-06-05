@@ -18,6 +18,10 @@
   "engines": {
     "node": ">=18"
   },
+  "dependencies": {
+    "ink": "^5.2.1",
+    "react": "^18.3.1"
+  },
   "files": [
     "bin/",
     "src/",

@@ -2,11 +2,13 @@ const { existsSync, readFileSync } = require("node:fs");
 const path = require("node:path");
 const readline = require("node:readline/promises");
 const { stdin, stdout } = require("node:process");
+const { pathToFileURL } = require("node:url");
 
 const { CliError } = require("./errors");
 const { getPackageRoot } = require("./runtime");
 
 const ANALYSIS_APPROVAL_FLAG = "--approve-agents-analysis";
+const INK_OUTPUT = "ink";
 const SETUP_FLOW_OUTPUT = "setup-flow";
 const TEXT_OUTPUT = "text";
 
@@ -39,7 +41,12 @@ function parseOnboardingArgs(args) {
       continue;
     }
 
-    if (arg === "--tui" || arg === "--setup-flow") {
+    if (arg === "--tui") {
+      options.output = INK_OUTPUT;
+      continue;
+    }
+
+    if (arg === "--setup-flow") {
       options.output = SETUP_FLOW_OUTPUT;
       continue;
     }
@@ -243,6 +250,23 @@ function formatOnboardingSetupFlow({ agentsPath, guidePath, review }) {
   return lines.join("\n");
 }
 
+function getOnboardingReview(agentsPath) {
+  const guidePath = getOnboardingGuidePath();
+  const agentsContent = readFileSync(agentsPath, "utf8");
+  const review = analyzeAgentsContent(agentsContent);
+  return { agentsPath, guidePath, review };
+}
+
+async function renderOnboardingInk(options, agentsPath) {
+  const tuiPath = path.join(__dirname, "..", "tui", "onboarding.mjs");
+  const { renderOnboardingTui } = await import(pathToFileURL(tuiPath).href);
+  await renderOnboardingTui({
+    agentsPath,
+    approveAnalysis: options.approveAnalysis,
+    analyze: () => getOnboardingReview(agentsPath)
+  });
+}
+
 async function confirmAgentsAnalysis(options, agentsPath) {
   if (options.approveAnalysis) {
     return true;
@@ -277,24 +301,28 @@ async function runOnboarding(args) {
     );
   }
 
+  if (options.output === INK_OUTPUT && stdin.isTTY && stdout.isTTY) {
+    await renderOnboardingInk(options, agentsPath);
+    return 0;
+  }
+
   const approved = await confirmAgentsAnalysis(options, agentsPath);
   if (!approved) {
     console.log("Onboarding skipped. No analysis performed.");
     return 0;
   }
 
-  const guidePath = getOnboardingGuidePath();
-  const agentsContent = readFileSync(agentsPath, "utf8");
-  const review = analyzeAgentsContent(agentsContent);
-  const report = options.output === SETUP_FLOW_OUTPUT
-    ? formatOnboardingSetupFlow({ agentsPath, guidePath, review })
-    : formatOnboardingReport({ agentsPath, guidePath, review });
+  const reportData = getOnboardingReview(agentsPath);
+  const report = options.output === SETUP_FLOW_OUTPUT || options.output === INK_OUTPUT
+    ? formatOnboardingSetupFlow(reportData)
+    : formatOnboardingReport(reportData);
   console.log(report);
   return 0;
 }
 
 module.exports = {
   ANALYSIS_APPROVAL_FLAG,
+  INK_OUTPUT,
   SETUP_FLOW_OUTPUT,
   TEXT_OUTPUT,
   analyzeAgentsContent,
@@ -302,6 +330,7 @@ module.exports = {
   findAgentsFile,
   formatOnboardingReport,
   formatOnboardingSetupFlow,
+  getOnboardingReview,
   getOnboardingGuidePath,
   parseOnboardingArgs,
   runOnboarding

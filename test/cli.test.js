@@ -20,6 +20,7 @@ const {
 } = require("../src/cli/lib/install");
 const {
   ANALYSIS_APPROVAL_FLAG,
+  INK_OUTPUT,
   SETUP_FLOW_OUTPUT,
   TEXT_OUTPUT,
   analyzeAgentsContent,
@@ -313,6 +314,11 @@ test("onboarding args support explicit approval and target overrides", () => {
   assert.deepEqual(parseOnboardingArgs([ANALYSIS_APPROVAL_FLAG, "--setup-flow"]), {
     approveAnalysis: true,
     output: SETUP_FLOW_OUTPUT,
+    target: path.resolve(process.cwd())
+  });
+  assert.deepEqual(parseOnboardingArgs([ANALYSIS_APPROVAL_FLAG, "--tui"]), {
+    approveAnalysis: true,
+    output: INK_OUTPUT,
     target: path.resolve(process.cwd())
   });
 });

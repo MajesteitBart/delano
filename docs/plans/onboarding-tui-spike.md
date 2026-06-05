@@ -20,28 +20,30 @@ The registry item depends on `ink` and pulls additional registry dependencies fo
 
 ## Delano fit
 
-Delano is currently a CommonJS Node CLI with no runtime dependencies. Pulling in the full Termcn path would mean adding React, Ink, JSX or TypeScript build assumptions, and a registry-generated component layer. That is likely too much for the first slice of the onboarding command.
+Delano is a CommonJS Node CLI with a Node 18+ engine contract. Ink's latest published line now targets Node 22+, so this branch uses Ink 5.x with React 18 to keep Delano's existing runtime floor.
 
-The safer experiment is to keep `delano onboarding` plain by default and add a dependency-free `--tui` / `--setup-flow` report mode that uses the same visual grammar. This lets us validate whether the flow feels useful before deciding on a real Ink app shell.
+Pulling in the full Termcn registry path would still mean JSX or TypeScript build assumptions plus registry-generated theme, animation, big text, and input layers. The better fit is a small native Ink component set that borrows the setup-flow visual language without adopting the whole registry stack.
 
 ## Prototype path
 
 Implemented in this branch:
 
-- `delano onboarding --tui`
-- `delano onboarding --setup-flow`
+- `delano onboarding --tui` for the Ink app when stdin/stdout are TTYs
+- `delano onboarding --setup-flow` for the dependency-free setup-flow text report
 - `delano onboarding --text`
 
-The new output keeps the same approval gate and review logic, then renders the result as a setup-flow preview. It does not add dependencies and does not change the default text output.
+The TUI keeps the same approval gate. Without `--approve-agents-analysis`, the Ink app asks for approval before reading and analyzing `AGENTS.md`. Non-TTY `--tui` falls back to the setup-flow text report so CI and one-shot automation stay deterministic.
 
-## Full TUI path
+The default text output remains unchanged.
 
-If the preview feels right, a real TUI should be a separate implementation slice:
+## Remaining TUI path
 
-- Add an optional Ink app shell for onboarding only.
-- Keep non-TTY and CI output plain text.
-- Keep `--approve-agents-analysis` as the explicit read gate.
-- Reuse existing review functions so TUI and text output cannot drift.
-- Decide whether Termcn registry-generated components belong in the repo or whether Delano should keep a small native Ink component set.
+Next slices to make this feel like a full onboarding wizard:
 
-The main open question is packaging posture: a polished TUI would improve first-run confidence, but it would make the npm package dependency surface larger and introduce rendering behavior that needs cross-terminal testing.
+- Add interactive target selection instead of requiring `--target`.
+- Add a guided "open guide / open AGENTS.md / copy suggested skeleton" decision step, while keeping edits explicit.
+- Consider a second screen for install/update choices so onboarding and install share one visual language.
+- Add PTY-backed smoke tests or snapshots for the Ink render path.
+- Decide whether richer Termcn pieces like big text and animation are worth the extra package and test surface.
+
+The main open question is packaging posture: a polished TUI improves first-run confidence, but it makes Delano's npm dependency surface larger and introduces rendering behavior that needs cross-terminal testing.

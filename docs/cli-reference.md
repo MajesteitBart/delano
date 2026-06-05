@@ -30,7 +30,7 @@ delano validate
 delano viewer
 ```
 
-Do not skip `delano onboarding` if a repo already has `AGENTS.md`. It reviews the instructions only after explicit approval and does not edit them by itself. `delano onboarding --tui` renders the same review as an experimental setup-flow style report.
+Do not skip `delano onboarding` if a repo already has `AGENTS.md`. It reviews the instructions only after explicit approval and does not edit them by itself. `delano onboarding --tui` runs the experimental Ink setup-flow TUI when stdin/stdout are TTYs; `--setup-flow` renders the same review as non-interactive setup-flow text.
 
 ## Manual Steps The CLI Does Not Do For You
 
