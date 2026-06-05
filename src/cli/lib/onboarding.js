@@ -7,10 +7,13 @@ const { CliError } = require("./errors");
 const { getPackageRoot } = require("./runtime");
 
 const ANALYSIS_APPROVAL_FLAG = "--approve-agents-analysis";
+const SETUP_FLOW_OUTPUT = "setup-flow";
+const TEXT_OUTPUT = "text";
 
 function parseOnboardingArgs(args) {
   const options = {
     approveAnalysis: false,
+    output: TEXT_OUTPUT,
     target: process.cwd()
   };
 
@@ -33,6 +36,16 @@ function parseOnboardingArgs(args) {
 
     if (arg === ANALYSIS_APPROVAL_FLAG) {
       options.approveAnalysis = true;
+      continue;
+    }
+
+    if (arg === "--tui" || arg === "--setup-flow") {
+      options.output = SETUP_FLOW_OUTPUT;
+      continue;
+    }
+
+    if (arg === "--text") {
+      options.output = TEXT_OUTPUT;
       continue;
     }
 
@@ -184,6 +197,52 @@ function formatOnboardingReport({ agentsPath, guidePath, review }) {
   return lines.join("\n");
 }
 
+function formatOnboardingSetupFlow({ agentsPath, guidePath, review }) {
+  const strengthCount = review.strengths.length;
+  const gapCount = review.gaps.length;
+  const summary = gapCount > 0
+    ? `${strengthCount} strengths, ${gapCount} improvement${gapCount === 1 ? "" : "s"}`
+    : `${strengthCount} strengths, no major gaps`;
+  const lines = [
+    "Delano onboarding",
+    "",
+    "┌ setup-flow preview ┐",
+    "◇ AGENTS.md found",
+    `│  ${agentsPath}`,
+    "│",
+    "◇ Onboarding rubric loaded",
+    `│  ${guidePath}`,
+    "│",
+    "◆ Review complete",
+    `│  ${summary}`
+  ];
+
+  if (review.strengths.length > 0) {
+    lines.push("│", "◇ Already working well");
+    for (const strength of review.strengths) {
+      lines.push(`│  ■ ${strength}`);
+    }
+  }
+
+  if (review.gaps.length > 0) {
+    lines.push("│", "◆ Improve next");
+    for (const gap of review.gaps) {
+      lines.push(`│  □ ${gap}`);
+    }
+  } else {
+    lines.push("│", "✓ No major gaps detected against the onboarding guide.");
+  }
+
+  lines.push(
+    "│",
+    "◇ Guardrail",
+    "│  No edits were applied.",
+    "│  Approve AGENTS.md changes explicitly in a separate step."
+  );
+
+  return lines.join("\n");
+}
+
 async function confirmAgentsAnalysis(options, agentsPath) {
   if (options.approveAnalysis) {
     return true;
@@ -227,16 +286,22 @@ async function runOnboarding(args) {
   const guidePath = getOnboardingGuidePath();
   const agentsContent = readFileSync(agentsPath, "utf8");
   const review = analyzeAgentsContent(agentsContent);
-  console.log(formatOnboardingReport({ agentsPath, guidePath, review }));
+  const report = options.output === SETUP_FLOW_OUTPUT
+    ? formatOnboardingSetupFlow({ agentsPath, guidePath, review })
+    : formatOnboardingReport({ agentsPath, guidePath, review });
+  console.log(report);
   return 0;
 }
 
 module.exports = {
   ANALYSIS_APPROVAL_FLAG,
+  SETUP_FLOW_OUTPUT,
+  TEXT_OUTPUT,
   analyzeAgentsContent,
   confirmAgentsAnalysis,
   findAgentsFile,
   formatOnboardingReport,
+  formatOnboardingSetupFlow,
   getOnboardingGuidePath,
   parseOnboardingArgs,
   runOnboarding

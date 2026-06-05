@@ -186,7 +186,7 @@ Recommended first step:
 delano onboarding
 ```
 
-`delano onboarding` searches upward for `AGENTS.md`, asks for explicit approval before it analyzes anything, and prints recommendations using the packaged onboarding skill rubric. It does not edit `AGENTS.md` on its own.
+`delano onboarding` searches upward for `AGENTS.md`, asks for explicit approval before it analyzes anything, and prints recommendations using the packaged onboarding skill rubric. It does not edit `AGENTS.md` on its own. Use `delano onboarding --tui` for the experimental setup-flow style report.
 
 If you bootstrap with one-shot `npx`, keep using `npx` for wrapper commands:
 

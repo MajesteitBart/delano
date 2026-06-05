@@ -18,7 +18,14 @@ const {
   parseInteractiveCategorySelection,
   parseInstallArgs
 } = require("../src/cli/lib/install");
-const { ANALYSIS_APPROVAL_FLAG, analyzeAgentsContent, parseOnboardingArgs } = require("../src/cli/lib/onboarding");
+const {
+  ANALYSIS_APPROVAL_FLAG,
+  SETUP_FLOW_OUTPUT,
+  TEXT_OUTPUT,
+  analyzeAgentsContent,
+  formatOnboardingSetupFlow,
+  parseOnboardingArgs
+} = require("../src/cli/lib/onboarding");
 const { parseViewerArgs } = require("../src/cli/commands/viewer");
 const { findDelanoRoot, normalizeBashScriptPath } = require("../src/cli/lib/runtime");
 
@@ -300,7 +307,13 @@ test("top-level install options are treated as install shorthand", () => {
 test("onboarding args support explicit approval and target overrides", () => {
   assert.deepEqual(parseOnboardingArgs([ANALYSIS_APPROVAL_FLAG, "--target", "..\\repo"]), {
     approveAnalysis: true,
+    output: TEXT_OUTPUT,
     target: path.resolve("..\\repo")
+  });
+  assert.deepEqual(parseOnboardingArgs([ANALYSIS_APPROVAL_FLAG, "--setup-flow"]), {
+    approveAnalysis: true,
+    output: SETUP_FLOW_OUTPUT,
+    target: path.resolve(process.cwd())
   });
 });
 
@@ -323,6 +336,24 @@ test("onboarding analysis reports missing workflow and safety guidance", () => {
   assert.ok(review.strengths.length > 0);
   assert.ok(review.gaps.some((gap) => gap.includes("first-turn workflow")));
   assert.ok(review.gaps.some((gap) => gap.includes("approval boundaries")));
+});
+
+test("onboarding setup-flow report preserves review content", () => {
+  const report = formatOnboardingSetupFlow({
+    agentsPath: "/repo/AGENTS.md",
+    guidePath: "/repo/.agents/skills/onboarding/references/agents-md-best-practices.md",
+    review: {
+      strengths: ["Provides a reusable first-turn sequence instead of only static rules."],
+      gaps: ["Add a retrieval index so the agent can jump from a task area to the right file quickly."]
+    }
+  });
+
+  assert.match(report, /setup-flow preview/);
+  assert.match(report, /◇ AGENTS\.md found/);
+  assert.match(report, /◆ Review complete/);
+  assert.match(report, /■ Provides a reusable first-turn sequence/);
+  assert.match(report, /□ Add a retrieval index/);
+  assert.match(report, /No edits were applied/);
 });
 
 test("agent parsing normalizes values and removes duplicates", () => {
