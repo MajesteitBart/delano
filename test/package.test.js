@@ -180,6 +180,16 @@ test("Codex session status hook emits SessionStart context", () => {
   assert.doesNotMatch(parsed.hookSpecificOutput.additionalContext, /\n/);
 });
 
+test("claude mirror sync repairs stale file and directory shape conflicts", () => {
+  const result = spawnSync(process.execPath, ["scripts/sync-claude-mirror.mjs", "--self-test"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Claude mirror sync self-test passed/);
+});
+
 test("text safety check rejects bidi control characters", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-text-safety-"));
   const samplePath = path.join(tmpDir, "sample.md");
@@ -604,7 +614,7 @@ test("task schema types conflicts_with as conflict zones", () => {
   for (const zone of ["src/cli/index.js", ".agents/adapters/**", "T-001"]) {
     assert.ok(pattern.test(zone), `expected conflict zone to validate: ${zone}`);
   }
-  for (const invalid of ["/absolute/path", "C:/windows/path", "C:\\windows\\path"]) {
+  for (const invalid of ["/absolute/path", "C:\\windows\\path", "C:/windows/path", "../outside", "src/../outside"]) {
     assert.ok(!pattern.test(invalid), `expected conflict zone to fail: ${invalid}`);
   }
 });

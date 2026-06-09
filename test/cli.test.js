@@ -307,6 +307,7 @@ test("update add enforces canonical statuses and no longer emits review", () => 
   assert.doesNotMatch(doneUpdate, /review/);
   assert.match(deferredUpdate, /^status: deferred$/m);
   assert.match(deferredUpdate, /## Completed\n- Parking this thread/);
+  assert.doesNotMatch(deferredUpdate, /## In Progress\n- Parking this thread/);
 
   const rejected = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "update", "add", "sample-project", "--message", "x", "--status", "review"], {
     cwd: repo,

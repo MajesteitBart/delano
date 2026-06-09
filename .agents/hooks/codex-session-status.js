@@ -93,11 +93,7 @@ console.log(JSON.stringify({
 
 function formatStatusContext(rawStatusOutput) {
   const lines = rawStatusOutput.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const projectLines = lines.filter((line) => (
-    !line.startsWith("Delano ") &&
-    !/^=+$/.test(line) &&
-    !line.startsWith("No open projects")
-  ));
+  const projectLines = lines.filter((line) => !isStatusChromeLine(line));
 
   if (projectLines.length === 0) {
     return "Delano startup context. Open projects: none.";
@@ -105,6 +101,14 @@ function formatStatusContext(rawStatusOutput) {
 
   const projects = projectLines.map(formatProjectLine);
   return `Delano startup context. Open projects: ${projects.join("; ")}.`;
+}
+
+function isStatusChromeLine(line) {
+  return (
+    line.startsWith("Delano ") ||
+    /^=+$/.test(line) ||
+    /^No open projects\b/.test(line)
+  );
 }
 
 function formatProjectLine(line) {
