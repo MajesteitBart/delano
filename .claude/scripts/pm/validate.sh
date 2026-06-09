@@ -501,7 +501,7 @@ if [[ -f scripts/check-adapter-manifests.mjs ]]; then
   fi
 fi
 
-if [[ -f scripts/check-claude-mirror-parity.mjs && -e .claude ]]; then
+if [[ -f scripts/check-claude-mirror-parity.mjs ]]; then
   echo ""
   if command -v node >/dev/null 2>&1; then
     if node scripts/check-claude-mirror-parity.mjs; then

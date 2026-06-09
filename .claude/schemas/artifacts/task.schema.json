@@ -72,7 +72,7 @@
       "items": {
         "type": "string",
         "minLength": 1,
-        "pattern": "^(?!/)[^\\\\]+$"
+        "pattern": "^(?!/|[A-Za-z]:)[^\\\\]+$"
       },
       "uniqueItems": true,
       "description": "Conflict zones as repo-relative paths or globs, for example src/cli/index.js or .agents/adapters/**. Legacy task-id entries remain readable but new tasks should name contested files or path globs."

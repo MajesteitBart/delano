@@ -32,10 +32,25 @@ let unchanged = 0;
 const canonicalFiles = listFiles(canonicalRoot);
 const canonicalSet = new Set(canonicalFiles);
 
+// Remove stale mirror entries before copying so shape changes
+// (file <-> directory) cannot collide during the copy pass.
+if (existsSync(mirrorRoot)) {
+  for (const file of listFiles(mirrorRoot)) {
+    if (!canonicalSet.has(file)) {
+      rmSync(path.join(mirrorRoot, file));
+      removed += 1;
+    }
+  }
+  pruneEmptyDirectories(mirrorRoot);
+}
+
 for (const file of canonicalFiles) {
   const source = path.join(canonicalRoot, file);
   const target = path.join(mirrorRoot, file);
 
+  if (existsSync(target) && !statSync(target).isFile()) {
+    rmSync(target, { recursive: true, force: true });
+  }
   if (existsSync(target) && readFileSync(source).equals(readFileSync(target))) {
     unchanged += 1;
     continue;
@@ -45,16 +60,6 @@ for (const file of canonicalFiles) {
   copyFileSync(source, target);
   chmodSync(target, statSync(source).mode);
   copied += 1;
-}
-
-if (existsSync(mirrorRoot)) {
-  for (const file of listFiles(mirrorRoot)) {
-    if (!canonicalSet.has(file)) {
-      rmSync(path.join(mirrorRoot, file));
-      removed += 1;
-    }
-  }
-  pruneEmptyDirectories(mirrorRoot);
 }
 
 console.log(`Claude mirror sync complete: ${copied} copied, ${removed} removed, ${unchanged} unchanged.`);

@@ -887,7 +887,7 @@ function normalizeUpdateSection(section, status) {
     throw new CliError("--section must be one of completed, in-progress, blockers, or next.", 1);
   }
   if (status === "blocked") return "blockers";
-  if (status === "done") return "completed";
+  if (status === "done" || status === "deferred") return "completed";
   return "in-progress";
 }
 

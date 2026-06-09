@@ -297,10 +297,16 @@ test("update add enforces canonical statuses and no longer emits review", () => 
   runDelano(repo, ["project", "create", "sample-project", "--name", "Sample Project", "--json"]);
 
   runDelano(repo, ["update", "add", "sample-project", "--message", "Wrapped up the change", "--status", "done", "--json"]);
+  runDelano(repo, ["update", "add", "sample-project", "--message", "Parking this thread", "--status", "deferred", "--json"]);
   const updatesDir = path.join(repo, ".project", "projects", "sample-project", "updates");
-  const update = fs.readFileSync(path.join(updatesDir, fs.readdirSync(updatesDir)[0]), "utf8");
-  assert.match(update, /^status: done$/m);
-  assert.doesNotMatch(update, /review/);
+  const updates = fs.readdirSync(updatesDir).map((file) => fs.readFileSync(path.join(updatesDir, file), "utf8"));
+  const doneUpdate = updates.find((text) => text.includes("Wrapped up the change"));
+  const deferredUpdate = updates.find((text) => text.includes("Parking this thread"));
+  assert.match(doneUpdate, /^status: done$/m);
+  assert.match(doneUpdate, /## Completed\n- Wrapped up the change/);
+  assert.doesNotMatch(doneUpdate, /review/);
+  assert.match(deferredUpdate, /^status: deferred$/m);
+  assert.match(deferredUpdate, /## Completed\n- Parking this thread/);
 
   const rejected = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "update", "add", "sample-project", "--message", "x", "--status", "review"], {
     cwd: repo,

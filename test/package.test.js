@@ -604,7 +604,7 @@ test("task schema types conflicts_with as conflict zones", () => {
   for (const zone of ["src/cli/index.js", ".agents/adapters/**", "T-001"]) {
     assert.ok(pattern.test(zone), `expected conflict zone to validate: ${zone}`);
   }
-  for (const invalid of ["/absolute/path", "C:\\windows\\path"]) {
+  for (const invalid of ["/absolute/path", "C:/windows/path", "C:\\windows\\path"]) {
     assert.ok(!pattern.test(invalid), `expected conflict zone to fail: ${invalid}`);
   }
 });

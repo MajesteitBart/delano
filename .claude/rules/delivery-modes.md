@@ -16,4 +16,4 @@ Use operating modes to choose the lightest safe delivery contract. The mode shou
 
 Artifacts that declare `operating_mode` are validated against the declared mode: unknown mode values fail, and mode 2-4 specs and plans must contain their required sections. Modes 0 and 1 require no spec/plan sections, which keeps small work genuinely lighter.
 
-Artifacts without `operating_mode` keep legacy validation only. New artifacts created by `delano project create`, `delano workstream add`, and `delano task add` carry the field (default `feature`; pass `--mode` to override). Do not rewrite closed historical projects just to add the field.
+Artifacts without `operating_mode` keep legacy validation only. New artifacts created by `delano project create`, `delano workstream add`, and `delano task add` carry the field: project creation defaults to `feature`, while workstream and task creation inherit the project mode unless `--mode` is passed. Do not rewrite closed historical projects just to add the field.
