@@ -83,13 +83,25 @@ function prepareTargetPath(target, root) {
 
   for (const part of parts.slice(0, -1)) {
     current = path.join(current, part);
-    if (existsSync(current) && !lstatSync(current).isDirectory()) {
+    const currentStat = lstatOrNull(current);
+    if (currentStat && !currentStat.isDirectory()) {
       rmSync(current, { force: true, recursive: true });
     }
   }
 
-  if (existsSync(target) && !lstatSync(target).isFile()) {
+  // lstat instead of existsSync so dangling symlinks are cleared rather
+  // than written through by copyFileSync.
+  const targetStat = lstatOrNull(target);
+  if (targetStat && !targetStat.isFile()) {
     rmSync(target, { force: true, recursive: true });
+  }
+}
+
+function lstatOrNull(filePath) {
+  try {
+    return lstatSync(filePath);
+  } catch {
+    return null;
   }
 }
 

@@ -629,6 +629,28 @@ test("operating modes check enforces contract surfaces against live artifacts", 
   assert.match(checkResult.stdout, /mode-scoped artifact/);
 });
 
+test("operating modes check inherits the project mode for plan section enforcement", () => {
+  const contract = JSON.parse(fs.readFileSync(path.join(repoRoot, ".agents", "schemas", "operating-modes.json"), "utf8"));
+  const featureMode = contract.modes.find((mode) => mode.slug === "feature");
+  const specSections = featureMode.contract_surface.spec_required_sections.map((name) => `## ${name}`).join("\n\n");
+
+  const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "delano-mode-inherit-"));
+  const projectDir = path.join(projectsRoot, "spec-only-mode");
+  fs.mkdirSync(path.join(projectDir, "tasks"), { recursive: true });
+  fs.writeFileSync(path.join(projectDir, "spec.md"), `---\nstatus: active\noperating_mode: feature\n---\n\n# Spec\n\n${specSections}\n`, "utf8");
+  fs.writeFileSync(path.join(projectDir, "plan.md"), "---\nstatus: active\n---\n\n# Plan\n", "utf8");
+  fs.writeFileSync(path.join(projectDir, "tasks", "T-001-sample.md"), "---\nid: T-001\nstatus: ready\n---\n", "utf8");
+
+  const checkResult = spawnSync(process.execPath, ["scripts/check-operating-modes.mjs", "--projects-root", projectsRoot], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  fs.rmSync(projectsRoot, { recursive: true, force: true });
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr + checkResult.stdout, /plan\.md inherits project operating_mode feature but is missing required section: What Changed After Probe/);
+});
+
 test("operating modes check requires mode artifacts once a project progresses", () => {
   const contract = JSON.parse(fs.readFileSync(path.join(repoRoot, ".agents", "schemas", "operating-modes.json"), "utf8"));
   const multiStream = contract.modes.find((mode) => mode.slug === "multi-stream");

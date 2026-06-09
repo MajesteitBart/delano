@@ -414,7 +414,7 @@ The operating mode (Section 8.3) sizes the contract, not just the narrative. `op
 | 3 uncertain-feature | spec, plan, task | full canonical section sets plus probe gates |
 | 4 multi-stream | spec, plan, workstream, task | full canonical section sets plus leases and handoffs |
 
-`[enforced]` An artifact that declares `operating_mode` is validated against that mode's section surface by `check-operating-modes`: unknown mode values fail, and a mode 2-4 spec or plan missing a required section fails. Artifacts without `operating_mode` keep legacy validation only; do not rewrite closed historical projects just to add the field.
+`[enforced]` An artifact that declares `operating_mode` is validated against that mode's section surface by `check-operating-modes`: unknown mode values fail, and a mode 2-4 spec or plan missing a required section fails. A spec or plan without its own `operating_mode` inherits the project mode from its sibling artifact for section enforcement, so declaring the mode once is enough. Artifacts without any project mode keep legacy validation only; do not rewrite closed historical projects just to add the field.
 
 `[enforced]` A project whose spec or plan declares `operating_mode` and has progressed past `planned` must contain the mode's required artifacts: a mode-declaring project past `planned` needs at least one task, and a mode 4 project additionally needs at least one workstream. Freshly created `planned` projects may still be empty.
 

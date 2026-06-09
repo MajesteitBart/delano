@@ -14,6 +14,7 @@ const contract = readJson(modesPath, "operating modes contract");
 const modes = Array.isArray(contract.modes) ? contract.modes : [];
 const expectedModes = [0, 1, 2, 3, 4];
 const expectedSlugs = ["patch", "scoped-change", "feature", "uncertain-feature", "multi-stream"];
+const KNOWN_ARTIFACT_KINDS = new Set(["spec", "plan", "workstream", "task"]);
 
 if (contract.schema_version !== 1) {
   errors.push("operating-modes.json schema_version must be 1.");
@@ -80,6 +81,12 @@ function checkContractSurface(expectedMode, surface) {
   }
   if (!isStringArray(surface.required_artifacts) || surface.required_artifacts.length === 0) {
     errors.push(`mode ${expectedMode} contract_surface.required_artifacts must be a non-empty string array.`);
+  } else {
+    for (const artifact of surface.required_artifacts) {
+      if (!KNOWN_ARTIFACT_KINDS.has(artifact)) {
+        errors.push(`mode ${expectedMode} contract_surface.required_artifacts contains unknown artifact kind: ${artifact}`);
+      }
+    }
   }
   for (const field of ["spec_required_sections", "plan_required_sections"]) {
     if (!isStringArray(surface[field])) {
@@ -96,9 +103,10 @@ function checkModeScopedArtifacts() {
     if (!entry.isDirectory()) continue;
     const projectDir = path.join(projectsRoot, entry.name);
 
-    scopedCount += checkArtifactMode(path.join(projectDir, "spec.md"), "spec_required_sections");
-    scopedCount += checkArtifactMode(path.join(projectDir, "plan.md"), "plan_required_sections");
-    checkRequiredArtifacts(projectDir);
+    const projectMode = resolveProjectMode(projectDir);
+    scopedCount += checkArtifactMode(path.join(projectDir, "spec.md"), "spec_required_sections", projectMode);
+    scopedCount += checkArtifactMode(path.join(projectDir, "plan.md"), "plan_required_sections", projectMode);
+    checkRequiredArtifacts(projectDir, projectMode);
     for (const subdir of ["tasks", "workstreams"]) {
       const dirPath = path.join(projectDir, subdir);
       if (!existsSync(dirPath)) continue;
@@ -110,14 +118,23 @@ function checkModeScopedArtifacts() {
   return scopedCount;
 }
 
-function checkRequiredArtifacts(projectDir) {
+function resolveProjectMode(projectDir) {
+  for (const name of ["spec.md", "plan.md"]) {
+    const frontmatter = readFrontmatterFile(path.join(projectDir, name));
+    const declared = frontmatter && frontmatter.operating_mode;
+    if (declared) {
+      const mode = resolveMode(declared);
+      if (mode) return mode;
+    }
+  }
+  return null;
+}
+
+function checkRequiredArtifacts(projectDir, mode) {
+  if (!mode || !mode.contract_surface || !isStringArray(mode.contract_surface.required_artifacts)) return;
+
   const spec = readFrontmatterFile(path.join(projectDir, "spec.md"));
   const plan = readFrontmatterFile(path.join(projectDir, "plan.md"));
-  const declared = (spec && spec.operating_mode) || (plan && plan.operating_mode);
-  if (!declared) return;
-
-  const mode = resolveMode(declared);
-  if (!mode || !mode.contract_surface || !isStringArray(mode.contract_surface.required_artifacts)) return;
 
   // A freshly created project may still be empty; required artifacts apply
   // once the project lifecycle has progressed past planned.
@@ -127,6 +144,8 @@ function checkRequiredArtifacts(projectDir) {
   if (!progressed) return;
 
   for (const artifact of mode.contract_surface.required_artifacts) {
+    // Unknown kinds are already reported by checkContractSurface.
+    if (!KNOWN_ARTIFACT_KINDS.has(artifact)) continue;
     if (!hasArtifact(projectDir, artifact)) {
       errors.push(`${toRepoPath(projectDir)} declares operating_mode ${mode.slug} and has progressed past planned but is missing required artifact: ${artifact}`);
     }
@@ -138,7 +157,7 @@ function hasArtifact(projectDir, artifact) {
   if (artifact === "plan") return existsSync(path.join(projectDir, "plan.md"));
   if (artifact === "task") return hasMarkdownFiles(path.join(projectDir, "tasks"));
   if (artifact === "workstream") return hasMarkdownFiles(path.join(projectDir, "workstreams"));
-  return true;
+  return false;
 }
 
 function hasMarkdownFiles(dirPath) {
@@ -155,19 +174,28 @@ function valueAfter(args, flag) {
   return index === -1 ? "" : args[index + 1] || "";
 }
 
-function checkArtifactMode(filePath, sectionField) {
+function checkArtifactMode(filePath, sectionField, projectMode = null) {
   if (!existsSync(filePath)) return 0;
 
   const text = readFileSync(filePath, "utf8");
   const declared = parseFrontmatter(text).operating_mode;
-  if (declared === undefined || declared === "") return 0;
+  let mode = null;
+  let modeSource = "declares";
 
-  const mode = resolveMode(declared);
-  if (!mode) {
-    errors.push(`${toRepoPath(filePath)} declares unknown operating_mode: ${declared}`);
-    return 1;
+  if (declared !== undefined && declared !== "") {
+    mode = resolveMode(declared);
+    if (!mode) {
+      errors.push(`${toRepoPath(filePath)} declares unknown operating_mode: ${declared}`);
+      return 1;
+    }
+  } else if (sectionField && projectMode) {
+    // A spec or plan without its own field is still governed by the
+    // project mode declared on its sibling artifact.
+    mode = projectMode;
+    modeSource = "inherits project";
   }
 
+  if (!mode) return 0;
   if (!sectionField || !mode.contract_surface) return 1;
   const requiredSections = isStringArray(mode.contract_surface[sectionField])
     ? mode.contract_surface[sectionField]
@@ -175,7 +203,7 @@ function checkArtifactMode(filePath, sectionField) {
   for (const sectionName of requiredSections) {
     const escaped = sectionName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     if (!new RegExp(`^## ${escaped}\\s*$`, "m").test(text)) {
-      errors.push(`${toRepoPath(filePath)} declares operating_mode ${mode.slug} but is missing required section: ${sectionName}`);
+      errors.push(`${toRepoPath(filePath)} ${modeSource} operating_mode ${mode.slug} but is missing required section: ${sectionName}`);
     }
   }
   return 1;
