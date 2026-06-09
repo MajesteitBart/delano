@@ -11,7 +11,7 @@ Compatibility path: `.claude/scripts/...` when the mirror is present.
 Critical path:
 - `init.sh`
 - `validate.sh`
-- `status.sh`
+- `status.sh` (`--open` and `--brief` are available for compact startup context)
 - `next.sh`
 - `blocked.sh`
 
