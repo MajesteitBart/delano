@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync, lstatSync, realpathSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, lstatSync, realpathSync, existsSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -40,7 +40,7 @@ function runParityCheck(canonicalRoot, mirrorRoot) {
 
   const drift = compareTrees(canonicalRoot, mirrorRoot);
 
-  if (drift.missing.length > 0 || drift.extra.length > 0 || drift.mismatched.length > 0) {
+  if (drift.missing.length > 0 || drift.extra.length > 0 || drift.mismatched.length > 0 || drift.modeDrift.length > 0) {
     console.error("Claude mirror parity check failed:");
     for (const file of drift.missing) {
       console.error(`- Missing from mirror: .claude/${file}`);
@@ -50,6 +50,9 @@ function runParityCheck(canonicalRoot, mirrorRoot) {
     }
     for (const file of drift.mismatched) {
       console.error(`- Content differs: .claude/${file}`);
+    }
+    for (const file of drift.modeDrift) {
+      console.error(`- Executable bit differs: .claude/${file}`);
     }
     console.error("Run 'npm run sync:claude-mirror' to regenerate .claude from .agents.");
     process.exit(1);
@@ -64,6 +67,7 @@ function compareTrees(canonicalRoot, mirrorRoot) {
 
   const missing = [];
   const mismatched = [];
+  const modeDrift = [];
 
   for (const file of canonicalFiles) {
     if (!mirrorFiles.has(file)) {
@@ -71,10 +75,16 @@ function compareTrees(canonicalRoot, mirrorRoot) {
       continue;
     }
     mirrorFiles.delete(file);
-    const canonicalContent = readFileSync(path.join(canonicalRoot, file));
-    const mirrorContent = readFileSync(path.join(mirrorRoot, file));
-    if (!canonicalContent.equals(mirrorContent)) {
+    const canonicalPath = path.join(canonicalRoot, file);
+    const mirrorPath = path.join(mirrorRoot, file);
+    if (!readFileSync(canonicalPath).equals(readFileSync(mirrorPath))) {
       mismatched.push(file);
+    }
+    // Comparing the two live trees is safe on filemode-less filesystems:
+    // any flattening applies to both sides equally, so only genuine
+    // executable-bit asymmetry is reported.
+    if ((lstatSync(canonicalPath).mode & 0o111) !== (lstatSync(mirrorPath).mode & 0o111)) {
+      modeDrift.push(file);
     }
   }
 
@@ -82,7 +92,8 @@ function compareTrees(canonicalRoot, mirrorRoot) {
     checked: canonicalFiles.length,
     missing,
     extra: [...mirrorFiles].sort(),
-    mismatched
+    mismatched,
+    modeDrift
   };
 }
 
@@ -128,12 +139,21 @@ function runSelfTest() {
       errors.push(`self-test mismatch detection failed: ${drift.mismatched.join(",")}`);
     }
 
+    if (process.platform !== "win32") {
+      chmodSync(path.join(canonical, "same.md"), 0o755);
+      const modeCheck = compareTrees(canonical, mirror);
+      if (modeCheck.modeDrift.join(",") !== "same.md") {
+        errors.push(`self-test mode drift detection failed: ${modeCheck.modeDrift.join(",")}`);
+      }
+      chmodSync(path.join(canonical, "same.md"), 0o644);
+    }
+
     writeFileSync(path.join(mirror, "nested", "only-canonical.md"), "canonical\n");
     rmSync(path.join(mirror, "nested", "only-mirror.md"));
     writeFileSync(path.join(mirror, "drifted.md"), "new content\n");
 
     const clean = compareTrees(canonical, mirror);
-    if (clean.missing.length !== 0 || clean.extra.length !== 0 || clean.mismatched.length !== 0) {
+    if (clean.missing.length !== 0 || clean.extra.length !== 0 || clean.mismatched.length !== 0 || clean.modeDrift.length !== 0) {
       errors.push("self-test clean comparison reported drift");
     }
   } finally {
