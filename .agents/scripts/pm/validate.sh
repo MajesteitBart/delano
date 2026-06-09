@@ -7,6 +7,15 @@ cd "$root"
 errors=0
 warnings=0
 
+release_checks=false
+for arg in "$@"; do
+  case "$arg" in
+    --release)
+      release_checks=true
+      ;;
+  esac
+done
+
 check_required_path() {
   local path="$1"
   if [[ -e "$path" ]]; then
@@ -236,6 +245,14 @@ for project_dir in .project/projects/*; do
         errors=$((errors + 1))
       fi
     done
+    probe_status_value="$(fm_get "$spec" "probe_status")"
+    if [[ "$probe_status_value" == "skipped" ]]; then
+      probe_rationale_value="$(fm_get "$spec" "probe_decision_rationale")"
+      if [[ -z "$probe_rationale_value" ]]; then
+        echo "  ❌ spec.md probe_status is skipped but probe_decision_rationale is missing or empty"
+        errors=$((errors + 1))
+      fi
+    fi
   fi
 
   plan="$project_dir/plan.md"
@@ -407,7 +424,9 @@ fi
 
 if [[ -f scripts/check-package-manifest-drift.mjs ]]; then
   echo ""
-  if command -v node >/dev/null 2>&1; then
+  if [[ "$release_checks" != "true" ]]; then
+    echo "ℹ️ Package/manifest drift check skipped (contracts-only run; pass --release to include it)."
+  elif command -v node >/dev/null 2>&1; then
     if node scripts/check-package-manifest-drift.mjs; then
       true
     else

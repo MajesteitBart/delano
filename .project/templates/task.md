@@ -13,6 +13,7 @@ conflicts_with: []
 parallel: true
 priority: medium
 estimate: M
+operating_mode: <patch|scoped-change|feature|uncertain-feature|multi-stream>
 story_id:
 acceptance_criteria_ids: []
 ---

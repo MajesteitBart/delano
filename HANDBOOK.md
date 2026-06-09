@@ -2,8 +2,8 @@
 
 ## First Edition, v3
 
-Version: 3.3
-Last updated: 2026-06-02
+Version: 3.4
+Last updated: 2026-06-09
 Runtime/package compatibility: covers `@bvdm/delano` through 0.2.10
 
 ---
@@ -19,7 +19,17 @@ It defines:
 - how local files, Linear, and GitHub stay aligned
 - how teams preserve quality under high delivery speed
 
-If you are reading this for implementation, start with Sections 4, 8, 9, 11, 17, and 18.
+If you are reading this for implementation, start with Sections 8, 9, 11, 17, and 18.
+
+### Rule tiers
+
+Rule-bearing statements in this handbook carry one of three tags:
+
+- `[enforced]` — checked by `validate.sh` or an npm check script; violations fail validation
+- `[policy]` — required by this handbook; verified by operators and review, not yet by tooling
+- `[guidance]` — recommended practice; deviation needs no waiver
+
+Untagged content is guidance. When a `[policy]` rule gains a validator, retag it `[enforced]`; every remaining `[policy]` tag is an open candidate for future enforcement.
 
 ---
 
@@ -28,7 +38,7 @@ If you are reading this for implementation, start with Sections 4, 8, 9, 11, 17,
 1. Purpose and design principles  
 2. Non-goals and anti-patterns  
 3. Canonical model and language  
-4. Linear mapping and decision rationale  
+4. Remote tracker mapping (status and design pointer)  
 5. System architecture and repository boundaries  
 6. Data contracts and artifact structure  
 7. Status models and transition policy  
@@ -44,6 +54,8 @@ If you are reading this for implementation, start with Sections 4, 8, 9, 11, 17,
 17. Templates and operational checklists  
 18. Runtime refresh and migration playbook
 19. Adoption roadmap and maturity gates
+
+Appendix A. Linear mapping design (design intent, not yet operational)
 
 ---
 
@@ -154,95 +166,17 @@ This model keeps the strongest existing Delano patterns:
 
 ---
 
-## 4) Linear mapping and decision rationale
+## 4) Remote tracker mapping (status and design pointer)
 
-This section is intentionally detailed because mapping choices determine workflow behavior.
+Status: design intent, not yet operational. As of runtime 0.2.x there are no live Linear mappings: `linear-map.json` is empty, no task carries a `linear_issue_id`, and sync surfaces run inspection-only against local snapshots. Nothing in Sections 5 through 10 depends on Linear being connected.
 
-### 4.1 Default mapping
+What is normative today:
 
-| Delano concept | Local artifact | Linear object | Default use |
-|---|---|---|---|
-| Outcome | `spec.md` outcome section | Initiative (optional) | strategic rollups across projects |
-| Spec | `.project/projects/<slug>/spec.md` | Project Document | canonical intent near execution |
-| Delivery Project | `.project/projects/<slug>/plan.md` | Project | execution container with owner and status |
-| Workstream | `workstreams/*.md` | Milestone (preferred) + labels | phase visibility + filtering |
-| Task | `tasks/*.md` | Issue | atomic execution |
-| Task split | sub-task pattern | Sub-issue (optional) | micro-splitting when needed |
+- Local contracts in `.project/` are the source of truth (Sections 5 and 6).
+- Sync behavior, drift classes, and the apply gate are defined in Section 11.
+- Task contracts carry `linear_issue_id` and the registry exists so adopting Linear later requires no contract migration.
 
-### 4.2 Entity-level rationale
-
-#### 4.2.1 Outcome -> Initiative (optional)
-
-Use Initiative only when:
-
-- multiple delivery projects contribute to one business objective
-- leadership needs aggregated project visibility
-- cross-team strategic alignment is required
-
-Do not force Initiative for single-project feature delivery.
-
-#### 4.2.2 Spec -> Project Document
-
-Chosen because it:
-
-- keeps intent and execution context in one place
-- reduces document fragmentation
-- supports incremental updates linked to active issues
-
-#### 4.2.3 Delivery Project -> Project
-
-Chosen because it:
-
-- matches Linear’s execution model
-- supports ownership, timeline, and progress visibility
-- maps cleanly to planning and release governance
-
-#### 4.2.4 Workstream -> Milestone + label group
-
-Use a dual mechanism:
-
-1. Milestone for sequencing and timeline visibility
-2. Workstream labels for filtering and cross-view analytics
-
-Recommended naming:
-
-- Milestone: `WS-A API Foundation`
-- Label group: `workstream`
-- Labels: `ws-a`, `ws-b`, `ws-c`
-
-Operational rule:
-
-- Every task issue must carry one workstream identifier in task frontmatter (`workstream: WS-A`) and the corresponding Linear workstream label (`ws-a`).
-
-#### 4.2.5 Task -> Issue
-
-Issue is the natural atomic execution object.
-
-Task sizing target:
-
-- 1 to 3 days under normal complexity
-
-### 4.3 Alternatives and why they are not default
-
-#### A) Initiative-heavy mapping
-
-`Spec/PRD -> Initiative, Epic -> Project, Task -> Issue`
-
-Valid for portfolio-heavy organizations. Not default because Delano prioritizes operational execution speed for typical single-project flows.
-
-#### B) Parent-issue-first mapping
-
-`Spec in Project, Epic as parent issue, Task as sub-issue`
-
-Not default because it weakens planning, milestone visibility, and structured governance.
-
-### 4.4 Critical Linear constraints
-
-1. One issue belongs to one project.
-2. Project status does not auto-resolve from issue closure.
-3. Dependencies are relation-based (`blocked by`, `related`).
-4. Conflict is not first-class. Use relation + label policy.
-5. Initiative linking at issue-level may be unavailable in some schemas. Keep initiative association at project level by default.
+The full mapping design, including entity mapping, rationale, rejected alternatives, and Linear platform constraints, lives in Appendix A. Read it when wiring Linear, not when implementing Delano.
 
 ---
 
@@ -319,7 +253,11 @@ outcome: <measurable target>
 uncertainty: low|medium|high
 probe_required: true|false
 probe_status: pending|skipped|completed
+probe_decision_rationale: <one line reason for the probe decision>
+operating_mode: patch|scoped-change|feature|uncertain-feature|multi-stream
 ```
+
+`probe_decision_rationale` records why the probe decision is safe. `[enforced]` It must be non-empty when `probe_status` is `skipped`. `operating_mode` is optional on historical artifacts; when declared, it scales the required section surface (see 6.7).
 
 Required sections:
 
@@ -352,6 +290,7 @@ updated: <ISO8601 UTC>
 linear_project_id: <id>
 risk_level: low|medium|high
 spec_status_at_plan_time: planned|active|complete|deferred
+operating_mode: patch|scoped-change|feature|uncertain-feature|multi-stream
 ```
 
 Required sections:
@@ -406,6 +345,7 @@ conflicts_with: []
 parallel: true|false
 priority: low|medium|high
 estimate: S|M|L|XL
+operating_mode: patch|scoped-change|feature|uncertain-feature|multi-stream
 story_id:
 acceptance_criteria_ids: []
 ```
@@ -420,6 +360,21 @@ Required sections:
 - Evidence log
 
 The current validator requires the core task keys above through `estimate`. `story_id` and `acceptance_criteria_ids` are canonical template fields for traceability and should be populated when a task maps to explicit spec stories or acceptance scenarios. They are not currently hard validation failures when empty.
+
+Field typing:
+
+- `depends_on` holds task ids (`T-001` form) and feeds dependency validation and next-task selection.
+- `conflicts_with` holds conflict zones: repo-relative paths or globs naming contested surfaces, for example `conflicts_with: [src/cli/index.js, .agents/adapters/**]`. Lease and conflict checks consume these values. Task-against-task mutual exclusion is expressed through `depends_on` sequencing or lease zones, not through `conflicts_with`. Legacy task-id entries remain readable but new tasks should name files or path globs.
+
+Task sizing target `[policy]`:
+
+A task is right-sized when all of the following hold:
+
+- it produces one reviewable change (typically one PR)
+- it can be verified in isolation against its own acceptance criteria
+- one operator or agent can complete and verify it in a single working session without re-planning (for agent execution: one session; for human execution: roughly one day)
+
+Calendar duration is a proxy, not the contract. If a task cannot be completed and verified in one session, split it. If two tasks can only be verified together, merge them.
 
 ### 6.5 Research intake contract
 
@@ -441,12 +396,27 @@ Durable findings must either:
 
 ### 6.6 Contract invariants
 
-- `created` immutable
-- `updated` real UTC system timestamp
-- probe decision explicit before spec activation
-- dependency graph acyclic before execution
-- no absolute path leakage in shared output
-- research findings are not execution truth until folded forward
+- `[enforced]` `created` and `updated` use ISO8601 UTC format; `[policy]` `created` is immutable and `updated` reflects real mutation time
+- `[enforced]` probe decision fields are present, and a skipped probe carries a non-empty `probe_decision_rationale`
+- `[enforced]` dependency graph acyclic before execution
+- `[policy]` no absolute path leakage in shared output (`check-path-standards.sh` exists for pre-publish runs; strict fixtures enforce the rule shape)
+- `[policy]` research findings are not execution truth until folded forward
+
+### 6.7 Mode-scaled contract surface
+
+The operating mode (Section 8.3) sizes the contract, not just the narrative. `operating-modes.json` declares a `contract_surface` per mode: the artifacts the mode expects and the spec/plan sections it requires.
+
+| Mode | Required artifacts | Spec/plan section surface |
+|---|---|---|
+| 0 patch | task | none required |
+| 1 scoped-change | task | none required |
+| 2 feature | spec, plan, task | full canonical section sets (6.1, 6.2) |
+| 3 uncertain-feature | spec, plan, task | full canonical section sets plus probe gates |
+| 4 multi-stream | spec, plan, workstream, task | full canonical section sets plus leases and handoffs |
+
+`[enforced]` An artifact that declares `operating_mode` is validated against that mode's section surface by `check-operating-modes`: unknown mode values fail, and a mode 2-4 spec or plan missing a required section fails. Artifacts without `operating_mode` keep legacy validation only; do not rewrite closed historical projects just to add the field.
+
+At modes 0 and 1 the spec and plan are optional artifacts. When they exist they may stay lean; the full section sets become mandatory from mode 2 upward. This is what makes a patch actually cheaper than a feature inside the same system.
 
 ---
 
@@ -476,6 +446,7 @@ Probe decision rule while spec is `planned`:
 
 - `probe_required: false` allows activation once other discovery gates pass.
 - `probe_required: true` requires a Prototype Probe and recorded findings before activation.
+- `[enforced]` `probe_status: skipped` requires a non-empty `probe_decision_rationale` in spec frontmatter.
 
 #### Delivery Project
 
@@ -494,20 +465,18 @@ optional branches: `blocked`, `deferred`
 
 ### 7.3 Transition policy
 
-- No `ready`, `in-progress`, or `done` transition with unmet local dependencies.
-- No `done` without evidence completion.
-- No project `done` with unresolved required tasks.
-- No progressed task without an existing parent workstream.
-- No `in-progress` task unless its workstream is `active`.
-- No `done` task unless its workstream is `active` or `done`.
-- No workstream with zero open tasks unless it is `done` or `deferred`.
-- No spec `active` without explicit probe decision fields.
-- No spec `active` with unresolved required probe findings.
-- No spec `complete` without outcome review.
+- `[enforced]` No `ready`, `in-progress`, or `done` transition with unmet local dependencies.
+- `[enforced]` No `done` task without checked acceptance criteria and evidence-log proof.
+- `[enforced]` No project `done` with unresolved required tasks.
+- `[enforced]` No progressed task without an existing parent workstream.
+- `[enforced]` No `in-progress` task unless its workstream is `active`.
+- `[enforced]` No `done` task unless its workstream is `active` or `done`.
+- `[enforced]` No workstream with zero open tasks unless it is `done` or `deferred`.
+- `[enforced]` No spec without explicit probe decision fields, and no skipped probe without a recorded rationale.
+- `[policy]` No spec `active` with unresolved required probe findings.
+- `[policy]` No spec `complete` without outcome review.
 
-Current artifact scans and proposed transitions are strict for local task dependencies: `ready`, `in-progress`, and `done` tasks fail validation when they depend on unresolved local tasks.
-
-Probe and outcome rules are policy gates unless a local validator or review workflow enforces them directly. They still belong in the handbook because agents and operators must not treat schema pass/fail as the whole approval model.
+The `[policy]` gates above belong in the handbook because agents and operators must not treat schema pass/fail as the whole approval model: a spec can validate cleanly and still not be ready to activate or close.
 
 ### 7.4 Native CLI lifecycle rollups
 
@@ -525,13 +494,19 @@ These rollups are intentionally scoped and evidence-driven. They do not remove t
 
 ### 7.5 Review semantics
 
-Review is a quality gate before closure. It may include one or more:
+Review is a quality gate before closure, not a task status. It may include one or more:
 
 - code review
 - quality gate verification
 - product acceptance for user-visible changes
 
 Teams must define exact review semantics in local policy and record the result in evidence, updates, or PR state.
+
+Minimum review semantics (default policy):
+
+- `[policy]` Tasks that change runtime behavior close through a PR or recorded diff review with a named reviewer.
+- `[policy]` Solo-operator exception: self-review is permitted but must be recorded as an explicit evidence-log line stating what was checked and what was not (for example `self-review: ran cli tests, inspected diff, did not exercise viewer`), never as a bare checked box.
+- `[policy]` A checked "Review complete" item in a Definition of Done must point at its evidence: a PR URL, a review note, or a self-review line in the evidence log.
 
 ### 7.6 Explicit Delano -> Linear status mapping
 
@@ -544,6 +519,8 @@ Teams must define exact review semantics in local policy and record the result i
 | deferred | Canceled, Icebox, or Backlog depending on team policy |
 
 If team workflow names differ, maintain this semantic mapping in sync rules.
+
+This mapping is design intent until the Linear integration is live; see Appendix A.
 
 ---
 
@@ -586,16 +563,18 @@ PM-script wrappers:
 
 Use the native state commands for template-backed contract creation and lifecycle patching. Use wrappers when invoking the established PM-script runtime directly.
 
+`delano project create` and `delano task add` accept `--mode <0-4|slug>` to set the operating mode (default `feature`; tasks and workstreams inherit the project mode when their own flag is omitted). `delano project create` also accepts `--probe-rationale <text>` to record the probe decision. `delano validate` runs the contracts-only gate; pass `--release` to include package payload drift.
+
 ### 8.3 Current runtime foundation
 
 The package adds enforceable local runtime surfaces around the handbook process:
 
-- **Operating modes**: Mode 0 patch, Mode 1 scoped change, Mode 2 feature, Mode 3 uncertain feature, and Mode 4 multi-stream. Modes are additive hints for task depth and required proof, not a reason to skip safety gates.
+- **Operating modes**: Mode 0 patch, Mode 1 scoped change, Mode 2 feature, Mode 3 uncertain feature, and Mode 4 multi-stream. Modes are not a reason to skip safety gates. Each mode declares a `contract_surface` in `operating-modes.json`; artifacts that declare `operating_mode` are validated against that mode's section surface (see 6.7).
 - **Contract validation**: schemas and validators cover artifact scope, schema shape, operating modes, status transitions, evidence maps, strict fixtures, sync scaffolding, leases, metrics, text safety, context audit, and skill-output evals.
 - **Evidence expectations**: done tasks need checked acceptance criteria plus implementation or validation evidence. v0.2 evidence mapping remains markdown-based; full criterion-to-ledger instance validation is a later maturity gate.
 - **Dry-run sync**: GitHub and Linear sync surfaces inspect, classify drift, and produce repair plans without remote mutation unless a future explicit apply gate is approved.
 - **Lease semantics**: multi-agent work uses leases with conflict zones, lifecycle state, and handoff summaries. Conflict checks must run before overlapping work proceeds.
-- **Release gates**: `npm run build:assets`, package-manifest drift checks, PM validation, and `npm test` are the local release baseline. Formal CI publishing, enterprise state-machine orchestration, and non-mocked Linear behavior remain later maturity gates.
+- **Release gates**: plain `bash .agents/scripts/pm/validate.sh` is the contracts-only gate and must pass on a fresh clone without built assets. The local release baseline is `npm run build:assets`, `bash .agents/scripts/pm/validate.sh --release` (adds package/manifest drift), and `npm test`. Formal CI publishing, enterprise state-machine orchestration, and non-mocked Linear behavior remain later maturity gates.
 
 ### 8.4 Skill contract standard
 
@@ -1138,7 +1117,7 @@ Every update should answer:
 
 1. one outcome per active delivery project scope
 2. one canonical spec per active project
-3. tasks target 1-3 day effort
+3. tasks are single-session, single-PR, independently verifiable units (see 6.4)
 4. binary acceptance criteria required
 5. active tasks synced at least daily
 6. blocked tasks include blocker owner and check-back time
@@ -1146,6 +1125,7 @@ Every update should answer:
 8. project close requires complete evidence package
 9. repository structure and naming remain agent-readable by default
 10. multi-stream orchestration only after explicit threshold check
+11. runtime-changing tasks close with named review evidence or an explicit self-review line (see 7.5)
 
 ### 14.3 Safety controls
 
@@ -1210,7 +1190,7 @@ This section is designed for live planning and execution meetings.
 
 ## 15.3 Breakdown framework
 
-- Can this task be completed in 1-3 days?
+- Can this task be completed and verified in one session, as one reviewable change?
 - Is ownership explicit?
 - Are acceptance criteria binary and testable?
 - Are dependencies minimal and explicit?
@@ -1244,6 +1224,10 @@ This section is designed for live planning and execution meetings.
 
 ## 16) Role operating playbooks
 
+### 16.0 Roles are hats, not headcount
+
+These playbooks describe responsibilities, not separate people. In a solo-operator or agent-driven setup, one person wears all three hats and agents execute under them. The control points still apply at every scale; what changes is who performs them and when. The daily and weekly cadences are written for team scale. At solo-operator scale, run the control points at stage boundaries instead: the discovery gate, plan approval, pre-merge, and closeout.
+
 ### 16.1 PM playbook
 
 #### Weekly cadence
@@ -1255,7 +1239,6 @@ This section is designed for live planning and execution meetings.
 
 #### Stage-specific control points
 
-- Discovery: approve success metrics and non-goals
 - Discovery: approve success metrics, non-goals, and the probe decision
 - Planning: validate outcome-to-plan alignment and post-probe changes
 - Breakdown: reject ambiguous acceptance criteria
@@ -1331,6 +1314,8 @@ outcome: <measurable target>
 uncertainty: <low|medium|high>
 probe_required: <true|false>
 probe_status: <pending|skipped|completed>
+probe_decision_rationale: <one line reason for the probe decision>
+operating_mode: <patch|scoped-change|feature|uncertain-feature|multi-stream>
 ---
 
 # Spec: <project-name>
@@ -1388,6 +1373,7 @@ updated: <ISO8601 UTC>
 linear_project_id:
 risk_level: <low|medium|high>
 spec_status_at_plan_time: <planned|active|complete|deferred>
+operating_mode: <patch|scoped-change|feature|uncertain-feature|multi-stream>
 ---
 
 # Delivery Plan: <project-name>
@@ -1438,6 +1424,7 @@ owner: backend-team
 status: planned
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
+operating_mode: <patch|scoped-change|feature|uncertain-feature|multi-stream>
 ---
 
 # Workstream: WS-A API Foundation
@@ -1471,6 +1458,7 @@ conflicts_with: []
 parallel: true
 priority: medium
 estimate: M
+operating_mode: <patch|scoped-change|feature|uncertain-feature|multi-stream>
 story_id:
 acceptance_criteria_ids: []
 ---
@@ -1503,7 +1491,7 @@ acceptance_criteria_ids: []
 ```markdown
 ---
 timestamp: <ISO8601 UTC>
-status: in-progress|blocked|review
+status: in-progress|blocked|done|deferred
 task: <task-id>
 stream: <stream-id>
 ---
@@ -1738,6 +1726,96 @@ Gate:
 Gate:
 
 - measurable reduction in reopen rate and sync incidents over two cycles
+
+---
+
+## Appendix A) Linear mapping design (design intent, not yet operational)
+
+This appendix preserves the full Linear mapping design. It is reviewed design intent, not operational behavior: no live Linear mappings exist as of runtime 0.2.x, and Section 11 defines the only normative sync behavior. Read this before wiring Linear, and treat every statement here as `[guidance]` until the integration is live.
+
+### 4.1 Default mapping
+
+| Delano concept | Local artifact | Linear object | Default use |
+|---|---|---|---|
+| Outcome | `spec.md` outcome section | Initiative (optional) | strategic rollups across projects |
+| Spec | `.project/projects/<slug>/spec.md` | Project Document | canonical intent near execution |
+| Delivery Project | `.project/projects/<slug>/plan.md` | Project | execution container with owner and status |
+| Workstream | `workstreams/*.md` | Milestone (preferred) + labels | phase visibility + filtering |
+| Task | `tasks/*.md` | Issue | atomic execution |
+| Task split | sub-task pattern | Sub-issue (optional) | micro-splitting when needed |
+
+### 4.2 Entity-level rationale
+
+#### 4.2.1 Outcome -> Initiative (optional)
+
+Use Initiative only when:
+
+- multiple delivery projects contribute to one business objective
+- leadership needs aggregated project visibility
+- cross-team strategic alignment is required
+
+Do not force Initiative for single-project feature delivery.
+
+#### 4.2.2 Spec -> Project Document
+
+Chosen because it:
+
+- keeps intent and execution context in one place
+- reduces document fragmentation
+- supports incremental updates linked to active issues
+
+#### 4.2.3 Delivery Project -> Project
+
+Chosen because it:
+
+- matches Linear’s execution model
+- supports ownership, timeline, and progress visibility
+- maps cleanly to planning and release governance
+
+#### 4.2.4 Workstream -> Milestone + label group
+
+Use a dual mechanism:
+
+1. Milestone for sequencing and timeline visibility
+2. Workstream labels for filtering and cross-view analytics
+
+Recommended naming:
+
+- Milestone: `WS-A API Foundation`
+- Label group: `workstream`
+- Labels: `ws-a`, `ws-b`, `ws-c`
+
+Operational rule:
+
+- Every task issue must carry one workstream identifier in task frontmatter (`workstream: WS-A`) and the corresponding Linear workstream label (`ws-a`).
+
+#### 4.2.5 Task -> Issue
+
+Issue is the natural atomic execution object.
+
+Task sizing is defined in Section 6.4.
+
+### 4.3 Alternatives and why they are not default
+
+#### A) Initiative-heavy mapping
+
+`Spec/PRD -> Initiative, Epic -> Project, Task -> Issue`
+
+Valid for portfolio-heavy organizations. Not default because Delano prioritizes operational execution speed for typical single-project flows.
+
+#### B) Parent-issue-first mapping
+
+`Spec in Project, Epic as parent issue, Task as sub-issue`
+
+Not default because it weakens planning, milestone visibility, and structured governance.
+
+### 4.4 Critical Linear constraints
+
+1. One issue belongs to one project.
+2. Project status does not auto-resolve from issue closure.
+3. Dependencies are relation-based (`blocked by`, `related`).
+4. Conflict is not first-class. Use relation + label policy.
+5. Initiative linking at issue-level may be unavailable in some schemas. Keep initiative association at project level by default.
 
 ---
 

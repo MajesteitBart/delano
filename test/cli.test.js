@@ -246,6 +246,70 @@ test("task lifecycle refuses progressed tasks with missing workstreams", () => {
   assert.match(validateResult.stderr + validateResult.stdout, /workstream WS-Z does not exist/);
 });
 
+test("state commands record operating mode, probe rationale, and conflict zones", () => {
+  const repo = createTempDelanoRepo();
+
+  runDelano(repo, [
+    "project", "create", "moded-project",
+    "--name", "Moded Project",
+    "--mode", "scoped-change",
+    "--probe-rationale", "Known surface, no new integrations.",
+    "--json"
+  ]);
+  runDelano(repo, ["workstream", "add", "moded-project", "WS-A", "--name", "Runtime", "--json"]);
+  runDelano(repo, [
+    "task", "add", "moded-project", "T-001",
+    "--name", "Adjust runtime",
+    "--workstream", "WS-A",
+    "--conflicts-with", "src/cli/index.js,.agents/adapters/**",
+    "--json"
+  ]);
+
+  const projectDir = path.join(repo, ".project", "projects", "moded-project");
+  const spec = fs.readFileSync(path.join(projectDir, "spec.md"), "utf8");
+  const plan = fs.readFileSync(path.join(projectDir, "plan.md"), "utf8");
+  const workstream = fs.readFileSync(path.join(projectDir, "workstreams", "WS-A-runtime.md"), "utf8");
+  const task = fs.readFileSync(path.join(projectDir, "tasks", "T-001-adjust-runtime.md"), "utf8");
+
+  assert.match(spec, /^operating_mode: scoped-change$/m);
+  assert.match(spec, /^probe_decision_rationale: Known surface, no new integrations\.$/m);
+  assert.match(plan, /^operating_mode: scoped-change$/m);
+  assert.match(workstream, /^operating_mode: scoped-change$/m);
+  assert.match(task, /^operating_mode: scoped-change$/m);
+  assert.match(task, /^conflicts_with: \[src\/cli\/index\.js, \.agents\/adapters\/\*\*\]$/m);
+
+  runDelano(repo, ["project", "create", "default-project", "--json"]);
+  const defaultSpec = fs.readFileSync(path.join(repo, ".project", "projects", "default-project", "spec.md"), "utf8");
+  assert.match(defaultSpec, /^operating_mode: feature$/m);
+  assert.match(defaultSpec, /^probe_status: skipped$/m);
+  assert.match(defaultSpec, /^probe_decision_rationale: \S.*$/m);
+
+  const badMode = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "project", "create", "bad-mode", "--mode", "banana"], {
+    cwd: repo,
+    encoding: "utf8"
+  });
+  assert.notEqual(badMode.status, 0);
+  assert.match(badMode.stderr + badMode.stdout, /--mode must be 0-4 or one of/);
+});
+
+test("update add enforces canonical statuses and no longer emits review", () => {
+  const repo = createTempDelanoRepo();
+  runDelano(repo, ["project", "create", "sample-project", "--name", "Sample Project", "--json"]);
+
+  runDelano(repo, ["update", "add", "sample-project", "--message", "Wrapped up the change", "--status", "done", "--json"]);
+  const updatesDir = path.join(repo, ".project", "projects", "sample-project", "updates");
+  const update = fs.readFileSync(path.join(updatesDir, fs.readdirSync(updatesDir)[0]), "utf8");
+  assert.match(update, /^status: done$/m);
+  assert.doesNotMatch(update, /review/);
+
+  const rejected = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "update", "add", "sample-project", "--message", "x", "--status", "review"], {
+    cwd: repo,
+    encoding: "utf8"
+  });
+  assert.notEqual(rejected.status, 0);
+  assert.match(rejected.stderr + rejected.stdout, /update status must be one of: in-progress, blocked, done, deferred/);
+});
+
 test("text option values remain literal when they start with dashes or contain replacement tokens", () => {
   const repo = createTempDelanoRepo();
 

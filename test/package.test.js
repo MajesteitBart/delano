@@ -596,6 +596,29 @@ test("GitHub sync inspection normalizes issue and PR refs", () => {
   assert.ok(parsed.projects.some((project) => project.github_repo === "MajesteitBart/delano"));
 });
 
+test("task schema types conflicts_with as conflict zones", () => {
+  const schema = JSON.parse(fs.readFileSync(path.join(repoRoot, ".agents", "schemas", "artifacts", "task.schema.json"), "utf8"));
+  const itemSchema = schema.properties.conflicts_with.items;
+  const pattern = new RegExp(itemSchema.pattern);
+
+  for (const zone of ["src/cli/index.js", ".agents/adapters/**", "T-001"]) {
+    assert.ok(pattern.test(zone), `expected conflict zone to validate: ${zone}`);
+  }
+  for (const invalid of ["/absolute/path", "C:\\windows\\path"]) {
+    assert.ok(!pattern.test(invalid), `expected conflict zone to fail: ${invalid}`);
+  }
+});
+
+test("operating modes check enforces contract surfaces against live artifacts", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-operating-modes.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /mode-scoped artifact/);
+});
+
 test("github status inspection uses local mock snapshot without remote calls", () => {
   const checkResult = spawnSync(process.execPath, ["scripts/check-github-status-inspection.mjs"], {
     cwd: repoRoot,

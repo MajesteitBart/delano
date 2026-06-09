@@ -23,7 +23,8 @@ Every adapter should start from `AGENTS.md`, inspect the relevant `.project` con
 
 ## Core validation commands
 
-- `bash .agents/scripts/pm/validate.sh`
+- `bash .agents/scripts/pm/validate.sh` (contracts-only; passes on a fresh clone)
+- `bash .agents/scripts/pm/validate.sh --release` (adds package payload drift; build assets first)
 - `npm test`
 - `npm run build:assets`
 - `npm run check:package-manifest`

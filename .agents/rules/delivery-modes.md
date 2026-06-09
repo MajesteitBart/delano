@@ -12,6 +12,8 @@ Use operating modes to choose the lightest safe delivery contract. The mode shou
 
 ## Validation posture
 
-`operating-modes.json` is the canonical machine-readable contract. `npm run check:operating-modes` verifies that modes 0 through 4 are present, ordered, uniquely named, and documented with requirements.
+`operating-modes.json` is the canonical machine-readable contract. Each mode declares a `contract_surface`: its required artifacts and required spec/plan sections. `npm run check:operating-modes` verifies that modes 0 through 4 are present, ordered, uniquely named, documented with requirements, and carry a valid contract surface.
 
-Modes are additive for now. Existing artifacts do not need an `operating_mode` field until stricter migration work lands.
+Artifacts that declare `operating_mode` are validated against the declared mode: unknown mode values fail, and mode 2-4 specs and plans must contain their required sections. Modes 0 and 1 require no spec/plan sections, which keeps small work genuinely lighter.
+
+Artifacts without `operating_mode` keep legacy validation only. New artifacts created by `delano project create`, `delano workstream add`, and `delano task add` carry the field (default `feature`; pass `--mode` to override). Do not rewrite closed historical projects just to add the field.

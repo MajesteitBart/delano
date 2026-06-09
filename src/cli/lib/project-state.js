@@ -6,6 +6,9 @@ const { findDelanoRoot } = require("./runtime");
 
 const CLOSED_TASK_STATUSES = new Set(["done", "deferred", "canceled"]);
 const PROGRESSED_TASK_STATUSES = new Set(["in-progress", "done"]);
+const OPERATING_MODE_SLUGS = ["patch", "scoped-change", "feature", "uncertain-feature", "multi-stream"];
+const UPDATE_ADD_STATUSES = ["in-progress", "blocked", "done", "deferred"];
+const OPERATING_MODE_TOKEN = "<patch|scoped-change|feature|uncertain-feature|multi-stream>";
 
 function requireDelanoRoot(startDir = process.cwd()) {
   const root = findDelanoRoot(startDir);
@@ -54,6 +57,28 @@ function requireTaskId(value) {
     throw new CliError("task id must use canonical form like T-001.", 1);
   }
   return id;
+}
+
+function normalizeOperatingMode(value, label = "--mode") {
+  if (value === undefined || value === null || String(value).trim() === "") {
+    return "";
+  }
+  const raw = String(value).trim().toLowerCase();
+  if (/^[0-4]$/.test(raw)) {
+    return OPERATING_MODE_SLUGS[Number(raw)];
+  }
+  if (OPERATING_MODE_SLUGS.includes(raw)) {
+    return raw;
+  }
+  throw new CliError(`${label} must be 0-4 or one of: ${OPERATING_MODE_SLUGS.join(", ")}.`, 1);
+}
+
+function inheritedOperatingMode(project) {
+  try {
+    return normalizeOperatingMode(project.spec?.frontmatter.operating_mode);
+  } catch {
+    return "";
+  }
 }
 
 function readTemplate(root, templateName) {
@@ -223,9 +248,15 @@ function createProjectFromTemplates(root, options) {
   const uncertainty = options.uncertainty || "medium";
   const probeRequired = normalizeBooleanOption(options.probeRequired, false);
   const probeStatus = options.probeStatus || (probeRequired === "true" ? "pending" : "skipped");
+  const probeRationale = cleanInlineText(options.probeRationale) || (probeStatus === "skipped"
+    ? "Probe skipped at creation: scope is assumed low-uncertainty. Update this rationale if uncertainty changes."
+    : "");
+  const operatingMode = normalizeOperatingMode(options.mode) || "feature";
   const riskLevel = options.riskLevel || uncertainty;
   const generationNote = "Created from `.project/templates` by `delano project create`.";
   const baseReplacements = {
+    [OPERATING_MODE_TOKEN]: operatingMode,
+    "<one line reason for the probe decision>": probeRationale,
     "<project-name>": name,
     "<kebab-case>": slug,
     "<person-or-team>": owner,
@@ -286,11 +317,13 @@ function addWorkstreamFromTemplate(root, options) {
   const title = options.name || titleFromSlug(id.replace(/^WS-/, "workstream-"));
   const displayName = title.startsWith(`${id} `) ? title : `${id} ${title}`;
   const owner = options.owner || "team";
+  const operatingMode = normalizeOperatingMode(options.mode) || inheritedOperatingMode(project) || "feature";
   const text = renderTemplate(root, "workstream.md", {
     "WS-A API Foundation": displayName,
     "backend-team": owner,
     "id: WS-A": `id: ${id}`,
-    "<ISO8601 UTC>": timestamp
+    "<ISO8601 UTC>": timestamp,
+    [OPERATING_MODE_TOKEN]: operatingMode
   });
   const filename = `${id}-${slugify(displayName.replace(new RegExp(`^${id}\\s+`), ""))}.md`;
   const workstreamDir = path.join(project.projectDir, "workstreams");
@@ -324,11 +357,13 @@ function addTaskFromTemplate(root, options) {
 
   const timestamp = options.now || nowIso();
   const name = options.name || titleFromSlug(id.toLowerCase());
+  const operatingMode = normalizeOperatingMode(options.mode) || inheritedOperatingMode(project) || "feature";
   const text = renderTemplate(root, "task.md", {
     "T-001": id,
     "WS-A": workstreamId,
     "<task-title>": name,
     "<ISO8601 UTC>": timestamp,
+    [OPERATING_MODE_TOKEN]: operatingMode,
     "<story_id or none>": options.storyId || "none",
     "<acceptance criteria ids or none>": formatHumanList(options.acceptanceCriteriaIds || []),
     "<date>: <evidence>": `${timestamp}: Created from .project/templates/task.md by \`delano task add\`.`
@@ -385,6 +420,9 @@ function addUpdateFromTemplate(root, options) {
   const project = loadProject(root, options.project);
   const timestamp = options.now || nowIso();
   const status = options.status || "in-progress";
+  if (!UPDATE_ADD_STATUSES.includes(status)) {
+    throw new CliError(`update status must be one of: ${UPDATE_ADD_STATUSES.join(", ")}.`, 1);
+  }
   const message = cleanInlineText(options.message);
   if (!message) {
     throw new CliError("delano update add requires --message.", 1);
@@ -394,7 +432,7 @@ function addUpdateFromTemplate(root, options) {
     "<ISO8601 UTC>": timestamp,
     "<task-id>": options.task || "",
     "<stream-id>": options.stream || "",
-    "in-progress|blocked|review": status
+    "in-progress|blocked|done|deferred": status
   }), {
     status,
     message,
@@ -849,7 +887,7 @@ function normalizeUpdateSection(section, status) {
     throw new CliError("--section must be one of completed, in-progress, blockers, or next.", 1);
   }
   if (status === "blocked") return "blockers";
-  if (status === "review" || status === "done") return "completed";
+  if (status === "done") return "completed";
   return "in-progress";
 }
 
@@ -945,6 +983,7 @@ module.exports = {
   isProgressedTaskStatus,
   loadProject,
   loadProjectState,
+  normalizeOperatingMode,
   nowIso,
   parseCsvList,
   parseFrontmatter,

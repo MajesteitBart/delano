@@ -40,6 +40,8 @@ function getProjectHelp() {
     "  --uncertainty <low|medium|high> Defaults to medium",
     "  --probe-required <true|false>  Defaults to false",
     "  --probe-status <status>        Defaults to skipped or pending",
+    "  --probe-rationale <text>       One-line reason for the probe decision",
+    "  --mode <0-4|slug>              Operating mode, defaults to feature (mode 2)",
     "  --risk-level <low|medium|high> Defaults to uncertainty",
     "",
     "Lifecycle options:",
@@ -98,6 +100,7 @@ function getTaskHelp() {
     "  --parallel <true|false>        Defaults to true",
     "  --priority <low|medium|high>   Defaults to medium",
     "  --estimate <S|M|L|XL>          Defaults to M",
+    "  --mode <0-4|slug>              Operating mode, defaults to the project mode or feature",
     "  --story <id>                   Story id",
     "  --acceptance-criteria <ids>    Comma-separated acceptance criteria ids",
     "",
@@ -128,7 +131,7 @@ function getUpdateHelp() {
     "",
     "Options:",
     "  --message <text>               Progress update text",
-    "  --status <status>              Defaults to in-progress",
+    "  --status <status>              One of in-progress, blocked, done, deferred; defaults to in-progress",
     "  --task <task-id>               Related task id",
     "  --stream <workstream-id>       Related workstream id",
     "  --section <section>            completed, in-progress, blockers, or next",
@@ -350,6 +353,8 @@ function parseProjectCreateArgs(args) {
     uncertainty: "medium",
     probeRequired: "false",
     probeStatus: "",
+    probeRationale: "",
+    mode: "",
     riskLevel: "",
     json: false
   };
@@ -365,6 +370,8 @@ function parseProjectCreateArgs(args) {
     else if (value === "--uncertainty") options.uncertainty = requireValue(args, index, value), index += 1;
     else if (value === "--probe-required") options.probeRequired = requireValue(args, index, value), index += 1;
     else if (value === "--probe-status") options.probeStatus = requireValue(args, index, value), index += 1;
+    else if (value === "--probe-rationale") options.probeRationale = requireValue(args, index, value), index += 1;
+    else if (value === "--mode") options.mode = requireValue(args, index, value), index += 1;
     else if (value === "--risk-level") options.riskLevel = requireValue(args, index, value), index += 1;
     else if (value.startsWith("-")) throw new CliError(`Unknown project create option: ${value}`, 1);
     else positional.push(value);
@@ -516,6 +523,7 @@ function parseTaskAddArgs(args) {
     parallel: "true",
     priority: "medium",
     estimate: "M",
+    mode: "",
     storyId: "",
     acceptanceCriteriaIds: [],
     json: false
@@ -534,6 +542,7 @@ function parseTaskAddArgs(args) {
     else if (value === "--parallel") options.parallel = requireValue(args, index, value), index += 1;
     else if (value === "--priority") options.priority = requireValue(args, index, value), index += 1;
     else if (value === "--estimate") options.estimate = requireValue(args, index, value), index += 1;
+    else if (value === "--mode") options.mode = requireValue(args, index, value), index += 1;
     else if (value === "--story") options.storyId = requireValue(args, index, value), index += 1;
     else if (value === "--acceptance-criteria") options.acceptanceCriteriaIds = parseCsvList(requireValue(args, index, value)), index += 1;
     else if (value.startsWith("-")) throw new CliError(`Unknown task add option: ${value}`, 1);

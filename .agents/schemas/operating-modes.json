@@ -8,35 +8,156 @@
       "slug": "patch",
       "name": "Patch",
       "use_when": "A small, well-understood correction with low uncertainty and no meaningful coordination surface.",
-      "requires": ["single task or direct patch", "focused validation evidence", "no new workstream unless needed"]
+      "requires": ["single task or direct patch", "focused validation evidence", "no new workstream unless needed"],
+      "contract_surface": {
+        "required_artifacts": ["task"],
+        "spec_required_sections": [],
+        "plan_required_sections": []
+      }
     },
     {
       "mode": 1,
       "slug": "scoped-change",
       "name": "Scoped change",
       "use_when": "A bounded change with clear acceptance criteria, known affected files, and no material discovery risk.",
-      "requires": ["task contract", "acceptance criteria evidence", "local validation"]
+      "requires": ["task contract", "acceptance criteria evidence", "local validation"],
+      "contract_surface": {
+        "required_artifacts": ["task"],
+        "spec_required_sections": [],
+        "plan_required_sections": []
+      }
     },
     {
       "mode": 2,
       "slug": "feature",
       "name": "Feature",
       "use_when": "A feature-sized delivery with multiple implementation steps but a clear solution direction.",
-      "requires": ["spec and plan", "workstream or task sequence", "validation gate before done"]
+      "requires": ["spec and plan", "workstream or task sequence", "validation gate before done"],
+      "contract_surface": {
+        "required_artifacts": ["spec", "plan", "task"],
+        "spec_required_sections": [
+          "Executive Summary",
+          "Problem and Users",
+          "Outcome and Success Metrics",
+          "User Stories",
+          "Acceptance Scenarios",
+          "Scope",
+          "Functional Requirements",
+          "Non-Functional Requirements",
+          "Assumptions",
+          "Needs Clarification",
+          "Hypotheses and Unknowns",
+          "Touchpoints to Exercise",
+          "Probe Findings",
+          "Footguns Discovered",
+          "Remaining Unknowns",
+          "Dependencies",
+          "Approval Notes"
+        ],
+        "plan_required_sections": [
+          "What Changed After Probe",
+          "Technical Context",
+          "Architecture Decisions",
+          "Policy and Contract Checks",
+          "Generated Artifact Map",
+          "Complexity Exceptions",
+          "Probe-Driven Architecture Changes",
+          "Workstream Design",
+          "Milestone Strategy",
+          "Rollout Strategy",
+          "Test Strategy",
+          "Rollback Strategy",
+          "Remaining Delivery Risks"
+        ]
+      }
     },
     {
       "mode": 3,
       "slug": "uncertain-feature",
       "name": "Uncertain feature",
       "use_when": "A feature where the solution, user value, or integration path is uncertain enough to require a probe first.",
-      "requires": ["uncertainty statement", "probe_required=true or explicit skip rationale", "probe evidence before build commitment"]
+      "requires": ["uncertainty statement", "probe_required=true or explicit skip rationale", "probe evidence before build commitment"],
+      "contract_surface": {
+        "required_artifacts": ["spec", "plan", "task"],
+        "spec_required_sections": [
+          "Executive Summary",
+          "Problem and Users",
+          "Outcome and Success Metrics",
+          "User Stories",
+          "Acceptance Scenarios",
+          "Scope",
+          "Functional Requirements",
+          "Non-Functional Requirements",
+          "Assumptions",
+          "Needs Clarification",
+          "Hypotheses and Unknowns",
+          "Touchpoints to Exercise",
+          "Probe Findings",
+          "Footguns Discovered",
+          "Remaining Unknowns",
+          "Dependencies",
+          "Approval Notes"
+        ],
+        "plan_required_sections": [
+          "What Changed After Probe",
+          "Technical Context",
+          "Architecture Decisions",
+          "Policy and Contract Checks",
+          "Generated Artifact Map",
+          "Complexity Exceptions",
+          "Probe-Driven Architecture Changes",
+          "Workstream Design",
+          "Milestone Strategy",
+          "Rollout Strategy",
+          "Test Strategy",
+          "Rollback Strategy",
+          "Remaining Delivery Risks"
+        ]
+      }
     },
     {
       "mode": 4,
       "slug": "multi-stream",
       "name": "Multi-stream delivery",
       "use_when": "Delivery spans concurrent streams, leases, external sync, or coordination boundaries where collision risk matters.",
-      "requires": ["workstream map", "conflict zones or leases", "handoff summaries", "sync/drift checks when external systems are involved"]
+      "requires": ["workstream map", "conflict zones or leases", "handoff summaries", "sync/drift checks when external systems are involved"],
+      "contract_surface": {
+        "required_artifacts": ["spec", "plan", "workstream", "task"],
+        "spec_required_sections": [
+          "Executive Summary",
+          "Problem and Users",
+          "Outcome and Success Metrics",
+          "User Stories",
+          "Acceptance Scenarios",
+          "Scope",
+          "Functional Requirements",
+          "Non-Functional Requirements",
+          "Assumptions",
+          "Needs Clarification",
+          "Hypotheses and Unknowns",
+          "Touchpoints to Exercise",
+          "Probe Findings",
+          "Footguns Discovered",
+          "Remaining Unknowns",
+          "Dependencies",
+          "Approval Notes"
+        ],
+        "plan_required_sections": [
+          "What Changed After Probe",
+          "Technical Context",
+          "Architecture Decisions",
+          "Policy and Contract Checks",
+          "Generated Artifact Map",
+          "Complexity Exceptions",
+          "Probe-Driven Architecture Changes",
+          "Workstream Design",
+          "Milestone Strategy",
+          "Rollout Strategy",
+          "Test Strategy",
+          "Rollback Strategy",
+          "Remaining Delivery Risks"
+        ]
+      }
     }
   ]
 }
