@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 const repoRoot = resolveRepoRoot(__dirname);
 const modesPath = path.join(repoRoot, ".agents", "schemas", "operating-modes.json");
 const rulePath = path.join(repoRoot, ".agents", "rules", "delivery-modes.md");
-const projectsRoot = path.join(repoRoot, ".project", "projects");
+const projectsRoot = path.resolve(repoRoot, valueAfter(process.argv.slice(2), "--projects-root") || path.join(".project", "projects"));
 const errors = [];
 
 const contract = readJson(modesPath, "operating modes contract");
@@ -98,6 +98,7 @@ function checkModeScopedArtifacts() {
 
     scopedCount += checkArtifactMode(path.join(projectDir, "spec.md"), "spec_required_sections");
     scopedCount += checkArtifactMode(path.join(projectDir, "plan.md"), "plan_required_sections");
+    checkRequiredArtifacts(projectDir);
     for (const subdir of ["tasks", "workstreams"]) {
       const dirPath = path.join(projectDir, subdir);
       if (!existsSync(dirPath)) continue;
@@ -107,6 +108,51 @@ function checkModeScopedArtifacts() {
     }
   }
   return scopedCount;
+}
+
+function checkRequiredArtifacts(projectDir) {
+  const spec = readFrontmatterFile(path.join(projectDir, "spec.md"));
+  const plan = readFrontmatterFile(path.join(projectDir, "plan.md"));
+  const declared = (spec && spec.operating_mode) || (plan && plan.operating_mode);
+  if (!declared) return;
+
+  const mode = resolveMode(declared);
+  if (!mode || !mode.contract_surface || !isStringArray(mode.contract_surface.required_artifacts)) return;
+
+  // A freshly created project may still be empty; required artifacts apply
+  // once the project lifecycle has progressed past planned.
+  const progressed =
+    ["active", "complete"].includes((spec && spec.status) || "") ||
+    ["active", "done"].includes((plan && plan.status) || "");
+  if (!progressed) return;
+
+  for (const artifact of mode.contract_surface.required_artifacts) {
+    if (!hasArtifact(projectDir, artifact)) {
+      errors.push(`${toRepoPath(projectDir)} declares operating_mode ${mode.slug} and has progressed past planned but is missing required artifact: ${artifact}`);
+    }
+  }
+}
+
+function hasArtifact(projectDir, artifact) {
+  if (artifact === "spec") return existsSync(path.join(projectDir, "spec.md"));
+  if (artifact === "plan") return existsSync(path.join(projectDir, "plan.md"));
+  if (artifact === "task") return hasMarkdownFiles(path.join(projectDir, "tasks"));
+  if (artifact === "workstream") return hasMarkdownFiles(path.join(projectDir, "workstreams"));
+  return true;
+}
+
+function hasMarkdownFiles(dirPath) {
+  return existsSync(dirPath) && readdirSync(dirPath).some((name) => name.endsWith(".md"));
+}
+
+function readFrontmatterFile(filePath) {
+  if (!existsSync(filePath)) return null;
+  return parseFrontmatter(readFileSync(filePath, "utf8"));
+}
+
+function valueAfter(args, flag) {
+  const index = args.indexOf(flag);
+  return index === -1 ? "" : args[index + 1] || "";
 }
 
 function checkArtifactMode(filePath, sectionField) {

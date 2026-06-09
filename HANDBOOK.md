@@ -416,6 +416,8 @@ The operating mode (Section 8.3) sizes the contract, not just the narrative. `op
 
 `[enforced]` An artifact that declares `operating_mode` is validated against that mode's section surface by `check-operating-modes`: unknown mode values fail, and a mode 2-4 spec or plan missing a required section fails. Artifacts without `operating_mode` keep legacy validation only; do not rewrite closed historical projects just to add the field.
 
+`[enforced]` A project whose spec or plan declares `operating_mode` and has progressed past `planned` must contain the mode's required artifacts: a mode-declaring project past `planned` needs at least one task, and a mode 4 project additionally needs at least one workstream. Freshly created `planned` projects may still be empty.
+
 At modes 0 and 1 the spec and plan are optional artifacts. When they exist they may stay lean; the full section sets become mandatory from mode 2 upward. This is what makes a patch actually cheaper than a feature inside the same system.
 
 ---

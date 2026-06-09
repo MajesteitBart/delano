@@ -619,6 +619,31 @@ test("operating modes check enforces contract surfaces against live artifacts", 
   assert.match(checkResult.stdout, /mode-scoped artifact/);
 });
 
+test("operating modes check requires mode artifacts once a project progresses", () => {
+  const contract = JSON.parse(fs.readFileSync(path.join(repoRoot, ".agents", "schemas", "operating-modes.json"), "utf8"));
+  const multiStream = contract.modes.find((mode) => mode.slug === "multi-stream");
+  const sections = multiStream.contract_surface.spec_required_sections.map((name) => `## ${name}`).join("\n\n");
+  const specFor = (status) => `---\nstatus: ${status}\noperating_mode: multi-stream\n---\n\n# Spec\n\n${sections}\n`;
+
+  const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "delano-mode-artifacts-"));
+  fs.mkdirSync(path.join(projectsRoot, "active-multi"), { recursive: true });
+  fs.writeFileSync(path.join(projectsRoot, "active-multi", "spec.md"), specFor("active"), "utf8");
+  fs.mkdirSync(path.join(projectsRoot, "planned-multi"), { recursive: true });
+  fs.writeFileSync(path.join(projectsRoot, "planned-multi", "spec.md"), specFor("planned"), "utf8");
+
+  const checkResult = spawnSync(process.execPath, ["scripts/check-operating-modes.mjs", "--projects-root", projectsRoot], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  fs.rmSync(projectsRoot, { recursive: true, force: true });
+  assert.notEqual(checkResult.status, 0);
+  const output = checkResult.stderr + checkResult.stdout;
+  assert.match(output, /active-multi declares operating_mode multi-stream and has progressed past planned but is missing required artifact: task/);
+  assert.match(output, /active-multi declares operating_mode multi-stream and has progressed past planned but is missing required artifact: workstream/);
+  assert.doesNotMatch(output, /planned-multi.*missing required artifact/);
+});
+
 test("github status inspection uses local mock snapshot without remote calls", () => {
   const checkResult = spawnSync(process.execPath, ["scripts/check-github-status-inspection.mjs"], {
     cwd: repoRoot,

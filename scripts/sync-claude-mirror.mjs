@@ -48,10 +48,17 @@ for (const file of canonicalFiles) {
   const source = path.join(canonicalRoot, file);
   const target = path.join(mirrorRoot, file);
 
-  if (existsSync(target) && !statSync(target).isFile()) {
-    rmSync(target, { recursive: true, force: true });
+  let targetStat = null;
+  try {
+    targetStat = lstatSync(target);
+  } catch {
+    targetStat = null;
   }
-  if (existsSync(target) && readFileSync(source).equals(readFileSync(target))) {
+  if (targetStat && !targetStat.isFile()) {
+    rmSync(target, { recursive: true, force: true });
+    targetStat = null;
+  }
+  if (targetStat && readFileSync(source).equals(readFileSync(target))) {
     unchanged += 1;
     continue;
   }
