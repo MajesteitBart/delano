@@ -68,6 +68,7 @@ function getWorkstreamHelp() {
     "Add options:",
     "  --name <name>                  Workstream name, for example API Foundation",
     "  --owner <owner>                Workstream owner, defaults to team",
+    "  --mode <0-4|slug>              Operating mode, defaults to the project mode or feature",
     "",
     "Lifecycle options:",
     "  --message <text>               Update text for workstream update",
@@ -439,13 +440,14 @@ function parseProjectLifecycleArgs(action, args) {
 }
 
 function parseWorkstreamAddArgs(args) {
-  const options = { project: "", id: "", name: "", owner: "team", json: false };
+  const options = { project: "", id: "", name: "", owner: "team", mode: "", json: false };
   const positional = [];
   for (let index = 0; index < args.length; index += 1) {
     const value = args[index];
     if (value === "--json") options.json = true;
     else if (value === "--name") options.name = requireValue(args, index, value), index += 1;
     else if (value === "--owner") options.owner = requireValue(args, index, value), index += 1;
+    else if (value === "--mode") options.mode = requireValue(args, index, value), index += 1;
     else if (value.startsWith("-")) throw new CliError(`Unknown workstream add option: ${value}`, 1);
     else positional.push(value);
   }

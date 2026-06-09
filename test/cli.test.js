@@ -257,6 +257,7 @@ test("state commands record operating mode, probe rationale, and conflict zones"
     "--json"
   ]);
   runDelano(repo, ["workstream", "add", "moded-project", "WS-A", "--name", "Runtime", "--json"]);
+  runDelano(repo, ["workstream", "add", "moded-project", "WS-B", "--name", "Cleanup", "--mode", "patch", "--json"]);
   runDelano(repo, [
     "task", "add", "moded-project", "T-001",
     "--name", "Adjust runtime",
@@ -269,12 +270,14 @@ test("state commands record operating mode, probe rationale, and conflict zones"
   const spec = fs.readFileSync(path.join(projectDir, "spec.md"), "utf8");
   const plan = fs.readFileSync(path.join(projectDir, "plan.md"), "utf8");
   const workstream = fs.readFileSync(path.join(projectDir, "workstreams", "WS-A-runtime.md"), "utf8");
+  const overrideWorkstream = fs.readFileSync(path.join(projectDir, "workstreams", "WS-B-cleanup.md"), "utf8");
   const task = fs.readFileSync(path.join(projectDir, "tasks", "T-001-adjust-runtime.md"), "utf8");
 
   assert.match(spec, /^operating_mode: scoped-change$/m);
   assert.match(spec, /^probe_decision_rationale: Known surface, no new integrations\.$/m);
   assert.match(plan, /^operating_mode: scoped-change$/m);
   assert.match(workstream, /^operating_mode: scoped-change$/m);
+  assert.match(overrideWorkstream, /^operating_mode: patch$/m);
   assert.match(task, /^operating_mode: scoped-change$/m);
   assert.match(task, /^conflicts_with: \[src\/cli\/index\.js, \.agents\/adapters\/\*\*\]$/m);
 
