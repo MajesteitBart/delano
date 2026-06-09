@@ -55,6 +55,9 @@ function syncMirror(canonicalRoot, mirrorRoot) {
     const target = path.join(mirrorRoot, file);
 
     if (targetMatchesSource(source, target)) {
+      // Content matches, but repair mode drift (for example a lost
+      // executable bit) so the sync always restores runtime permissions.
+      chmodSync(target, statSync(source).mode);
       unchanged += 1;
       continue;
     }
@@ -142,16 +145,20 @@ function runSelfTest() {
     mkdirSync(mirror, { recursive: true });
     writeFileSync(path.join(canonical, "foo", "bar.md"), "canonical nested\n");
     writeFileSync(path.join(canonical, "dir-to-file.md"), "canonical file\n");
+    writeFileSync(path.join(canonical, "exec.sh"), "#!/usr/bin/env bash\n");
+    chmodSync(path.join(canonical, "exec.sh"), 0o755);
 
     writeFileSync(path.join(mirror, "foo"), "stale parent file\n");
     mkdirSync(path.join(mirror, "dir-to-file.md"), { recursive: true });
     writeFileSync(path.join(mirror, "dir-to-file.md", "old.md"), "stale child file\n");
     writeFileSync(path.join(mirror, "extra.md"), "extra\n");
+    writeFileSync(path.join(mirror, "exec.sh"), "#!/usr/bin/env bash\n");
+    chmodSync(path.join(mirror, "exec.sh"), 0o644);
 
     syncMirror(canonical, mirror);
 
     const files = listFiles(mirror);
-    const expected = ["dir-to-file.md", "foo/bar.md"];
+    const expected = ["dir-to-file.md", "exec.sh", "foo/bar.md"];
     const errors = [];
     if (JSON.stringify(files) !== JSON.stringify(expected)) {
       errors.push(`expected mirrored files ${expected.join(",")}, got ${files.join(",")}`);
@@ -161,6 +168,9 @@ function runSelfTest() {
     }
     if (readFileSync(path.join(mirror, "dir-to-file.md"), "utf8") !== "canonical file\n") {
       errors.push("file target was not copied through stale directory repair");
+    }
+    if (process.platform !== "win32" && (lstatSync(path.join(mirror, "exec.sh")).mode & 0o111) === 0) {
+      errors.push("executable bit was not repaired on a content-matching file");
     }
 
     if (errors.length > 0) {
