@@ -4,11 +4,12 @@ slug: delano-viewer-redesign
 owner: bart
 status: complete
 created: 2026-05-04T20:00:00Z
-updated: 2026-05-11T15:26:00Z
+updated: 2026-06-09T21:24:22Z
 outcome: The Delano viewer adopts the Keendoc design language with a sidebar-driven dashboard, Overview and Workstream Detail pages, and a document reader that preserves full markdown rendering.
 uncertainty: low
 probe_required: false
 probe_status: skipped
+probe_decision_rationale: Probe skipped: low-uncertainty redesign against an existing reference design language and a working viewer baseline.
 operating_mode: scoped-change
 ---
 

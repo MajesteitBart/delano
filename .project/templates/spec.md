@@ -9,6 +9,8 @@ outcome: <measurable target>
 uncertainty: <low|medium|high>
 probe_required: <true|false>
 probe_status: <pending|skipped|completed>
+probe_decision_rationale: <one line reason for the probe decision>
+operating_mode: <patch|scoped-change|feature|uncertain-feature|multi-stream>
 ---
 
 # Spec: <project-name>

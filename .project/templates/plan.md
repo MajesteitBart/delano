@@ -7,6 +7,7 @@ updated: <ISO8601 UTC>
 linear_project_id:
 risk_level: <low|medium|high>
 spec_status_at_plan_time: <planned|active|complete|deferred>
+operating_mode: <patch|scoped-change|feature|uncertain-feature|multi-stream>
 ---
 
 # Delivery Plan: <project-name>

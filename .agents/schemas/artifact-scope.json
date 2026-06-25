@@ -21,6 +21,7 @@
         "probe_status"
       ],
       "optional_fields": [
+        "probe_decision_rationale",
         "source_review",
         "external_reference",
         "target_version",

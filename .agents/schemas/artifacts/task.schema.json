@@ -71,9 +71,11 @@
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^T-[0-9]{3}$"
+        "minLength": 1,
+        "pattern": "^(?!/)(?![A-Za-z]:)(?!.*(?:^|/)\\.\\.(?:/|$))[^\\\\]+$"
       },
-      "uniqueItems": true
+      "uniqueItems": true,
+      "description": "Conflict zones as repo-relative paths or globs, for example src/cli/index.js or .agents/adapters/**. Legacy task-id entries remain readable but new tasks should name contested files or path globs."
     },
     "parallel": {
       "enum": [

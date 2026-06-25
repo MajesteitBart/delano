@@ -1,6 +1,6 @@
 ---
 timestamp: <ISO8601 UTC>
-status: in-progress|blocked|review
+status: in-progress|blocked|done|deferred
 task: <task-id>
 stream: <stream-id>
 ---

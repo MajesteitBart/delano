@@ -19,7 +19,16 @@ for (const requiredRule of ["acceptance-criteria-checked", "evidence-log-present
 }
 
 for (const taskFile of listTaskFiles(projectsRoot)) {
-  const text = readFileSync(taskFile, "utf8");
+  // Tolerate files vanishing between listing and reading: concurrent
+  // tooling (for example fixture smoke tests) may clean up temp projects
+  // mid-scan, and a removed file is not an evidence violation.
+  let text;
+  try {
+    text = readFileSync(taskFile, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") continue;
+    throw error;
+  }
   const frontmatter = parseFrontmatter(taskFile, text);
   if (frontmatter.status !== "done") continue;
 
@@ -113,8 +122,15 @@ function listTaskFiles(root) {
   for (const project of readdirSync(root, { withFileTypes: true })) {
     if (!project.isDirectory()) continue;
     const tasksDir = path.join(root, project.name, "tasks");
-    if (!existsSync(tasksDir)) continue;
-    for (const task of readdirSync(tasksDir, { withFileTypes: true })) {
+    let tasks;
+    try {
+      tasks = readdirSync(tasksDir, { withFileTypes: true });
+    } catch (error) {
+      // The project may be a temp fixture removed by concurrent tooling.
+      if (error.code === "ENOENT") continue;
+      throw error;
+    }
+    for (const task of tasks) {
       if (task.isFile() && task.name.endsWith(".md")) files.push(path.join(tasksDir, task.name));
     }
   }
