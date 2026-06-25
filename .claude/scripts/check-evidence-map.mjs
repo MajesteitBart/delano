@@ -55,7 +55,7 @@ function validateDoneTask(taskFile, text, proofRules) {
   const evidenceSection = section(text, "Evidence Log");
   const evidenceText = evidenceSection || "";
   const fullEvidenceContext = `${evidenceText}\n${text}`;
-  const criteria = acceptanceSection.split("\n").filter((line) => /^- \[[ xX]\]/.test(line.trim()));
+  const criteria = acceptanceSection.split(/\r?\n/).filter((line) => /^- \[[ xX]\]/.test(line.trim()));
 
   for (const criterion of criteria) {
     if (!/^- \[[xX]\]/.test(criterion.trim())) {
@@ -64,7 +64,7 @@ function validateDoneTask(taskFile, text, proofRules) {
   }
 
   const implementationEvidence = evidenceSection
-    .split("\n")
+    .split(/\r?\n/)
     .filter((line) => /^- \d{4}-\d{2}-\d{2}/.test(line.trim()) && !line.toLowerCase().includes("implementation evidence pending"));
   if (implementationEvidence.length === 0) {
     localErrors.push(`${toRepoPath(taskFile)} is done but lacks implementation evidence in Evidence Log.`);
@@ -93,7 +93,7 @@ function isStrictTask(frontmatter, strictSince) {
 }
 
 function section(text, heading) {
-  const lines = text.split("\n");
+  const lines = text.split(/\r?\n/);
   const start = lines.findIndex((line) => line.trim() === `## ${heading}`);
   if (start === -1) return "";
   const collected = [];
@@ -105,10 +105,10 @@ function section(text, heading) {
 }
 
 function parseFrontmatter(filePath, text) {
-  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!match) { errors.push(`${toRepoPath(filePath)} is missing frontmatter.`); return {}; }
   const result = {};
-  for (const line of match[1].split("\n")) {
+  for (const line of match[1].split(/\r?\n/)) {
     const index = line.indexOf(":");
     if (index === -1) continue;
     result[line.slice(0, index).trim()] = line.slice(index + 1).trim();

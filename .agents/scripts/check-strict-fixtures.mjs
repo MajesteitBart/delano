@@ -64,7 +64,7 @@ function validateFixture(fixturePath) {
   for (const task of tasks.values()) {
     const fm = task.frontmatter;
     const dependencies = parseList(fm.depends_on || "[]");
-    if (["ready", "in-progress", "done"].includes(fm.status)) {
+    if (["in-progress", "done"].includes(fm.status)) {
       for (const dependencyId of dependencies) {
         const dependency = tasks.get(dependencyId);
         if (dependency && dependency.frontmatter.status !== "done") violations.add("broken-dependencies");
@@ -84,10 +84,10 @@ function validateFixture(fixturePath) {
 }
 
 function parseFrontmatter(text) {
-  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!match) return {};
   const result = {};
-  for (const line of match[1].split("\n")) {
+  for (const line of match[1].split(/\r?\n/)) {
     const index = line.indexOf(":");
     if (index === -1) continue;
     result[line.slice(0, index).trim()] = line.slice(index + 1).trim();
@@ -105,7 +105,7 @@ function parseList(raw) {
 }
 
 function section(text, heading) {
-  const lines = text.split("\n");
+  const lines = text.split(/\r?\n/);
   const start = lines.findIndex((line) => line.trim() === `## ${heading}`);
   if (start === -1) return "";
   const collected = [];

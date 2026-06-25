@@ -23,7 +23,7 @@
   "properties": {
     "id": {
       "type": "string",
-      "pattern": "^T-[0-9]{3}$"
+      "pattern": "^(?:T-[0-9]{3}|t[0-9]{3}(?:-[a-z0-9]+)+)$"
     },
     "name": {
       "type": "string",
@@ -63,7 +63,7 @@
       "type": "array",
       "items": {
         "type": "string",
-        "pattern": "^T-[0-9]{3}$"
+        "pattern": "^(?:T-[0-9]{3}|t[0-9]{3}(?:-[a-z0-9]+)+)$"
       },
       "uniqueItems": true
     },

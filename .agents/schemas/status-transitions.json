@@ -4,10 +4,10 @@
   "purpose": "Defines local validation rules for Delano task status readiness and blocked-state hygiene.",
   "task_rules": [
     {
-      "id": "ready-dependencies-done",
+      "id": "dependency-safe-ready-selection",
       "status": "ready",
-      "description": "A ready task must not depend on a local task that is not done.",
-      "requires": ["all local depends_on task statuses are done"]
+      "description": "A ready task may be planned before dependencies are done, but selection must skip it until local dependencies are done.",
+      "requires": ["task selection only returns ready tasks whose local depends_on task statuses are done"]
     },
     {
       "id": "in-progress-dependencies-done",

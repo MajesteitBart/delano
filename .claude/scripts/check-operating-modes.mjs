@@ -217,10 +217,10 @@ function resolveMode(declared) {
 }
 
 function parseFrontmatter(text) {
-  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!match) return {};
   const result = {};
-  for (const line of match[1].split("\n")) {
+  for (const line of match[1].split(/\r?\n/)) {
     const index = line.indexOf(":");
     if (index === -1) continue;
     result[line.slice(0, index).trim()] = line.slice(index + 1).trim();

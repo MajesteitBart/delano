@@ -24,7 +24,7 @@
       ]
     },
     "project": { "type": "string", "minLength": 1 },
-    "task_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "task_id": { "type": "string", "pattern": "^(?:T-[0-9]{3}|t[0-9]{3}(?:-[a-z0-9]+)+)$" },
     "mode": { "enum": ["shared", "exclusive"] },
     "paths": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "not": { "pattern": "^/" } } },
     "conflict_zones": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1, "not": { "pattern": "^/" } } },

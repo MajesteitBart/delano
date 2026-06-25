@@ -57,7 +57,7 @@ export function validateLocalSyncMap(syncMap) {
     if (!/^\.project\/projects\/[^/]+$/.test(project.local_path || "")) errors.push(`invalid project local_path for ${project.slug}: ${project.local_path}`);
     const seenTasks = new Set();
     for (const task of project.tasks || []) {
-      if (!/^T-[0-9]{3}$/.test(task.local_id || "")) errors.push(`${project.slug} has invalid task id: ${task.local_id}`);
+      if (!isTaskId(task.local_id)) errors.push(`${project.slug} has invalid task id: ${task.local_id}`);
       if (seenTasks.has(task.local_id)) errors.push(`${project.slug} has duplicate task id: ${task.local_id}`);
       seenTasks.add(task.local_id);
       for (const dependency of task.depends_on || []) {
@@ -94,16 +94,20 @@ function listProjectDirs(projectsRoot) {
   return readdirSync(projectsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => path.join(projectsRoot, entry.name)).sort();
 }
 function parseFrontmatter(text) {
-  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!match) return {};
   const result = {};
-  for (const line of match[1].split("\n")) {
+  for (const line of match[1].split(/\r?\n/)) {
     const index = line.indexOf(":");
     if (index === -1) continue;
     result[line.slice(0, index).trim()] = line.slice(index + 1).trim();
   }
   return result;
 }
+function isTaskId(value) {
+  return /^(?:T-[0-9]{3}|t[0-9]{3}(?:-[a-z0-9]+)+)$/.test(String(value || ""));
+}
+
 function parseList(raw) {
   const value = String(raw || "").trim();
   if (!value || value === "[]") return [];

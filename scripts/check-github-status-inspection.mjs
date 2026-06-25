@@ -74,13 +74,20 @@ function indexSnapshot(snapshot) {
 }
 
 function readLocalSyncMap() {
-  const result = spawnSync(process.execPath, [path.join(repoRoot, "scripts", "check-local-sync-map.mjs"), "--json"], { cwd: repoRoot, encoding: "utf8" });
+  const result = spawnSync(process.execPath, [resolveRuntimeScript("check-local-sync-map.mjs"), "--json"], { cwd: repoRoot, encoding: "utf8" });
   if (result.status !== 0) {
     errors.push(`local sync map reader failed: ${result.stderr || result.stdout}`);
     return { projects: [] };
   }
   const parsed = JSON.parse(result.stdout);
   return parsed.sync_map || parsed;
+}
+
+function resolveRuntimeScript(name) {
+  for (const candidate of [path.join(repoRoot, ".agents", "scripts", name), path.join(repoRoot, "scripts", name)]) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return path.join(repoRoot, ".agents", "scripts", name);
 }
 function readJson(filePath, label, fallback) {
   try { return JSON.parse(readFileSync(filePath, "utf8")); }

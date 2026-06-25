@@ -10,7 +10,7 @@
     "event_id": { "type": "string", "pattern": "^evt-[0-9TZ-]+-[a-z0-9-]+$" },
     "event_type": { "enum": ["task_started", "validation_passed", "validation_failed", "task_completed", "blocked", "handoff_created"] },
     "project": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
-    "task_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "task_id": { "type": "string", "pattern": "^(?:T-[0-9]{3}|t[0-9]{3}(?:-[a-z0-9]+)+)$" },
     "occurred_at": { "type": "string" },
     "duration_seconds": { "type": "number", "minimum": 0 },
     "validation_command": { "type": "string" },

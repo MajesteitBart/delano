@@ -163,6 +163,8 @@
     ".agents/validation-fixtures/strict/invalid/path-leak/task.md",
     ".agents/validation-fixtures/strict/invalid/stale-context/context.md",
     ".agents/validation-fixtures/strict/manifest.json",
+    ".agents/validation-fixtures/strict/valid/crlf-imported-ready/dependency.md",
+    ".agents/validation-fixtures/strict/valid/crlf-imported-ready/task.md",
     ".agents/validation-fixtures/strict/valid/minimal-project/task.md",
     ".codex/hooks.json",
     ".delano/README.md",

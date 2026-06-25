@@ -33,15 +33,17 @@ function validateState(filePath) {
 function runSelfTest() {
   const dir = path.join(os.tmpdir(), `delano-handoff-${process.pid}`);
   const state = path.join(dir, "leases.json");
+  const leaseManager = resolveRuntimeScript("lease-manager.mjs");
+  const leaseZone = toRepoPath(leaseManager);
   mkdirSync(dir, { recursive: true });
   try {
-    const acquire = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "acquire", "--state", state, "--owner", "handoff-test", "--project", "delano-multi-agent-execution", "--task", "T-006", "--zone", "scripts/lease-manager.mjs"], { cwd: repoRoot, encoding: "utf8" });
+    const acquire = spawnSync(process.execPath, [leaseManager, "acquire", "--state", state, "--owner", "handoff-test", "--project", "self-test-project", "--task", "t001-self-test", "--zone", leaseZone], { cwd: repoRoot, encoding: "utf8" });
     if (acquire.status !== 0) { errors.push(`self-test acquire failed: ${acquire.stderr || acquire.stdout}`); return; }
     const lease = JSON.parse(readFileSync(state, "utf8")).leases[0];
-    const missing = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "release", "--state", state, "--lease-id", lease.lease_id], { cwd: repoRoot, encoding: "utf8" });
+    const missing = spawnSync(process.execPath, [leaseManager, "release", "--state", state, "--lease-id", lease.lease_id], { cwd: repoRoot, encoding: "utf8" });
     if (missing.status === 0) errors.push("release without --handoff should be rejected for active stream closeout");
     const summary = "Changed: validated handoff requirement\nEvidence: self-test release gate\nBlockers: none\nLease state: released\nNext safe action: continue";
-    const release = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "release", "--state", state, "--lease-id", lease.lease_id, "--handoff", summary], { cwd: repoRoot, encoding: "utf8" });
+    const release = spawnSync(process.execPath, [leaseManager, "release", "--state", state, "--lease-id", lease.lease_id, "--handoff", summary], { cwd: repoRoot, encoding: "utf8" });
     if (release.status !== 0) errors.push(`self-test release with handoff failed: ${release.stderr || release.stdout}`);
     validateState(state);
   } finally {
@@ -54,4 +56,6 @@ function validateSummary(summary, target) {
   for (const heading of required) if (!summary.includes(heading)) errors.push(`${target} handoff_summary missing ${heading}`);
 }
 function readOption(name) { const i = process.argv.indexOf(name); return i === -1 ? "" : process.argv[i + 1]; }
+function resolveRuntimeScript(name) { for (const candidate of [path.join(repoRoot, ".agents", "scripts", name), path.join(repoRoot, "scripts", name)]) if (existsSync(candidate)) return candidate; return path.join(repoRoot, ".agents", "scripts", name); }
+function toRepoPath(filePath) { return path.relative(repoRoot, filePath).split(path.sep).join("/"); }
 function resolveRepoRoot(startDir) { for (const c of [path.resolve(startDir,".."), path.resolve(startDir,"..","..")]) if (existsSync(path.join(c,".agents"))) return c; return path.resolve(startDir,".."); }
