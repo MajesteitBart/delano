@@ -47,7 +47,7 @@ Primary users:
 
 - US-000: As an operator, I want to list the repo context pack, so I can see which `.project/context` files are available and which required files are missing.
 - US-001: As an agent, I want to read context files in Delano's canonical order, so I can understand the repo before implementing without guessing file order.
-- US-002: As an agent, I want focused profiles such as overview, implementation, product, and UI, so I can load useful context without dumping every file into my prompt.
+- US-002: As an agent, I want focused profiles such as overview, implementation, and UI, so I can load useful context without dumping every file into my prompt.
 - US-003: As a viewer or agent-button flow, I want a shared context reader helper, so UI/server code and CLI behavior stay consistent.
 - US-004: As a maintainer, I want validation and docs around context reading, so context support stays safe and understandable across repos.
 
