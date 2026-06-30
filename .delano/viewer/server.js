@@ -17,6 +17,13 @@ const MAX_PORT = 65535;
 const MAX_PORT_ATTEMPTS = 100;
 const startPort = normalizePort(process.env.DELANO_VIEWER_PORT || process.env.PORT, DEFAULT_PORT);
 
+let contextReader = null;
+try {
+  contextReader = require(path.resolve(__dirname, '..', '..', 'src', 'cli', 'lib', 'context-reader'));
+} catch {
+  contextReader = null;
+}
+
 function normalizePort(value, fallback) {
   const parsed = Number(value || fallback);
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > MAX_PORT) return fallback;
@@ -220,8 +227,43 @@ function projectOutline(projectDocs) {
   };
 }
 
+function loadContextPack() {
+  if (!contextReader) {
+    return {
+      root: '.project/context',
+      orderSource: 'viewer-index-fallback',
+      required: [],
+      files: [],
+      missing: [],
+      warnings: ['Shared context reader helper is unavailable to this viewer runtime.'],
+      profiles: []
+    };
+  }
+
+  const pack = contextReader.listContextFiles({ repoRoot });
+  return {
+    root: pack.root,
+    orderSource: pack.orderSource,
+    required: pack.required,
+    files: pack.files,
+    missing: pack.missing,
+    warnings: pack.warnings,
+    profiles: [
+      ['overview', 'High-level project, product, and progress context.'],
+      ['implementation', 'Technical and structural context for coding tasks.'],
+      ['ui', 'Product, style, and GUI testing context for interface work.'],
+      ['all', 'Every discovered markdown file in the context pack.']
+    ].map(([name, description]) => ({
+      name,
+      description,
+      command: `delano context read --profile ${name}`
+    }))
+  };
+}
+
 function loadIndex() {
   const docs = walkMarkdown(projectRoot).map(docMeta);
+  const contextPack = loadContextPack();
   const projectSlugs = fs.existsSync(path.join(projectRoot, 'projects'))
     ? fs.readdirSync(path.join(projectRoot, 'projects'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort()
     : [];
@@ -233,6 +275,7 @@ function loadIndex() {
       created: null,
       pinned: true,
       docs: docs.filter((doc) => doc.path.startsWith('context/')).map((doc) => doc.path),
+      contextPack,
     },
     {
       slug: 'templates',
@@ -266,7 +309,7 @@ function loadIndex() {
     return String(b.created).localeCompare(String(a.created));
   });
   const projects = [...fixed, ...projectEntries];
-  return { repo: path.basename(repoRoot), generatedAt: new Date().toISOString(), projects, docs };
+  return { repo: path.basename(repoRoot), generatedAt: new Date().toISOString(), contextPack, projects, docs };
 }
 
 function sendJson(res, data) {

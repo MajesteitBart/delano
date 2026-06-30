@@ -5,7 +5,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { execFileSync, spawnSync } = require("node:child_process");
 
-const { commands, getGeneralHelp, getImportSpecKitHelp, getResearchHelp, resolveInvocation } = require("../src/cli");
+const { commands, getContextHelp, getGeneralHelp, getImportSpecKitHelp, getResearchHelp, resolveInvocation } = require("../src/cli");
 const {
   applyInstallPlan,
   applyInstallPreset,
@@ -19,6 +19,11 @@ const {
   parseInstallArgs
 } = require("../src/cli/lib/install");
 const { ANALYSIS_APPROVAL_FLAG, analyzeAgentsContent, parseOnboardingArgs } = require("../src/cli/lib/onboarding");
+const {
+  listContextFiles,
+  normalizeSelector,
+  readContext
+} = require("../src/cli/lib/context-reader");
 const { parseViewerArgs } = require("../src/cli/commands/viewer");
 const { findDelanoRoot, normalizeBashScriptPath } = require("../src/cli/lib/runtime");
 
@@ -47,8 +52,23 @@ function runDelano(cwd, args) {
   });
 }
 
+function createTempContextRepo(files = {}) {
+  const repo = createTempDelanoRepo();
+  const contextDir = path.join(repo, ".project", "context");
+  fs.mkdirSync(contextDir, { recursive: true });
+
+  for (const [relativePath, content] of Object.entries(files)) {
+    const target = path.join(contextDir, ...relativePath.split("/"));
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, content, "utf8");
+  }
+
+  return repo;
+}
+
 test("CLI exposes the package command surface", () => {
   assert.deepEqual(Object.keys(commands).sort(), [
+    "context",
     "import-spec-kit",
     "init",
     "install",
@@ -69,6 +89,7 @@ test("general help mentions the install and wrapper commands", () => {
   const helpText = getGeneralHelp();
   assert.match(helpText, /\bonboarding\b/);
   assert.match(helpText, /\binstall\b/);
+  assert.match(helpText, /\bcontext\b/);
   assert.match(helpText, /\bimport-spec-kit\b/);
   assert.match(helpText, /\bresearch\b/);
   assert.match(helpText, /\bproject\b/);
@@ -79,6 +100,7 @@ test("general help mentions the install and wrapper commands", () => {
   assert.match(helpText, /\bnext\b/);
   assert.match(helpText, /\bviewer\b/);
   assert.match(helpText, /npx -y @bvdm\/delano@latest --yes/);
+  assert.match(helpText, /delano context read --profile implementation/);
 });
 
 test("state creation commands render project artifacts from templates", () => {
@@ -286,6 +308,14 @@ test("research help is agent-oriented", () => {
   assert.match(helpText, /--question <question>/);
   assert.match(helpText, /research\/<research-slug>/);
   assert.match(helpText, /\{ ok, command, project, research, files, validation \}/);
+});
+
+test("context help is agent-oriented and path-safe", () => {
+  const helpText = getContextHelp();
+  assert.match(helpText, /delano context list --json/);
+  assert.match(helpText, /delano context read --profile implementation/);
+  assert.match(helpText, /\.project\/context-relative/);
+  assert.doesNotMatch(helpText, /[A-Z]:\\/i);
 });
 
 test("top-level install options are treated as install shorthand", () => {
@@ -552,6 +582,181 @@ test("normalizeBashScriptPath converts Windows separators for bash", () => {
     normalizeBashScriptPath("E:\\Development\\delano-1\\.agents\\scripts\\pm\\validate.sh"),
     "E:/Development/delano-1/.agents/scripts/pm/validate.sh"
   );
+});
+
+test("context reader lists README required files before custom context files", () => {
+  const repo = createTempContextRepo({
+    "README.md": [
+      "# Context Pack",
+      "",
+      "Required context files:",
+      "",
+      "- `project-overview.md`",
+      "- `tech-context.md`",
+      "- `project-brief.md`",
+      "- `missing-required.md`"
+    ].join("\n"),
+    "project-brief.md": "# Brief\n\nBrief body.",
+    "project-overview.md": "# Overview\n\nOverview body.",
+    "tech-context.md": "# Tech\n\nTech body.",
+    "custom-notes.md": "# Custom\n\nCustom body."
+  });
+
+  const result = listContextFiles({ repoRoot: repo });
+
+  assert.equal(result.root, ".project/context");
+  assert.equal(result.orderSource, "readme");
+  assert.deepEqual(result.required, [
+    ".project/context/project-overview.md",
+    ".project/context/tech-context.md",
+    ".project/context/project-brief.md",
+    ".project/context/missing-required.md"
+  ]);
+  assert.deepEqual(result.files.slice(0, 4).map((file) => file.path), result.required);
+  assert.ok(result.files.some((file) => file.path === ".project/context/README.md" && file.profile === "manifest"));
+  assert.ok(result.files.some((file) => file.path === ".project/context/custom-notes.md" && file.profile === "custom"));
+  assert.deepEqual(result.missing, [".project/context/missing-required.md"]);
+});
+
+test("context reader reads implementation profile with stable metadata and repo-relative paths", () => {
+  const repo = createTempContextRepo({
+    "README.md": [
+      "# Context Pack",
+      "",
+      "Required context files:",
+      "",
+      "- `project-overview.md`",
+      "- `project-brief.md`",
+      "- `tech-context.md`",
+      "- `project-structure.md`",
+      "- `system-patterns.md`",
+      "- `progress.md`"
+    ].join("\n"),
+    "project-overview.md": "# Overview\n\nOverview body.",
+    "project-brief.md": "# Brief\n\nBrief body.",
+    "tech-context.md": "# Tech\n\nTech body.",
+    "project-structure.md": "# Structure\n\nStructure body.",
+    "system-patterns.md": "# Patterns\n\nPatterns body.",
+    "progress.md": "# Progress\n\nProgress body."
+  });
+
+  const result = readContext({ repoRoot: repo, profile: "implementation", maxChars: 50000 });
+
+  assert.equal(result.profile, "implementation");
+  assert.equal(result.truncated, false);
+  assert.deepEqual(result.files.map((file) => file.path), [
+    ".project/context/project-overview.md",
+    ".project/context/project-brief.md",
+    ".project/context/tech-context.md",
+    ".project/context/project-structure.md",
+    ".project/context/system-patterns.md",
+    ".project/context/progress.md"
+  ]);
+  assert.ok(result.files.every((file) => file.profile === "implementation"));
+  assert.ok(result.files.every((file) => file.exists && !file.missing));
+  assert.ok(result.files.every((file) => !path.isAbsolute(file.path)));
+  assert.match(result.files[0].content, /# Overview/);
+});
+
+test("context reader rejects unsafe exact selectors", () => {
+  assert.equal(normalizeSelector(".project/context/project-overview.md"), "project-overview.md");
+  assert.throws(() => normalizeSelector("../AGENTS.md"), /path traversal/);
+  assert.throws(() => normalizeSelector("%2e%2e/AGENTS.md"), /path traversal/);
+  assert.throws(() => normalizeSelector(".project/projects/spec.md"), /stay below/);
+  assert.throws(() => normalizeSelector("notes.txt"), /markdown file/);
+
+  const absoluteSelector = process.platform === "win32" ? "C:\\temp\\context.md" : "/tmp/context.md";
+  assert.throws(() => normalizeSelector(absoluteSelector), /relative to \.project\/context/);
+});
+
+test("context reader truncates long content deterministically", () => {
+  const repo = createTempContextRepo({
+    "README.md": [
+      "# Context Pack",
+      "",
+      "Required context files:",
+      "",
+      "- `project-overview.md`"
+    ].join("\n"),
+    "project-overview.md": `# Overview\n\n${"a".repeat(2000)}`
+  });
+
+  const result = readContext({ repoRoot: repo, selectors: ["project-overview.md"], maxChars: 100 });
+
+  assert.equal(result.truncated, true);
+  assert.equal(result.totalChars, 100);
+  assert.equal(result.files[0].truncated, true);
+  assert.match(result.files[0].content, /\[Truncated: \d+ characters omitted\]/);
+  assert.ok(result.warnings.some((warning) => warning.includes("truncated")));
+});
+
+test("context reader rejects symlink escapes when the platform permits symlink creation", () => {
+  const repo = createTempContextRepo({
+    "README.md": "# Context Pack\n\nRequired context files:\n\n- `project-overview.md`",
+    "project-overview.md": "# Overview\n\nOverview body."
+  });
+  const outside = path.join(repo, "outside.md");
+  const link = path.join(repo, ".project", "context", "escape.md");
+  fs.writeFileSync(outside, "# Outside\n\nDo not read.", "utf8");
+
+  try {
+    fs.symlinkSync(outside, link);
+  } catch {
+    return;
+  }
+
+  assert.throws(
+    () => readContext({ repoRoot: repo, selectors: ["escape.md"] }),
+    /escapes \.project\/context/
+  );
+});
+
+test("context CLI lists and reads context through bin entrypoint", () => {
+  const repo = createTempContextRepo({
+    "README.md": [
+      "# Context Pack",
+      "",
+      "Required context files:",
+      "",
+      "- `project-overview.md`",
+      "- `project-brief.md`",
+      "- `product-context.md`",
+      "- `progress.md`"
+    ].join("\n"),
+    "project-overview.md": "# Overview\n\nOverview body.",
+    "project-brief.md": "# Brief\n\nBrief body.",
+    "product-context.md": "# Product\n\nProduct body.",
+    "progress.md": "# Progress\n\nProgress body."
+  });
+
+  const list = JSON.parse(runDelano(repo, ["context", "list", "--json"]));
+  assert.equal(list.orderSource, "readme");
+  assert.deepEqual(list.missing, []);
+  assert.equal(list.files[0].path, ".project/context/project-overview.md");
+
+  const markdown = runDelano(repo, ["context", "read", "--profile", "overview"]);
+  assert.match(markdown, /^## \.project\/context\/project-overview\.md/m);
+  assert.match(markdown, /Overview body/);
+
+  const selected = JSON.parse(runDelano(repo, ["context", "read", "progress.md", "--json"]));
+  assert.equal(selected.profile, "selected");
+  assert.deepEqual(selected.selectors, [".project/context/progress.md"]);
+  assert.equal(selected.files[0].content, "# Progress\n\nProgress body.");
+});
+
+test("context CLI rejects unsafe selectors with a non-zero exit", () => {
+  const repo = createTempContextRepo({
+    "README.md": "# Context Pack\n\nRequired context files:\n\n- `project-overview.md`",
+    "project-overview.md": "# Overview\n\nOverview body."
+  });
+
+  const result = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "context", "read", "../AGENTS.md"], {
+    cwd: repo,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr + result.stdout, /path traversal/);
 });
 
 test("Spec Kit interop fixture commands generate valid artifacts", () => {

@@ -62,6 +62,7 @@ Important distinction:
 
 - `delano install` installs the Delano runtime into the repository
 - `delano viewer` launches the packaged read-only UI for `.project` contracts
+- `delano context` lists and reads `.project/context` through a safe read-only context-pack API
 - `delano validate` verifies that the runtime is correctly installed
 - `delano init` creates a delivery project after the runtime is already present
 
@@ -170,6 +171,7 @@ npx -y @bvdm/delano@latest validate
 npx -y @bvdm/delano@latest status
 npx -y @bvdm/delano@latest status --open --brief
 npx -y @bvdm/delano@latest next -- --all
+npx -y @bvdm/delano@latest context read --profile implementation
 ```
 
 If the package is installed locally or globally, inside the installed repo:
@@ -177,6 +179,8 @@ If the package is installed locally or globally, inside the installed repo:
 ```bash
 delano onboarding
 delano viewer
+delano context list
+delano context read --profile implementation
 delano validate
 delano status
 delano status --open --brief
@@ -204,6 +208,18 @@ bash .agents/scripts/pm/research.sh <project-slug> <research-slug> [--title <tit
 ```
 
 `delano viewer` serves the selected repository's `.project` files read-only on `http://127.0.0.1:3977` by default. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.
+
+`delano context` is the agent-friendly way to inspect `.project/context` before implementation work:
+
+```bash
+delano context list --json
+delano context read --profile overview
+delano context read --profile implementation --json
+delano context read --profile ui
+delano context read project-overview.md progress.md
+```
+
+Context reads are bounded and read-only. They do not summarize or mutate files, and they reject absolute paths, traversal, non-markdown selectors, non-context paths, and symlink escapes.
 
 ## First 15 minutes
 
@@ -255,6 +271,7 @@ Delano stays intentionally narrow:
 - npm is the product surface
 - `.project` remains repo-owned after install
 - `.project/context/` is starter seed data, not Delano repo state
+- `.project/context/` can be read through `delano context`, but the command is intentionally read-only
 - `.agents` remains the canonical runtime
 - `.claude` remains compatibility only
 - `install-delano.sh` remains the legacy bridge installer

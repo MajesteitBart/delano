@@ -1,10 +1,10 @@
 ---
 name: Context Reader
-status: planned
+status: done
 lead: bart
 created: 2026-06-24T21:51:46Z
-updated: 2026-06-24T21:51:46Z
-linear_project_id:
+updated: 2026-06-25T10:56:44Z
+linear_project_id: 
 risk_level: medium
 spec_status_at_plan_time: planned
 ---

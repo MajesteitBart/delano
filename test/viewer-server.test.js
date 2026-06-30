@@ -1,5 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const http = require("node:http");
 const net = require("node:net");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
@@ -17,6 +18,29 @@ function listen(server, port = 0) {
 function close(server) {
   return new Promise((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
+
+function readJson(requestUrl) {
+  return new Promise((resolve, reject) => {
+    http.get(requestUrl, (response) => {
+      let body = "";
+      response.setEncoding("utf8");
+      response.on("data", (chunk) => {
+        body += chunk;
+      });
+      response.on("end", () => {
+        if (response.statusCode !== 200) {
+          reject(new Error(`Expected 200 from ${requestUrl}, got ${response.statusCode}: ${body}`));
+          return;
+        }
+        try {
+          resolve(JSON.parse(body));
+        } catch (error) {
+          reject(error);
+        }
+      });
+    }).on("error", reject);
   });
 }
 
@@ -69,4 +93,11 @@ test("viewer server starts on the next port when the requested port is occupied"
   assert.ok(match, output);
   assert.ok(Number(match[1]) > occupiedPort, output);
   assert.match(output, new RegExp(`\\(${occupiedPort} was unavailable\\)`));
+
+  const index = await readJson(`http://127.0.0.1:${match[1]}/api/index`);
+  assert.equal(index.contextPack.root, ".project/context");
+  assert.equal(index.contextPack.orderSource, "readme");
+  assert.ok(index.contextPack.files.some((file) => file.path === ".project/context/project-overview.md"));
+  assert.ok(index.contextPack.profiles.some((profile) => profile.command === "delano context read --profile implementation"));
+  assert.equal(index.projects.find((project) => project.slug === "context").contextPack.root, ".project/context");
 });

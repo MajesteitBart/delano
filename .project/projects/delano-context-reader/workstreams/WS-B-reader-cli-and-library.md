@@ -2,9 +2,9 @@
 id: WS-B
 name: WS-B Reader CLI And Library
 owner: engineering
-status: planned
+status: done
 created: 2026-06-24T21:51:46Z
-updated: 2026-06-24T21:51:46Z
+updated: 2026-06-25T10:33:59Z
 ---
 
 # Workstream: WS-B Reader CLI And Library

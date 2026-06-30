@@ -2,9 +2,9 @@
 name: Context Reader
 slug: delano-context-reader
 owner: team
-status: planned
+status: complete
 created: 2026-06-24T21:51:46Z
-updated: 2026-06-24T21:51:46Z
+updated: 2026-06-25T10:56:44Z
 outcome: Delano can list, select, and read .project/context files through a clean CLI/library contract so agents and viewer flows can load repo context without ad-hoc grepping or unsafe path handling.
 uncertainty: medium
 probe_required: true
@@ -111,6 +111,83 @@ Primary users:
 - Use clear section boundaries in markdown output, for example `## .project/context/<file>`.
 - Return non-zero/structured errors for unsafe selectors, missing required files when requested strictly, invalid profile names, and unreadable files.
 - Keep all output repo-relative unless the user explicitly requests diagnostics that require local paths; committed examples must stay repo-relative.
+
+## V1 Reader Contract
+
+### Canonical Discovery And Ordering
+
+The reader treats `.project/context/README.md` as the manifest when it exists. It parses the `Required context files` section by reading markdown list items that contain context-relative markdown file names in backticks, preserving that order exactly. In this repository, the manifest order is:
+
+1. `project-overview.md`
+2. `project-brief.md`
+3. `tech-context.md`
+4. `project-structure.md`
+5. `system-patterns.md`
+6. `product-context.md`
+7. `project-style-guide.md`
+8. `progress.md`
+9. `gui-testing.md`
+
+If the README is missing, unreadable, or has no parseable required list, the fallback standard order is:
+
+1. `project-overview.md`
+2. `project-brief.md`
+3. `product-context.md`
+4. `tech-context.md`
+5. `project-structure.md`
+6. `system-patterns.md`
+7. `project-style-guide.md`
+8. `gui-testing.md`
+9. `progress.md`
+
+List output includes every discovered markdown file below `.project/context`, including `README.md` and custom files. Ordered required files come first, fallback standard files not already listed come next, then `README.md`, then custom markdown files alphabetically by context-relative path. Public paths are always repo-relative, for example `.project/context/project-overview.md`.
+
+### Profiles And Selectors
+
+V1 profiles are stable command/API inputs:
+
+- `overview`: `project-overview.md`, `project-brief.md`, `product-context.md`, `progress.md`
+- `implementation`: `project-overview.md`, `project-brief.md`, `tech-context.md`, `project-structure.md`, `system-patterns.md`, `progress.md`
+- `ui`: `project-overview.md`, `project-brief.md`, `product-context.md`, `project-style-guide.md`, `gui-testing.md`, `progress.md`
+- `all`: every discovered markdown file in canonical order
+
+Exact file selectors accept only context-relative markdown selectors such as `project-overview.md`, nested context-relative markdown paths, or the equivalent repo-relative `.project/context/<path>.md` form. Selectors fail closed when they are absolute paths, empty paths, path traversal, encoded traversal, non-markdown files, paths outside `.project/context`, or symlinks whose resolved target escapes `.project/context`.
+
+Context commands and helpers are read-only. They must never edit, create, delete, normalize, summarize, or rewrite `.project/context` files.
+
+### Output Contract
+
+`list` JSON returns:
+
+- `root`: the literal repo-relative string `.project/context`
+- `orderSource`: `readme`, `fallback`, or `fallback-with-readme-warning`
+- `required`: ordered repo-relative required paths
+- `files`: ordered metadata entries
+- `missing`: repo-relative required paths that do not exist
+- `warnings`: path-safe warning strings
+
+`read` JSON returns:
+
+- `root`, `profile`, `selectors`, `maxChars`, `totalChars`, `truncated`, and `warnings`
+- `files`: ordered entries with metadata plus `content`
+
+Each file metadata entry uses stable fields: `path`, `title`, `profile`, `required`, `exists`, `missing`, `bytes`, `chars`, `truncated`, and `warnings`. `path` is always repo-relative. `profile` is the requested profile name for profile reads, `custom` for custom discovered files during `all`, or `selected` for exact selector reads.
+
+Markdown output uses deterministic section boundaries:
+
+```md
+## .project/context/<file>
+
+<bounded file content>
+```
+
+Warnings are printed before file sections in markdown mode and included structurally in JSON mode. Normal profile reads skip missing required files, include missing metadata and warnings, and return success when at least one selected file exists. `--strict` fails when any selected required or explicitly selected file is missing or unreadable. Exact selector reads fail when the selected file is missing, unsafe, unreadable, or not markdown.
+
+### Bounds And Truncation
+
+Default read output is bounded by a total content budget of 20000 characters for `overview`, `implementation`, and `ui`, and 40000 characters for `all`. A `--max-chars <n>` option can request a larger or smaller total budget, but zero, negative, and non-numeric values fail. Individual file content is also capped at 12000 characters before the shared total budget is applied.
+
+Truncation is deterministic: content is cut at the character budget boundary and followed by a marker of the form `[Truncated: <n> characters omitted]`. The affected file entry sets `truncated: true` and adds a warning. The top-level read result sets `truncated: true` when any file is truncated or skipped because the total budget is exhausted.
 
 ## Non-Functional Requirements
 

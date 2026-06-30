@@ -6,6 +6,7 @@ const { getPackageRoot } = require("./lib/runtime");
 const { getOnboardingHelp, runOnboarding } = require("./commands/onboarding");
 const { runInstall, getInstallHelp } = require("./commands/install");
 const { runViewer, getViewerHelp } = require("./commands/viewer");
+const { getContextHelp, runContextCommand } = require("./commands/context");
 const { createWrapperCommand } = require("./commands/wrapper");
 const {
   getProjectHelp,
@@ -49,6 +50,11 @@ const commands = {
     description: "Launch the read-only Delano UI for a local repository.",
     run: runViewer,
     help: getViewerHelp
+  },
+  context: {
+    description: "List and read .project/context as a safe context pack.",
+    run: runContextCommand,
+    help: getContextHelp
   },
   project: {
     description: "Create, show, and patch Delano project contracts.",
@@ -136,6 +142,7 @@ function getGeneralHelp() {
     "  onboarding Analyze AGENTS.md with the approval-first onboarding skill",
     "  install    Install the approved Delano runtime payload",
     "  viewer     Launch the read-only local UI for .project contracts",
+    "  context    List and read .project/context safely",
     "  project    Create, show, and patch project contracts",
     "  workstream Add and patch workstream contracts",
     "  task       Add and patch task contracts with scoped lifecycle rollups",
@@ -158,6 +165,8 @@ function getGeneralHelp() {
     "  delano --target ../my-repo --yes",
     "  npx -y @bvdm/delano@latest --yes",
     "  delano viewer",
+    "  delano context list --json",
+    "  delano context read --profile implementation",
     "  delano project create my-project --name \"My Project\" --owner team",
     "  delano workstream add my-project WS-A --name \"API Foundation\" --owner backend-team",
     "  delano task add my-project T-001 --name \"Build endpoint\" --workstream WS-A",
@@ -264,6 +273,7 @@ async function run(argv) {
 module.exports = {
   commands,
   getGeneralHelp,
+  getContextHelp,
   getImportSpecKitHelp,
   getResearchHelp,
   getTaskHelp,

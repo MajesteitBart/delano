@@ -2,9 +2,9 @@
 id: WS-C
 name: WS-C Viewer And Agent Integration
 owner: frontend
-status: planned
+status: done
 created: 2026-06-24T21:51:46Z
-updated: 2026-06-24T21:51:46Z
+updated: 2026-06-25T10:35:29Z
 ---
 
 # Workstream: WS-C Viewer And Agent Integration

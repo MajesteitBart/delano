@@ -1,6 +1,7 @@
 const path = require("node:path");
 
 const { runPmScript } = require("../lib/pm");
+const { findDelanoRoot } = require("../lib/runtime");
 
 function createWrapperCommand(scriptName, options = {}) {
   return {
@@ -39,10 +40,22 @@ function createWrapperCommand(scriptName, options = {}) {
 }
 
 function normalizePassthrough(scriptName, args) {
-  if (scriptName !== "import-spec-kit" || args.length < 2 || path.isAbsolute(args[1])) {
+  if (scriptName !== "import-spec-kit" || args.length < 2) {
     return args;
   }
-  return [args[0], path.resolve(process.cwd(), args[1]), ...args.slice(2)];
+  return [args[0], normalizeImportSpecKitSource(args[1]), ...args.slice(2)];
+}
+
+function normalizeImportSpecKitSource(sourcePath) {
+  const absoluteSource = path.resolve(process.cwd(), sourcePath);
+  const repoRoot = findDelanoRoot(process.cwd());
+  if (repoRoot) {
+    const relative = path.relative(repoRoot, absoluteSource);
+    if (relative && !relative.startsWith("..") && !path.isAbsolute(relative)) {
+      return relative.replace(/\\/g, "/");
+    }
+  }
+  return absoluteSource.replace(/\\/g, "/");
 }
 
 module.exports = {

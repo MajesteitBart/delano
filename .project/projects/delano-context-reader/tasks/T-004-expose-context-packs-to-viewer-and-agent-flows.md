@@ -1,10 +1,10 @@
 ---
 id: T-004
 name: Expose context packs to viewer and agent flows
-status: blocked
+status: done
 workstream: WS-C
 created: 2026-06-24T21:51:46Z
-updated: 2026-06-24T21:51:46Z
+updated: 2026-06-25T10:35:29Z
 linear_issue_id: 
 github_issue: 
 github_pr: 
@@ -15,8 +15,6 @@ priority: medium
 estimate: M
 story_id: US-003
 acceptance_criteria_ids: [AC-005, AC-006, AC-007]
-blocked_owner: team
-blocked_check_back: 2026-06-26
 ---
 
 # Task: Expose context packs to viewer and agent flows
@@ -27,13 +25,13 @@ Integrate the context reader where it removes duplication or improves agent hand
 
 ## Acceptance Criteria
 
-- [ ] Any viewer/server context metadata endpoint uses the shared context reader instead of custom path walking.
-- [ ] Agent-button prompt templates can reference appropriate context profiles/commands when carrying work forward.
-- [ ] Deeplink prompts do not embed full `.project/context` content by default.
-- [ ] Existing viewer context browsing still works.
-- [ ] Viewer remains read-only and no context action writes `.project` files.
-- [ ] UI or prompt wording explains the context profile being suggested.
-- [ ] Integration is small enough not to reopen the agent-buttons v1 scope explosion.
+- [x] Any viewer/server context metadata endpoint uses the shared context reader instead of custom path walking.
+- [x] Agent-button prompt templates can reference appropriate context profiles/commands when carrying work forward.
+- [x] Deeplink prompts do not embed full `.project/context` content by default.
+- [x] Existing viewer context browsing still works.
+- [x] Viewer remains read-only and no context action writes `.project` files.
+- [x] UI or prompt wording explains the context profile being suggested.
+- [x] Integration is small enough not to reopen the agent-buttons v1 scope explosion.
 
 ## Traceability
 
@@ -48,12 +46,18 @@ Integrate the context reader where it removes duplication or improves agent hand
 
 ## Definition of Done
 
-- [ ] Implementation complete or explicitly deferred if CLI/library already satisfies v1
-- [ ] Tests/smoke checks pass for any touched viewer or prompt surfaces
-- [ ] Read-only boundary verified
-- [ ] Docs updated if user-facing behavior changes
+- [x] Implementation complete or explicitly deferred if CLI/library already satisfies v1
+- [x] Tests/smoke checks pass for any touched viewer or prompt surfaces
+- [x] Read-only boundary verified
+- [x] Docs updated if user-facing behavior changes
 
 ## Evidence Log
+
+- 2026-06-25T10:35:29Z: Exposed context-pack metadata from the read-only viewer server through /api/index using the shared context reader helper. The response includes ordered context file metadata, missing/warning data, and profile command references with descriptions, without embedding full context content. Existing context browsing remains unchanged. Passed viewer smoke: node --test test/viewer-server.test.js.
+
+- 2026-06-25T10:34:19Z: Exposing context-pack metadata through viewer/server integration backed by the shared context reader helper
+
+- 2026-06-25T10:34:16Z: Dependencies T-002 and T-003 are done; shared helper and CLI shape are available for viewer/agent integration.
 
 - 2026-06-24T21:51:46Z: Waiting for the context reader library and CLI shape from T-002/T-003.
 - 2026-06-24T21:51:46Z: Created from .project/templates/task.md by `delano task add`.
