@@ -137,9 +137,10 @@ fi
 
 invocation_cwd="$PWD"
 root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-if [[ "$source_md" != /* ]]; then
-  source_md="$invocation_cwd/$source_md"
-fi
+case "$source_md" in
+  /*|[A-Za-z]:/*|[A-Za-z]:\\*) ;;
+  *) source_md="$invocation_cwd/$source_md" ;;
+esac
 cd "$root"
 
 if [[ ! -f "$source_md" ]]; then

@@ -193,12 +193,29 @@ function discoverMarkdownFiles(repoRoot) {
   const { contextDir, contextReal } = getContextPaths(repoRoot);
   const files = [];
   const warnings = [];
+  const visitedDirs = new Set();
 
   if (!fs.existsSync(contextDir)) {
     return { files, warnings: [`${CONTEXT_ROOT} is missing.`] };
   }
 
   function visit(currentDir, prefix = "") {
+    let realCurrent = "";
+    try {
+      realCurrent = fs.realpathSync.native(currentDir);
+    } catch {
+      warnings.push(`Unable to resolve ${CONTEXT_ROOT}${prefix ? `/${prefix}` : ""}.`);
+      return;
+    }
+
+    if (visitedDirs.has(realCurrent)) {
+      if (prefix) {
+        warnings.push(`Symlink directory loop skipped: ${contextRepoPath(prefix)}.`);
+      }
+      return;
+    }
+    visitedDirs.add(realCurrent);
+
     let entries = [];
     try {
       entries = fs.readdirSync(currentDir, { withFileTypes: true });
@@ -227,7 +244,7 @@ function discoverMarkdownFiles(repoRoot) {
         }
         const stat = fs.statSync(absolutePath);
         if (stat.isDirectory()) {
-          visit(absolutePath, contextPath);
+          warnings.push(`Symlink directory was skipped: ${contextRepoPath(contextPath)}.`);
         } else if (stat.isFile() && isMarkdownPath(contextPath)) {
           files.push(contextPath);
         }
@@ -457,9 +474,31 @@ function truncateContent(text, limit) {
   if (text.length <= limit) {
     return { content: text, truncated: false, omitted: 0 };
   }
-  const omitted = text.length - limit;
+
+  let sliceLimit = limit;
+  let marker = "";
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const omitted = text.length - sliceLimit;
+    marker = `\n\n[Truncated: ${omitted} characters omitted]`;
+    const nextSliceLimit = Math.max(0, limit - marker.length);
+    if (nextSliceLimit === sliceLimit) break;
+    sliceLimit = nextSliceLimit;
+  }
+
+  const omitted = text.length - sliceLimit;
+  marker = `\n\n[Truncated: ${omitted} characters omitted]`;
+
+  if (marker.length > limit) {
+    return {
+      content: text.slice(0, limit),
+      truncated: true,
+      omitted: text.length - limit
+    };
+  }
+
   return {
-    content: `${text.slice(0, limit)}\n\n[Truncated: ${omitted} characters omitted]`,
+    content: `${text.slice(0, sliceLimit)}${marker}`,
     truncated: true,
     omitted
   };
@@ -478,7 +517,11 @@ function readContext(options = {}) {
   let truncated = false;
 
   for (const contextPath of selection.selected) {
-    const metadataProfile = selection.mode === "selectors" ? "selected" : selection.profile;
+    const metadataProfile = selection.mode === "selectors"
+      ? "selected"
+      : selection.profile === "all" && !requiredSet.has(contextPath)
+        ? "custom"
+        : selection.profile;
     const metadata = buildMetadata(repoRoot, contextPath, requiredSet, metadataProfile);
 
     if (metadata.missing) {
@@ -525,8 +568,8 @@ function readContext(options = {}) {
       warnings.push(message);
       truncated = true;
     }
-    totalChars += Math.min(text.length, fileLimit);
-    remaining -= Math.min(text.length, fileLimit);
+    totalChars += chunk.content.length;
+    remaining -= chunk.content.length;
     files.push({ ...metadata, content: chunk.content });
   }
 

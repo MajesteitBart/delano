@@ -157,7 +157,7 @@ function parseContextReadArgs(args) {
 
 function requireValue(values, index, flag) {
   const value = values[index + 1];
-  if (value === undefined || value === "") {
+  if (value === undefined || value === "" || value.startsWith("-")) {
     throw new CliError(`${flag} requires a value.`, 1);
   }
   return value;

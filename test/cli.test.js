@@ -6,6 +6,7 @@ const path = require("node:path");
 const { execFileSync, spawnSync } = require("node:child_process");
 
 const { commands, getContextHelp, getGeneralHelp, getImportSpecKitHelp, getResearchHelp, resolveInvocation } = require("../src/cli");
+const { parseContextListArgs, parseContextReadArgs } = require("../src/cli/commands/context");
 const {
   applyInstallPlan,
   applyInstallPreset,
@@ -743,6 +744,35 @@ test("context reader rejects unsafe exact selectors", () => {
   assert.throws(() => normalizeSelector(absoluteSelector), /relative to \.project\/context/);
 });
 
+test("context CLI value options reject another flag as the value", () => {
+  assert.throws(() => parseContextReadArgs(["--profile", "--json"]), /--profile requires a value/);
+  assert.throws(() => parseContextReadArgs(["--file", "--strict"]), /--file requires a value/);
+  assert.throws(() => parseContextReadArgs(["--max-chars", "--json"]), /--max-chars requires a value/);
+  assert.throws(() => parseContextListArgs(["--target", "--json"]), /--target requires a value/);
+});
+
+test("context reader marks custom files as custom during all-profile reads", () => {
+  const repo = createTempContextRepo({
+    "README.md": [
+      "# Context Pack",
+      "",
+      "Required context files:",
+      "",
+      "- `project-overview.md`"
+    ].join("\n"),
+    "project-overview.md": "# Overview\n\nOverview body.",
+    "custom-notes.md": "# Custom\n\nCustom body."
+  });
+
+  const result = readContext({ repoRoot: repo, profile: "all", maxChars: 50000 });
+  const overview = result.files.find((file) => file.path === ".project/context/project-overview.md");
+  const custom = result.files.find((file) => file.path === ".project/context/custom-notes.md");
+
+  assert.equal(result.profile, "all");
+  assert.equal(overview.profile, "all");
+  assert.equal(custom.profile, "custom");
+});
+
 test("context reader truncates long content deterministically", () => {
   const repo = createTempContextRepo({
     "README.md": [
@@ -760,6 +790,7 @@ test("context reader truncates long content deterministically", () => {
   assert.equal(result.truncated, true);
   assert.equal(result.totalChars, 100);
   assert.equal(result.files[0].truncated, true);
+  assert.ok(result.files[0].content.length <= 100);
   assert.match(result.files[0].content, /\[Truncated: \d+ characters omitted\]/);
   assert.ok(result.warnings.some((warning) => warning.includes("truncated")));
 });
@@ -783,6 +814,28 @@ test("context reader rejects symlink escapes when the platform permits symlink c
     () => readContext({ repoRoot: repo, selectors: ["escape.md"] }),
     /escapes \.project\/context/
   );
+});
+
+test("context reader skips symlinked directories during discovery", () => {
+  const repo = createTempContextRepo({
+    "README.md": "# Context Pack\n\nRequired context files:\n\n- `project-overview.md`",
+    "project-overview.md": "# Overview\n\nOverview body."
+  });
+  const contextDir = path.join(repo, ".project", "context");
+  const link = path.join(contextDir, "loop");
+
+  try {
+    fs.symlinkSync(contextDir, link, "dir");
+  } catch {
+    return;
+  }
+
+  const result = listContextFiles({ repoRoot: repo });
+  assert.deepEqual(
+    result.files.filter((file) => file.path === ".project/context/project-overview.md").map((file) => file.path),
+    [".project/context/project-overview.md"]
+  );
+  assert.ok(result.warnings.some((warning) => warning.includes("Symlink directory was skipped")));
 });
 
 test("context CLI lists and reads context through bin entrypoint", () => {

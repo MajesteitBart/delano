@@ -227,38 +227,53 @@ function projectOutline(projectDocs) {
   };
 }
 
+function contextPackProfiles() {
+  return [
+    ['overview', 'High-level project, product, and progress context.'],
+    ['implementation', 'Technical and structural context for coding tasks.'],
+    ['ui', 'Product, style, and GUI testing context for interface work.'],
+    ['all', 'Every discovered markdown file in the context pack.']
+  ].map(([name, description]) => ({
+    name,
+    description,
+    command: `delano context read --profile ${name}`
+  }));
+}
+
+function fallbackContextPack(warning, profiles = []) {
+  return {
+    root: '.project/context',
+    orderSource: 'viewer-index-fallback',
+    required: [],
+    files: [],
+    missing: [],
+    warnings: [warning],
+    profiles
+  };
+}
+
 function loadContextPack() {
   if (!contextReader) {
-    return {
-      root: '.project/context',
-      orderSource: 'viewer-index-fallback',
-      required: [],
-      files: [],
-      missing: [],
-      warnings: ['Shared context reader helper is unavailable to this viewer runtime.'],
-      profiles: []
-    };
+    return fallbackContextPack('Shared context reader helper is unavailable to this viewer runtime.');
   }
 
-  const pack = contextReader.listContextFiles({ repoRoot });
-  return {
-    root: pack.root,
-    orderSource: pack.orderSource,
-    required: pack.required,
-    files: pack.files,
-    missing: pack.missing,
-    warnings: pack.warnings,
-    profiles: [
-      ['overview', 'High-level project, product, and progress context.'],
-      ['implementation', 'Technical and structural context for coding tasks.'],
-      ['ui', 'Product, style, and GUI testing context for interface work.'],
-      ['all', 'Every discovered markdown file in the context pack.']
-    ].map(([name, description]) => ({
-      name,
-      description,
-      command: `delano context read --profile ${name}`
-    }))
-  };
+  try {
+    const pack = contextReader.listContextFiles({ repoRoot });
+    return {
+      root: pack.root,
+      orderSource: pack.orderSource,
+      required: pack.required,
+      files: pack.files,
+      missing: pack.missing,
+      warnings: pack.warnings,
+      profiles: contextPackProfiles()
+    };
+  } catch (error) {
+    return fallbackContextPack(
+      `Shared context reader failed while building viewer context metadata: ${error.message}`,
+      contextPackProfiles()
+    );
+  }
 }
 
 function loadIndex() {

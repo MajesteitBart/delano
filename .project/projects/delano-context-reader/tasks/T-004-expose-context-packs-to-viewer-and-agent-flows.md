@@ -9,7 +9,7 @@ linear_issue_id:
 github_issue: 
 github_pr: 
 depends_on: [T-002, T-003]
-conflicts_with: [.delano/viewer/server.js, .delano/viewer/public/app.jsx, .project/projects/delano-agent-buttons]
+conflicts_with: [.delano/viewer/server.js, .delano/viewer/public/app.jsx]
 parallel: true
 priority: medium
 estimate: M
@@ -41,7 +41,7 @@ Integrate the context reader where it removes duplication or improves agent hand
 ## Technical Notes
 
 - This may land as a minimal prompt-builder change rather than visible UI.
-- If it touches `.project/projects/delano-agent-buttons`, preserve that project's narrowed v1 safety contract.
+- Keep any future agent-button prompt work out of this slice unless a live project contract owns it.
 - Avoid adding row-level context UI unless implementation evidence shows it is needed.
 
 ## Definition of Done
