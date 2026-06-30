@@ -4,11 +4,12 @@ slug: delano-state-command-runtime
 owner: delano-team
 status: complete
 created: 2026-05-12T11:25:19Z
-updated: 2026-05-12T13:32:48Z
+updated: 2026-06-09T21:24:22Z
 outcome: Delano has native CLI state commands that create artifacts from `.project/templates` and patch lifecycle state without running full validation for every normal transition.
 uncertainty: medium
 probe_required: false
 probe_status: skipped
+probe_decision_rationale: Probe skipped: scoped implementation over existing templates and validators with no new technical unknowns.
 ---
 
 # Spec: Delano State Command Runtime

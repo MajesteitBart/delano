@@ -1,6 +1,6 @@
 {
   "name": "@bvdm/delano",
-  "version": "0.2.10",
+  "version": "0.2.11",
   "description": "CLI for the Delano delivery runtime.",
   "license": "MIT",
   "repository": {
@@ -60,6 +60,8 @@
     "check:skill-output-evals": "node scripts/check-skill-output-evals.mjs",
     "check:closeout-learning": "node scripts/propose-closeout-learning.mjs --json && node scripts/check-closeout-learning-proposals.mjs",
     "check:spec-kit-interop": "node scripts/check-spec-kit-interop-fixtures.mjs",
-    "check:adapter-manifests": "node scripts/check-adapter-manifests.mjs"
+    "check:adapter-manifests": "node scripts/check-adapter-manifests.mjs",
+    "check:claude-mirror": "node scripts/check-claude-mirror-parity.mjs",
+    "sync:claude-mirror": "node scripts/sync-claude-mirror.mjs"
   }
 }

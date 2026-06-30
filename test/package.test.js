@@ -180,6 +180,16 @@ test("Codex session status hook emits SessionStart context", () => {
   assert.doesNotMatch(parsed.hookSpecificOutput.additionalContext, /\n/);
 });
 
+test("claude mirror sync repairs stale file and directory shape conflicts", () => {
+  const result = spawnSync(process.execPath, ["scripts/sync-claude-mirror.mjs", "--self-test"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.match(result.stdout, /Claude mirror sync self-test passed/);
+});
+
 test("text safety check rejects bidi control characters", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-text-safety-"));
   const samplePath = path.join(tmpDir, "sample.md");
@@ -594,6 +604,76 @@ test("GitHub sync inspection normalizes issue and PR refs", () => {
   assert.equal(parsed.schema_version, 1);
   assert.equal(parsed.mode, "local-dry-run");
   assert.ok(parsed.projects.some((project) => project.github_repo === "MajesteitBart/delano"));
+});
+
+test("task schema types conflicts_with as conflict zones", () => {
+  const schema = JSON.parse(fs.readFileSync(path.join(repoRoot, ".agents", "schemas", "artifacts", "task.schema.json"), "utf8"));
+  const itemSchema = schema.properties.conflicts_with.items;
+  const pattern = new RegExp(itemSchema.pattern);
+
+  for (const zone of ["src/cli/index.js", ".agents/adapters/**", "T-001"]) {
+    assert.ok(pattern.test(zone), `expected conflict zone to validate: ${zone}`);
+  }
+  for (const invalid of ["/absolute/path", "C:\\windows\\path", "C:/windows/path", "../outside", "src/../outside"]) {
+    assert.ok(!pattern.test(invalid), `expected conflict zone to fail: ${invalid}`);
+  }
+});
+
+test("operating modes check enforces contract surfaces against live artifacts", () => {
+  const checkResult = spawnSync(process.execPath, ["scripts/check-operating-modes.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /mode-scoped artifact/);
+});
+
+test("operating modes check inherits the project mode for plan section enforcement", () => {
+  const contract = JSON.parse(fs.readFileSync(path.join(repoRoot, ".agents", "schemas", "operating-modes.json"), "utf8"));
+  const featureMode = contract.modes.find((mode) => mode.slug === "feature");
+  const specSections = featureMode.contract_surface.spec_required_sections.map((name) => `## ${name}`).join("\n\n");
+
+  const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "delano-mode-inherit-"));
+  const projectDir = path.join(projectsRoot, "spec-only-mode");
+  fs.mkdirSync(path.join(projectDir, "tasks"), { recursive: true });
+  fs.writeFileSync(path.join(projectDir, "spec.md"), `---\nstatus: active\noperating_mode: feature\n---\n\n# Spec\n\n${specSections}\n`, "utf8");
+  fs.writeFileSync(path.join(projectDir, "plan.md"), "---\nstatus: active\n---\n\n# Plan\n", "utf8");
+  fs.writeFileSync(path.join(projectDir, "tasks", "T-001-sample.md"), "---\nid: T-001\nstatus: ready\n---\n", "utf8");
+
+  const checkResult = spawnSync(process.execPath, ["scripts/check-operating-modes.mjs", "--projects-root", projectsRoot], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  fs.rmSync(projectsRoot, { recursive: true, force: true });
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr + checkResult.stdout, /plan\.md inherits project operating_mode feature but is missing required section: What Changed After Probe/);
+});
+
+test("operating modes check requires mode artifacts once a project progresses", () => {
+  const contract = JSON.parse(fs.readFileSync(path.join(repoRoot, ".agents", "schemas", "operating-modes.json"), "utf8"));
+  const multiStream = contract.modes.find((mode) => mode.slug === "multi-stream");
+  const sections = multiStream.contract_surface.spec_required_sections.map((name) => `## ${name}`).join("\n\n");
+  const specFor = (status) => `---\nstatus: ${status}\noperating_mode: multi-stream\n---\n\n# Spec\n\n${sections}\n`;
+
+  const projectsRoot = fs.mkdtempSync(path.join(os.tmpdir(), "delano-mode-artifacts-"));
+  fs.mkdirSync(path.join(projectsRoot, "active-multi"), { recursive: true });
+  fs.writeFileSync(path.join(projectsRoot, "active-multi", "spec.md"), specFor("active"), "utf8");
+  fs.mkdirSync(path.join(projectsRoot, "planned-multi"), { recursive: true });
+  fs.writeFileSync(path.join(projectsRoot, "planned-multi", "spec.md"), specFor("planned"), "utf8");
+
+  const checkResult = spawnSync(process.execPath, ["scripts/check-operating-modes.mjs", "--projects-root", projectsRoot], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  fs.rmSync(projectsRoot, { recursive: true, force: true });
+  assert.notEqual(checkResult.status, 0);
+  const output = checkResult.stderr + checkResult.stdout;
+  assert.match(output, /active-multi declares operating_mode multi-stream and has progressed past planned but is missing required artifact: task/);
+  assert.match(output, /active-multi declares operating_mode multi-stream and has progressed past planned but is missing required artifact: workstream/);
+  assert.doesNotMatch(output, /planned-multi.*missing required artifact/);
 });
 
 test("github status inspection uses local mock snapshot without remote calls", () => {

@@ -33,6 +33,11 @@ function resolveBash() {
   }
 
   if (process.platform === "win32") {
+    candidates.push(
+      "C:\\Program Files\\Git\\bin\\bash.exe",
+      "C:\\Program Files\\Git\\usr\\bin\\bash.exe"
+    );
+
     const whereResult = spawnSync("where.exe", ["bash"], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "ignore"]
@@ -40,11 +45,6 @@ function resolveBash() {
     if (whereResult.status === 0 && whereResult.stdout) {
       candidates.push(...whereResult.stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean));
     }
-
-    candidates.push(
-      "C:\\Program Files\\Git\\bin\\bash.exe",
-      "C:\\Program Files\\Git\\usr\\bin\\bash.exe"
-    );
   } else {
     const whichResult = spawnSync("which", ["bash"], {
       encoding: "utf8",
@@ -65,11 +65,11 @@ if (!root || !bashPath) {
   process.exit(0);
 }
 
-const statusScript = toBashPath(path.join(".agents", "scripts", "pm", "status.sh"));
+const statusScript = toBashPath(path.join(root, ".agents", "scripts", "pm", "status.sh"));
 const result = spawnSync(bashPath, [statusScript, "--open", "--brief"], {
   cwd: root,
   encoding: "utf8",
-  timeout: 10000,
+  timeout: 4500,
   maxBuffer: 64 * 1024
 });
 

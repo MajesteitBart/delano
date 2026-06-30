@@ -16,13 +16,14 @@ Delano is agent-agnostic. This file is the first operational handoff for every c
 - Delivery state and contracts: `.project/`
 - Runtime scripts, hooks, rules, and skills: `.agents/`
 - Adapter-specific notes: `.agents/adapters/<agent>/README.md`
-- Compatibility runtime: `.claude/` mirrors `.agents/` for agents that still expect Claude-style paths
+- Compatibility runtime: `.claude/` is a generated mirror of `.agents/` for agents that still expect Claude-style paths; never edit it directly — edit `.agents/` and run `npm run sync:claude-mirror`
 - Package install allowlist: `assets/install-manifest.json`
 - Generated npm payload: `assets/payload/` after `npm run build:assets`
 
 ## Core commands
 
-- Validate project contracts: `bash .agents/scripts/pm/validate.sh`
+- Validate project contracts: `bash .agents/scripts/pm/validate.sh` (contracts-only; passes on a fresh clone)
+- Validate for release: `bash .agents/scripts/pm/validate.sh --release` (adds package payload drift; needs `npm run build:assets` first)
 - Run package/runtime tests: `npm test`
 - Rebuild packaged runtime assets: `npm run build:assets`
 - Check package/manifest drift: `npm run check:package-manifest`

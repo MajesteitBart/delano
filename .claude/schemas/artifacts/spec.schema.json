@@ -69,6 +69,10 @@
         "skipped"
       ]
     },
+    "probe_decision_rationale": {
+      "type": "string",
+      "description": "One-line reason for the probe decision. Required by validation when probe_status is skipped."
+    },
     "source_review": {
       "type": "string"
     },

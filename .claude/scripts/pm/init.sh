@@ -39,6 +39,7 @@ outcome: <measurable target>
 uncertainty: <low|medium|high>
 probe_required: <true|false>
 probe_status: <pending|skipped|completed>
+probe_decision_rationale: <one line reason for the probe decision>
 ---
 
 # Spec: $name

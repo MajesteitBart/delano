@@ -4,11 +4,12 @@ slug: handbook-theo-method-upgrade
 owner: team
 status: complete
 created: 2026-04-02T18:02:50Z
-updated: 2026-04-03T06:43:27Z
+updated: 2026-06-09T21:24:22Z
 outcome: Delano handbook, scaffolds, validator, and operator docs align on `.project` as canonical truth, `.agents` as canonical runtime, and a probe-aware delivery flow, with validation passing after the upgrade.
 uncertainty: medium
 probe_required: false
 probe_status: skipped
+probe_decision_rationale: Probe skipped: the supplied upgrade diff already captured the investigation and target state; no additional prototype was needed before planning.
 ---
 
 # Spec: Handbook Theo-Method Upgrade
