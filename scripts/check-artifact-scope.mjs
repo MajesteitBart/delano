@@ -107,14 +107,14 @@ function checkCurrentArtifacts(artifactType, globPattern) {
 
 function parseFrontmatter(filePath) {
   const text = readFileSync(filePath, "utf8");
-  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!match) {
     errors.push(`${toRepoPath(filePath)} is missing frontmatter.`);
     return {};
   }
 
   const result = {};
-  for (const line of match[1].split("\n")) {
+  for (const line of match[1].split(/\r?\n/)) {
     const index = line.indexOf(":");
     if (index === -1) {
       continue;

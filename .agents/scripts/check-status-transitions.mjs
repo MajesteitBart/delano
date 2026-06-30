@@ -16,7 +16,7 @@ if (contract.schema_version !== 1) {
 }
 const rules = Array.isArray(contract.task_rules) ? contract.task_rules : [];
 for (const requiredRule of [
-  "ready-dependencies-done",
+  "dependency-safe-ready-selection",
   "blocked-owner-check-back",
   "progressed-task-requires-active-project",
   "closed-task-set-requires-closed-project",
@@ -99,7 +99,7 @@ for (const projectDir of listDirectories(projectsRoot)) {
       }
     }
 
-    if (["ready", "in-progress", "done"].includes(status)) {
+    if (["in-progress", "done"].includes(status)) {
       for (const dependencyId of dependencies) {
         const dependency = tasks.get(dependencyId);
         if (!dependency) continue;
@@ -143,7 +143,7 @@ function parseTransitionArgs(args) {
 }
 
 function validateTransitionRequest(request) {
-  if (["ready", "in-progress", "done"].includes(request.nextStatus)) {
+  if (["in-progress", "done"].includes(request.nextStatus)) {
     for (const dependencyStatus of request.dependencyStatuses) {
       if (dependencyStatus !== "done") {
         errors.push(`cannot transition to ${request.nextStatus} with unresolved dependency status: ${dependencyStatus}`);
@@ -275,13 +275,13 @@ function readJson(filePath, label) {
 
 function parseFrontmatter(filePath) {
   const text = readFileSync(filePath, "utf8");
-  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!match) {
     errors.push(`${toRepoPath(filePath)} is missing frontmatter.`);
     return {};
   }
   const result = {};
-  for (const line of match[1].split("\n")) {
+  for (const line of match[1].split(/\r?\n/)) {
     const index = line.indexOf(":");
     if (index === -1) continue;
     result[line.slice(0, index).trim()] = line.slice(index + 1).trim();

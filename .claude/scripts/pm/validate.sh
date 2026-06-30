@@ -34,6 +34,7 @@ fm_get() {
     /^---[[:space:]]*$/ {if (in_fm==0) {in_fm=1; next} else {exit}}
     in_fm==1 && $0 ~ "^" key ":[[:space:]]*" {
       sub("^" key ":[[:space:]]*", "")
+      sub(/\r$/, "")
       print
       exit
     }
@@ -131,8 +132,7 @@ check_required_path ".agents/skills"
 if [[ -e ".claude" || -L ".claude" ]]; then
   echo "✅ Compatibility runtime present: .claude"
 else
-  echo "⚠️ Compatibility runtime missing: .claude (canonical .agents is sufficient)"
-  warnings=$((warnings + 1))
+  echo "ℹ️ Compatibility runtime missing: .claude (canonical .agents is sufficient)"
 fi
 
 if resolve_python_cmd; then
@@ -323,7 +323,7 @@ tasks = {}
 
 def parse_frontmatter(path: Path):
     text = path.read_text(encoding='utf-8')
-    m = re.match(r'^---\n(.*?)\n---\n', text, re.S)
+    m = re.match(r'^---\r?\n(.*?)\r?\n---(?:\r?\n|$)', text, re.S)
     if not m:
         return {}
     data = {}
@@ -848,7 +848,7 @@ fi
 if [[ -n "$next_task_check" ]]; then
   echo ""
   if command -v node >/dev/null 2>&1; then
-    if node "$next_task_check" --project delano-multi-agent-execution --stream default; then true; else errors=$((errors + 1)); fi
+    if node "$next_task_check" --stream default; then true; else errors=$((errors + 1)); fi
   else
     echo "❌ Node runtime not found for next task selection check"; errors=$((errors + 1))
   fi

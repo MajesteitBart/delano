@@ -12,3 +12,7 @@
 *.js text eol=lf
 *.mjs text eol=lf
 *.py text eol=lf
+
+# Keep CRLF regression fixtures byte-for-byte so Windows parser coverage survives checkout.
+.agents/validation-fixtures/strict/valid/crlf-imported-ready/*.md binary -eol
+.claude/validation-fixtures/strict/valid/crlf-imported-ready/*.md binary -eol

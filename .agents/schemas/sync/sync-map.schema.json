@@ -25,7 +25,7 @@
               "additionalProperties": false,
               "required": ["local_id"],
               "properties": {
-                "local_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+                "local_id": { "type": "string", "pattern": "^(?:T-[0-9]{3}|t[0-9]{3}(?:-[a-z0-9]+)+)$" },
                 "linear_issue_id": { "type": "string" },
                 "github_issue": { "type": "string" },
                 "github_pr": { "type": "string" }

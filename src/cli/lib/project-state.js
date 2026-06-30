@@ -53,10 +53,14 @@ function requireWorkstreamId(value) {
 
 function requireTaskId(value) {
   const id = String(value || "").trim();
-  if (!/^T-[0-9]{3}$/.test(id)) {
-    throw new CliError("task id must use canonical form like T-001.", 1);
+  if (!isTaskId(id)) {
+    throw new CliError("task id must use canonical form like T-001 or imported form like t001-setup.", 1);
   }
   return id;
+}
+
+function isTaskId(value) {
+  return /^(?:T-[0-9]{3}|t[0-9]{3}(?:-[a-z0-9]+)+)$/.test(String(value || ""));
 }
 
 function normalizeOperatingMode(value, label = "--mode") {
@@ -145,12 +149,12 @@ function loadMarkdownFile(filePath) {
 }
 
 function parseFrontmatter(text) {
-  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!match) {
     return {};
   }
   const result = {};
-  for (const line of match[1].split("\n")) {
+  for (const line of match[1].split(/\r?\n/)) {
     const index = line.indexOf(":");
     if (index === -1) continue;
     result[line.slice(0, index).trim()] = line.slice(index + 1).trim();
@@ -171,12 +175,12 @@ function removeFrontmatter(file, key) {
 }
 
 function updateFrontmatterText(text, frontmatter) {
-  const match = text.match(/^---\n([\s\S]*?)\n---\n/);
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
   if (!match) {
     throw new CliError("Cannot update markdown without frontmatter.", 1);
   }
 
-  const originalLines = match[1].split("\n");
+  const originalLines = match[1].split(/\r?\n/);
   const seen = new Set();
   const lines = [];
 

@@ -256,11 +256,11 @@ test("status transition validation catches unresolved task states", () => {
   assert.match(checkResult.stdout, /Status transition check passed/);
 });
 
-test("status transition validation rejects unresolved proposed transitions", () => {
+test("status transition validation rejects unresolved progressed transitions", () => {
   const checkResult = spawnSync(process.execPath, [
     "scripts/check-status-transitions.mjs",
     "--validate-transition",
-    "ready",
+    "in-progress",
     "--dependency-statuses",
     "ready,done"
   ], {
@@ -269,7 +269,7 @@ test("status transition validation rejects unresolved proposed transitions", () 
   });
 
   assert.notEqual(checkResult.status, 0);
-  assert.match(checkResult.stderr, /cannot transition to ready with unresolved dependency status: ready/);
+  assert.match(checkResult.stderr, /cannot transition to in-progress with unresolved dependency status: ready/);
 });
 
 test("status transition validation rejects task progress under planned project lifecycle", () => {
@@ -311,7 +311,7 @@ test("status transition validation rejects task progress under planned workstrea
   assert.match(checkResult.stderr, /cannot transition to done while workstream status is planned/);
 });
 
-test("status transition validation rejects existing ready tasks with unresolved dependencies", () => {
+test("status transition validation allows existing ready tasks with unresolved dependencies", () => {
   const tmpDir = fs.mkdtempSync(path.join(require("node:os").tmpdir(), "delano-ready-dependency-"));
   const projectDir = path.join(tmpDir, "sample-project");
   const tasksDir = path.join(projectDir, "tasks");
@@ -319,7 +319,7 @@ test("status transition validation rejects existing ready tasks with unresolved 
   fs.writeFileSync(path.join(tasksDir, "dependency.md"), `---
 id: T-001
 name: Dependency
-status: in-progress
+status: ready
 workstream: WS-A
 created: 2026-05-04T00:00:00Z
 updated: 2026-05-04T00:00:00Z
@@ -350,8 +350,8 @@ depends_on: [T-001]
     encoding: "utf8"
   });
 
-  assert.notEqual(checkResult.status, 0);
-  assert.match(checkResult.stderr, /has status ready but depends on unresolved T-001/);
+  assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
+  assert.match(checkResult.stdout, /Status transition check passed/);
 });
 
 test("status transition validation rejects existing tasks ahead of parent lifecycle", () => {
@@ -887,3 +887,154 @@ test("closeout learning proposals require review before adoption", () => {
   assert.equal(result.status, 0, result.stderr || result.stdout);
   assert.match(result.stdout, /Closeout learning proposal workflow check passed/);
 });
+
+test("validate passes on CRLF imported task graphs in .agents runtime layout", () => {
+  const buildResult = spawnSync(process.execPath, ["scripts/build-npm-assets.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+  assert.equal(buildResult.status, 0, buildResult.stderr || buildResult.stdout);
+
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "delano-crlf-imported-"));
+  fs.cpSync(path.join(repoRoot, "assets", "payload"), repo, { recursive: true });
+  fs.rmSync(path.join(repo, ".project", "projects"), { recursive: true, force: true });
+
+  const projectDir = path.join(repo, ".project", "projects", "example-project");
+  fs.mkdirSync(path.join(projectDir, "tasks"), { recursive: true });
+  fs.mkdirSync(path.join(projectDir, "workstreams"), { recursive: true });
+  fs.mkdirSync(path.join(projectDir, "updates"), { recursive: true });
+
+  fs.writeFileSync(path.join(repo, ".project", "registry", "linear-map.json"), JSON.stringify({
+    version: 1,
+    updated: "2026-06-19T00:00:00Z",
+    projects: {},
+    tasks: {}
+  }, null, 2) + "\n", "utf8");
+  fs.writeFileSync(path.join(projectDir, "spec.md"), crlf(`---
+name: Example Project
+slug: example-project
+owner: team
+status: active
+created: 2026-06-19T00:00:00Z
+updated: 2026-06-19T00:00:00Z
+outcome: Example outcome
+uncertainty: low
+probe_required: false
+probe_status: skipped
+probe_decision_rationale: Fixture does not need a probe.
+---
+
+# Spec: Example Project
+`));
+  fs.writeFileSync(path.join(projectDir, "plan.md"), crlf(`---
+name: Example Project
+slug: example-project
+status: active
+lead: team
+created: 2026-06-19T00:00:00Z
+updated: 2026-06-19T00:00:00Z
+linear_project_id:
+risk_level: medium
+spec_status_at_plan_time: active
+---
+
+# Plan: Example Project
+`));
+  fs.writeFileSync(path.join(projectDir, "decisions.md"), crlf(`---
+name: Example Decisions
+slug: example-project-decisions
+status: active
+created: 2026-06-19T00:00:00Z
+updated: 2026-06-19T00:00:00Z
+---
+
+# Decisions
+`));
+  fs.writeFileSync(path.join(projectDir, "workstreams", "WS-FOUNDATION.md"), crlf(`---
+id: WS-FOUNDATION
+name: Foundation
+owner: team
+status: ready
+created: 2026-06-19T00:00:00Z
+updated: 2026-06-19T00:00:00Z
+---
+
+# Workstream: Foundation
+`));
+  fs.writeFileSync(path.join(projectDir, "tasks", "t001-setup.md"), crlf(`---
+id: t001-setup
+name: Setup
+status: ready
+workstream: WS-FOUNDATION
+created: 2026-06-19T00:00:00Z
+updated: 2026-06-19T00:00:00Z
+linear_issue_id:
+github_issue:
+github_pr:
+depends_on: []
+conflicts_with: []
+parallel: true
+priority: medium
+estimate: M
+---
+
+# Task: Setup
+
+## Acceptance Criteria
+- [ ] Setup is complete.
+
+## Evidence Log
+- 2026-06-19T00:00:00Z: Created fixture.
+`));
+  fs.writeFileSync(path.join(projectDir, "tasks", "t002-auth.md"), crlf(`---
+id: t002-auth
+name: Auth
+status: ready
+workstream: WS-FOUNDATION
+created: 2026-06-19T00:00:00Z
+updated: 2026-06-19T00:00:00Z
+linear_issue_id:
+github_issue:
+github_pr:
+depends_on: [t001-setup]
+conflicts_with: []
+parallel: false
+priority: medium
+estimate: M
+---
+
+# Task: Auth
+
+## Acceptance Criteria
+- [ ] Auth is complete.
+
+## Evidence Log
+- 2026-06-19T00:00:00Z: Created fixture.
+`));
+  fs.writeFileSync(path.join(projectDir, "updates", ".gitkeep"), "", "utf8");
+  fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Agent Instructions\n\nUse `.agents/scripts/pm/validate.sh` before handoff.\nRun `npm test` when package behavior changes.\n", "utf8");
+
+  spawnSync("git", ["init", "--initial-branch", "main"], { cwd: repo, encoding: "utf8" });
+  spawnSync("git", ["add", "."], { cwd: repo, encoding: "utf8" });
+  spawnSync("git", ["-c", "user.name=Delano Test", "-c", "user.email=delano@example.invalid", "commit", "-m", "fixture"], { cwd: repo, encoding: "utf8" });
+
+  const validateResult = spawnSync("bash", [".agents/scripts/pm/validate.sh"], {
+    cwd: repo,
+    encoding: "utf8"
+  });
+  assert.equal(validateResult.status, 0, validateResult.stderr || validateResult.stdout);
+  assert.match(validateResult.stdout, /Errors: 0/);
+  assert.match(validateResult.stdout, /Warnings: 0/);
+
+  const nextResult = spawnSync("bash", [".agents/scripts/pm/next.sh", "--all"], {
+    cwd: repo,
+    encoding: "utf8"
+  });
+  assert.equal(nextResult.status, 0, nextResult.stderr || nextResult.stdout);
+  assert.match(nextResult.stdout, /example-project\s+t001-setup\s+medium\s+Setup/);
+  assert.doesNotMatch(nextResult.stdout, /t002-auth/);
+});
+
+function crlf(text) {
+  return text.replace(/\n/g, "\r\n");
+}

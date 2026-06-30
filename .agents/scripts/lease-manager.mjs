@@ -69,7 +69,7 @@ function selfTest() {
   const dir = path.join(os.tmpdir(), `delano-lease-${process.pid}`);
   const state = path.join(dir, "leases.json");
   mkdirSync(dir, { recursive: true });
-  const acquired = acquire(state, "self-test", "delano-multi-agent-execution", "T-002", ["scripts/lease-manager.mjs"], "exclusive", 5).lease;
+  const acquired = acquire(state, "self-test", "self-test-project", "t001-self-test", [toRepoPath(fileURLToPath(import.meta.url))], "exclusive", 5).lease;
   const inspected = readState(state).leases.length;
   release(state, acquired.lease_id, "self-test complete", "validated acquire inspect release lifecycle");
   const released = readState(state).leases[0].status;
@@ -85,4 +85,5 @@ function writeState(filePath, state) { mkdirSync(path.dirname(filePath), { recur
 function readOption(name) { const i = process.argv.indexOf(name); return i === -1 ? "" : process.argv[i + 1]; }
 function readRequired(name) { const v = readOption(name); if (!v) throw Object.assign(new Error(`${name} is required.`), { exitCode: 1 }); return v; }
 function readList(name) { const out=[]; process.argv.forEach((arg,i)=>{ if(arg===name && process.argv[i+1]) out.push(process.argv[i+1]); }); return out; }
+function toRepoPath(filePath) { return path.relative(repoRoot, filePath).split(path.sep).join("/"); }
 function resolveRepoRoot(startDir) { for (const c of [path.resolve(startDir,".."),path.resolve(startDir,"..","..")]) if (existsSync(path.join(c,".agents"))) return c; return path.resolve(startDir,".."); }

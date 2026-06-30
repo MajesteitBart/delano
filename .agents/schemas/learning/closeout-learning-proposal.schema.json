@@ -8,7 +8,7 @@
   "properties": {
     "schema_version": { "const": 1 },
     "project": { "type": "string", "minLength": 1 },
-    "task_ids": { "type": "array", "items": { "type": "string", "pattern": "^T-[0-9]{3}$" }, "minItems": 1 },
+    "task_ids": { "type": "array", "items": { "type": "string", "pattern": "^(?:T-[0-9]{3}|t[0-9]{3}(?:-[a-z0-9]+)+)$" }, "minItems": 1 },
     "proposal_type": { "enum": ["rule", "skill", "schema", "fixture"] },
     "title": { "type": "string", "minLength": 1 },
     "rationale": { "type": "string", "minLength": 1 },

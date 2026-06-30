@@ -50,7 +50,7 @@ rank = {'urgent': 0, 'high': 1, 'medium': 2, 'low': 3}
 
 def parse_frontmatter(path: Path):
     text = path.read_text(encoding='utf-8')
-    m = re.match(r'^---\n(.*?)\n---\n', text, re.S)
+    m = re.match(r'^---\r?\n(.*?)\r?\n---(?:\r?\n|$)', text, re.S)
     if not m:
       return {}
     data = {}

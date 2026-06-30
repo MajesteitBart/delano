@@ -21,7 +21,7 @@
     },
     "timestamp": { "type": "string" },
     "project": { "type": "string", "minLength": 1 },
-    "task_id": { "type": "string", "pattern": "^T-[0-9]{3}$" },
+    "task_id": { "type": "string", "pattern": "^(?:T-[0-9]{3}|t[0-9]{3}(?:-[a-z0-9]+)+)$" },
     "actor": { "enum": ["agent", "system", "user"] },
     "summary": {
       "type": "object",
