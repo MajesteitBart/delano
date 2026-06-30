@@ -79,6 +79,9 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
   height: 100vh;
   overflow-y: auto;
 }
+.sidebar-scrim {
+  display: none;
+}
 .brand {
   display: flex;
   align-items: center;
@@ -154,7 +157,6 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
   padding: 22px 9px 6px;
   font-weight: 500;
 }
-
 .sidebar-foot { margin-top: auto; padding-top: 16px; border-top: 1px solid var(--line); }
 
 .project-select-v3 {
@@ -247,6 +249,13 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
   background: var(--ink); color: var(--bg); border-color: var(--ink);
 }
 .btn-primary:hover { background: oklch(0.13 0.008 80); color: var(--bg); }
+.tb-menu {
+  display: none;
+  width: 32px;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+}
 .copy-btn {
   flex: none;
   width: 22px;
@@ -1281,22 +1290,68 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
   .col-side { position: static; }
 }
 
-@media (max-width: 860px) {
-  .app { grid-template-columns: 1fr; }
-  .sidebar {
-    position: static;
-    height: auto;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 4px;
-    padding: 12px;
-    border-right: 0;
-    border-bottom: 1px solid var(--line);
+@media (max-width: 1280px) {
+  .app {
+    grid-template-columns: 1fr;
   }
-  .brand { border-bottom: 0; padding-bottom: 4px; margin-bottom: 0; }
-  .nav { flex-direction: row; flex-wrap: wrap; gap: 2px; }
-  .nav-section { padding: 6px 9px; width: 100%; }
-  .sidebar-foot { margin-top: 0; padding-top: 0; border-top: 0; }
+  .sidebar {
+    position: fixed;
+    z-index: 20;
+    inset: 0 auto 0 0;
+    width: min(326px, calc(100vw - 38px));
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+    box-shadow: 0 18px 48px color-mix(in oklch, var(--ink) 12%, transparent);
+  }
+  .sidebar-is-open .sidebar {
+    transform: translateX(0);
+  }
+  .sidebar-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 19;
+    display: block;
+    background: color-mix(in oklch, var(--ink) 18%, transparent);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease-out;
+  }
+  .sidebar-is-open .sidebar-scrim {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 14px;
+  }
+  .tb-menu {
+    display: inline-flex;
+  }
+  .content {
+    max-width: none;
+    align-self: stretch;
+    padding: 32px 40px 64px;
+  }
+  .doc-reader-page {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 30px;
+  }
+  .doc-reader-main,
+  .doc-side {
+    max-width: 780px;
+  }
+  .doc-side {
+    min-width: 0;
+    width: 100%;
+    position: static;
+  }
+  .doc-meta-panel {
+    position: static;
+  }
+}
+
+@media (max-width: 860px) {
   .content { padding: 24px 20px 48px; }
   .topbar { padding: 12px 20px; gap: 12px; }
   .summary { grid-template-columns: 1fr 1fr; }
@@ -1314,4 +1369,31 @@ button { font-family: inherit; font-size: inherit; color: inherit; background: n
     position: static;
   }
   .outline-subitem { grid-template-columns: 1fr; gap: 5px; }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+  .tb-meta {
+    display: none;
+  }
+  .tb-actions {
+    gap: 6px;
+  }
+  .tb-actions .btn {
+    width: 32px;
+    height: 32px;
+    justify-content: center;
+    gap: 0;
+    padding: 0;
+    font-size: 0;
+  }
+  .content {
+    padding: 20px 16px 40px;
+  }
+  .doc-reader-main,
+  .doc-side {
+    max-width: none;
+  }
 }

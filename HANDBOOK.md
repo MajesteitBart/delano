@@ -4,7 +4,7 @@
 
 Version: 3.4
 Last updated: 2026-06-09
-Runtime/package compatibility: covers `@bvdm/delano` through 0.2.10
+Runtime/package compatibility: covers `@bvdm/delano` through 0.2.11
 
 ---
 

@@ -50,6 +50,7 @@ Use `delano --help` and `delano <command> --help` for live command help.
 | `delano install` | Install the approved runtime payload into a repo. | `.agents/`, `.project/`, `.delano/`, `HANDBOOK.md`, selected allowlist files |
 | `delano onboarding` | Review repo-root agent instructions with explicit approval. | Nothing by default |
 | `delano viewer` | Start the read-only local UI for `.project`. | Nothing |
+| `delano context` | List and read `.project/context` as a safe context pack. | Nothing |
 | `delano project` | Create, show, and patch project contracts. | `.project/projects/<slug>/` |
 | `delano workstream` | Add, show, and patch workstream contracts. | `.project/projects/<slug>/workstreams/` |
 | `delano task` | Add, show, and patch task contracts with lifecycle rollups. | `.project/projects/<slug>/tasks/` and parent rollups |
@@ -86,6 +87,41 @@ project-registry, project-projects, handbook, legacy-installer
 ```
 
 Use `--force` only after checking the install plan. Delano is conflict-first by design.
+
+## Context
+
+List the context pack:
+
+```bash
+delano context list
+delano context list --json
+```
+
+Read a focused profile:
+
+```bash
+delano context read --profile overview
+delano context read --profile implementation --json
+delano context read --profile ui --max-chars 12000
+```
+
+Read exact context files:
+
+```bash
+delano context read project-overview.md progress.md
+delano context read --file .project/context/project-overview.md --json
+```
+
+Profiles are:
+
+| Profile | Purpose |
+| --- | --- |
+| `overview` | High-level project, product, and progress context. |
+| `implementation` | Technical and structural context for coding tasks. |
+| `ui` | Product, style, and GUI testing context for interface work. |
+| `all` | Every discovered markdown file in canonical context order. |
+
+`delano context` is read-only. It never edits, creates, summarizes, or rewrites `.project/context` files. Selectors must stay below `.project/context`, must be markdown files, and fail closed for absolute paths, traversal, non-context paths, unreadable files, and symlink escapes. JSON output uses repo-relative paths only and includes ordered file metadata, missing required files, warnings, content for reads, and truncation state.
 
 ## Project Lifecycle
 
