@@ -690,6 +690,17 @@ const GLOBAL_NAV = [
 ];
 
 const GLOBAL_ROUTES = new Set(GLOBAL_NAV.map((item) => item.id));
+const PROJECT_DROPDOWN_EXCLUDED_SLUGS = new Set(["context", "templates"]);
+
+function isProjectSelectable(project) {
+  return project && !PROJECT_DROPDOWN_EXCLUDED_SLUGS.has(project.slug);
+}
+
+function projectDisplayTitle(project) {
+  if (!project) return "Delano";
+  if (project.slug === "context") return "Context pack";
+  return project.title;
+}
 
 function readStoredNavigation() {
   try {
@@ -834,10 +845,15 @@ function listValue(value) {
 /* ================================================================
    Sidebar
    ================================================================ */
-function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProject }) {
+function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProject, onClose, inert }) {
   const projects = index?.projects || [];
+  const selectableProjects = projects.filter(isProjectSelectable);
   const current = projects.find((p) => p.slug === projectSlug);
   const hasOutline = current?.outline;
+  const contextPack = index?.contextPack || null;
+  const contextFiles = (contextPack?.files || []).filter((file) => file.exists && file.path);
+  const contextActive = projectSlug === "context" && !GLOBAL_ROUTES.has(route);
+  const selectedProjectValue = selectableProjects.some((p) => p.slug === projectSlug) ? projectSlug : "";
   const globalCounts = useMemo(
     () => (index ? getWorkspaceModel(index).counts : {}),
     [index]
@@ -857,19 +873,37 @@ function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProje
     return items;
   }, [current, hasOutline]);
 
+  const closeAfter = (action) => {
+    action();
+    if (onClose) onClose();
+  };
+
   return (
-    <aside className="sidebar">
+    <aside className="sidebar" aria-hidden={inert ? "true" : undefined} inert={inert ? "" : undefined}>
       <div className="brand" aria-label="Delano">
         <img className="brand-logo" src="/delano-logo.svg" alt="Delano" />
       </div>
 
       <div className="nav-section">Workspace</div>
       <nav className="nav">
+        {contextPack && (
+          <button
+            className={"nav-item nav-item-count" + (contextActive ? " is-active" : "")}
+            onClick={() => closeAfter(() => onSelectProject("context"))}
+            type="button"
+          >
+            <span className="nav-ico">
+              <Icon d={I.folderOpen} size={16} />
+            </span>
+            <span className="nav-label">Context pack</span>
+            <span className="nav-count mono">{contextFiles.length}</span>
+          </button>
+        )}
         {GLOBAL_NAV.map((it) => (
           <button
             key={it.id}
             className={"nav-item nav-item-count" + (route === it.id ? " is-active" : "")}
-            onClick={() => onNavigate(it.id)}
+            onClick={() => closeAfter(() => onNavigate(it.id))}
             type="button"
           >
             <span className="nav-ico">
@@ -888,11 +922,14 @@ function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProje
         </span>
         <select
           className="project-select-control"
-          value={projectSlug || ""}
-          onChange={(e) => onSelectProject(e.target.value)}
+          value={selectedProjectValue}
+          onChange={(e) => {
+            if (e.target.value) closeAfter(() => onSelectProject(e.target.value));
+          }}
           aria-label="Project"
         >
-          {projects.map((p) => (
+          {!selectedProjectValue && <option value="">Select project</option>}
+          {selectableProjects.map((p) => (
             <option key={p.slug} value={p.slug}>
               {p.title}
             </option>
@@ -905,7 +942,7 @@ function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProje
           <nav className="nav">
             <button
               className={"nav-item" + (route === "overview" ? " is-active" : "")}
-              onClick={() => onNavigate("overview")}
+              onClick={() => closeAfter(() => onNavigate("overview"))}
               type="button"
             >
               <span className="nav-ico">
@@ -919,22 +956,22 @@ function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProje
           <div className="nav-section">Source contracts</div>
           <nav className="nav source-nav-v2">
             {contractItems.filter((it) => !it.id.startsWith("prog-")).map((it) => (
-              <button key={it.id} className={"nav-item" + (route === "document" && section === it.path ? " is-active" : "")} onClick={() => onNavigate("document", it.path)} type="button">
+              <button key={it.id} className={"nav-item" + (route === "document" && section === it.path ? " is-active" : "")} onClick={() => closeAfter(() => onNavigate("document", it.path))} type="button">
                 <span className="nav-ico"><Icon d={it.icon} size={16} /></span>
                 <span>{it.label}</span>
               </button>
             ))}
-            <button className={"nav-item" + (route === "workstreams" ? " is-active" : "")} onClick={() => onNavigate("workstreams")} type="button">
+            <button className={"nav-item" + (route === "workstreams" ? " is-active" : "")} onClick={() => closeAfter(() => onNavigate("workstreams"))} type="button">
               <span className="nav-ico"><Icon d={I.grid} size={16} /></span>
               <span>Workstreams</span>
             </button>
-            <button className={"nav-item" + (route === "tasks" ? " is-active" : "")} onClick={() => onNavigate("tasks")} type="button">
+            <button className={"nav-item" + (route === "tasks" ? " is-active" : "")} onClick={() => closeAfter(() => onNavigate("tasks"))} type="button">
               <span className="nav-ico"><Icon d={I.task} size={16} /></span>
               <span>Tasks</span>
             </button>
             <div className="nav-break">Progress</div>
             {contractItems.filter((it) => it.id.startsWith("prog-")).map((it) => (
-              <button key={it.id} className={"nav-item" + (route === "document" && section === it.path ? " is-active" : "")} onClick={() => onNavigate("document", it.path)} type="button">
+              <button key={it.id} className={"nav-item" + (route === "document" && section === it.path ? " is-active" : "")} onClick={() => closeAfter(() => onNavigate("document", it.path))} type="button">
                 <span className="nav-ico"><Icon d={it.icon} size={16} /></span>
                 <span>{it.label}</span>
               </button>
@@ -958,10 +995,10 @@ function Sidebar({ index, projectSlug, route, section, onNavigate, onSelectProje
 /* ================================================================
    Topbar
    ================================================================ */
-function Topbar({ project, index, docPath, onOpenAction }) {
+function Topbar({ project, index, docPath, onOpenAction, onToggleSidebar, sidebarOpen }) {
   const spec = project?.outline?.spec;
   const specDoc = spec && index ? byPath(index.docs, spec) : null;
-  const title = project?.title || "Delano";
+  const title = projectDisplayTitle(project);
   const status = specDoc?.status || project?.status;
   const updated = specDoc?.updated || "";
   const dateStr = updated
@@ -973,6 +1010,15 @@ function Topbar({ project, index, docPath, onOpenAction }) {
 
   return (
     <header className="topbar">
+      <button
+        className="btn tb-menu"
+        type="button"
+        onClick={onToggleSidebar}
+        aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+        aria-expanded={sidebarOpen ? "true" : "false"}
+      >
+        <Icon d={I.list} size={15} />
+      </button>
       <div className="tb-project">
         <span className="tb-title">{title}</span>
         {status && <StatusChip>{status}</StatusChip>}
@@ -2142,7 +2188,7 @@ function DocumentList({ index, project, docs, onOpenDoc }) {
 
   return (
     <div className="page">
-      <h1 className="page-title">{project.title}</h1>
+      <h1 className="page-title">{projectDisplayTitle(project)}</h1>
 
       <div style={{ maxWidth: "400px" }}>
         <input
@@ -2210,6 +2256,8 @@ function App() {
   const [doc, setDoc] = useState(null);
   const [wsPath, setWsPath] = useState(null);
   const [workspacePages, setWorkspacePages] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isNarrowViewport, setIsNarrowViewport] = useState(false);
 
   // Load index on mount
   useEffect(() => {
@@ -2225,6 +2273,18 @@ function App() {
         setWsPath(nav.wsPath);
         setWorkspacePages(nav.workspacePages);
       });
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1280px)");
+    const updateViewport = () => setIsNarrowViewport(media.matches);
+    updateViewport();
+    if (media.addEventListener) {
+      media.addEventListener("change", updateViewport);
+      return () => media.removeEventListener("change", updateViewport);
+    }
+    media.addListener(updateViewport);
+    return () => media.removeListener(updateViewport);
   }, []);
 
   useEffect(() => {
@@ -2261,6 +2321,19 @@ function App() {
     const main = document.querySelector(".main");
     if (main) main.scrollTo(0, 0);
   }, [route, wsPath, docPath]);
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setSidebarOpen(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [sidebarOpen]);
+
+  useEffect(() => {
+    if (!isNarrowViewport && sidebarOpen) setSidebarOpen(false);
+  }, [isNarrowViewport, sidebarOpen]);
 
   const handleWorkspacePageChange = useCallback((view, nextPage) => {
     const page = Math.max(1, Math.floor(Number(nextPage) || 1));
@@ -2450,7 +2523,7 @@ function App() {
   }
 
   return (
-    <div className="app">
+    <div className={"app" + (sidebarOpen ? " sidebar-is-open" : "")}>
       <Sidebar
         index={index}
         projectSlug={projectSlug}
@@ -2458,6 +2531,17 @@ function App() {
         section={section}
         onNavigate={handleNavigate}
         onSelectProject={handleSelectProject}
+        onClose={() => setSidebarOpen(false)}
+        inert={isNarrowViewport && !sidebarOpen}
+      />
+      <button
+        className="sidebar-scrim"
+        type="button"
+        aria-label="Close navigation"
+        aria-hidden={sidebarOpen ? undefined : "true"}
+        disabled={!sidebarOpen}
+        tabIndex={sidebarOpen ? 0 : -1}
+        onClick={() => setSidebarOpen(false)}
       />
       <div className="main">
         <Topbar
@@ -2465,6 +2549,8 @@ function App() {
           index={index}
           docPath={docPath || (hasOutline ? project.outline.spec : null)}
           onOpenAction={handleOpenAction}
+          onToggleSidebar={() => setSidebarOpen((open) => !open)}
+          sidebarOpen={sidebarOpen}
         />
 
         <div className="content content-reader-head-c">{mainContent}</div>
