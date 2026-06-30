@@ -6,7 +6,6 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const url = require('node:url');
 const { spawn, spawnSync } = require('node:child_process');
 
 const repoRoot = path.resolve(process.env.DELANO_VIEWER_ROOT || path.resolve(__dirname, '..', '..'));
@@ -16,6 +15,11 @@ const DEFAULT_PORT = 3977;
 const MAX_PORT = 65535;
 const MAX_PORT_ATTEMPTS = 100;
 const startPort = normalizePort(process.env.DELANO_VIEWER_PORT || process.env.PORT, DEFAULT_PORT);
+const AGENT_PROMPT_SOFT_LIMIT = 3500;
+const AGENT_PROMPT_HARD_LIMIT = 4900;
+
+const AGENT_PROVIDERS = new Set(['codex', 'claude']);
+const AGENT_ACTION_TYPES = new Set(['carry-project-forward', 'carry-task-forward', 'investigate-blocker']);
 
 let contextReader = null;
 try {
@@ -327,9 +331,245 @@ function loadIndex() {
   return { repo: path.basename(repoRoot), generatedAt: new Date().toISOString(), contextPack, projects, docs };
 }
 
-function sendJson(res, data) {
-  res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
+function sendJson(res, data, status = 200) {
+  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(data, null, 2));
+}
+
+function readRequestJson(req, maxBytes = 64 * 1024) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.setEncoding('utf8');
+    req.on('data', (chunk) => {
+      body += chunk;
+      if (body.length > maxBytes) {
+        reject(new Error('Request body too large'));
+        req.destroy();
+      }
+    });
+    req.on('end', () => {
+      try {
+        resolve(body ? JSON.parse(body) : {});
+      } catch {
+        reject(new Error('Invalid JSON'));
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+function cleanAgentText(value, maxLength = 400) {
+  if (value == null) return '';
+  return String(value).replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, maxLength);
+}
+
+function safeDecodePath(value) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function normalizeAgentSourcePath(value) {
+  if (typeof value !== 'string' || !value.trim()) {
+    return { error: 'sourcePath is required.' };
+  }
+
+  const decoded = safeDecodePath(value.trim());
+  let rel = decoded.replace(/\\/g, '/').replace(/^\.\//, '');
+  if (rel.startsWith('.project/')) rel = rel.slice('.project/'.length);
+  if (path.isAbsolute(rel) || rel.startsWith('/') || rel.includes('\0')) {
+    return { error: 'sourcePath must be a relative .project markdown path.' };
+  }
+  if (/%(?:2e|2f|5c)/i.test(value)) {
+    return { error: 'sourcePath must not contain encoded traversal or separators.' };
+  }
+  if (rel.split('/').some((part) => part === '..' || part === '')) {
+    return { error: 'sourcePath must not contain path traversal.' };
+  }
+  if (!rel.endsWith('.md')) {
+    return { error: 'sourcePath must point to a markdown file.' };
+  }
+
+  const normalized = path.posix.normalize(rel);
+  if (normalized.startsWith('../') || normalized === '..') {
+    return { error: 'sourcePath must stay inside .project.' };
+  }
+
+  const file = path.resolve(projectRoot, normalized);
+  if (!isInside(projectRoot, file) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+    return { error: 'sourcePath must point to an existing .project markdown file.' };
+  }
+
+  let realProjectRoot;
+  let realFile;
+  try {
+    realProjectRoot = fs.realpathSync(projectRoot);
+    realFile = fs.realpathSync(file);
+  } catch {
+    return { error: 'sourcePath could not be resolved safely.' };
+  }
+  if (!isInside(realProjectRoot, realFile)) {
+    return { error: 'sourcePath must stay inside .project.' };
+  }
+
+  return {
+    sourcePath: normalized,
+    publicSourcePath: `.project/${normalized}`,
+  };
+}
+
+function requireAgentField(body, field, pattern, label = field) {
+  const value = cleanAgentText(body[field]);
+  if (!value) return { error: `${label} is required.` };
+  if (pattern && !pattern.test(value)) return { error: `${label} has an invalid format.` };
+  return { value };
+}
+
+function commandLinesForContext(ctx) {
+  const source = ctx.publicSourcePath;
+  if (ctx.actionType === 'carry-project-forward') {
+    return [
+      'node bin/delano.js context read --profile implementation',
+      `sed -n '1,220p' ${source}`,
+      'node bin/delano.js status --open --brief',
+      'node bin/delano.js validate'
+    ];
+  }
+
+  return [
+    'node bin/delano.js context read --profile implementation',
+    `sed -n '1,220p' ${source}`,
+    'node bin/delano.js status --open --brief',
+    'node bin/delano.js validate'
+  ];
+}
+
+function buildAgentPrompt(ctx) {
+  const lines = [];
+  lines.push('You are working in this local Delano repo. Start by inspecting state; do not change anything until you understand the contract.');
+  lines.push('');
+  lines.push('First run or inspect:');
+  for (const command of commandLinesForContext(ctx)) lines.push(`- ${command}`);
+  lines.push('');
+  lines.push('Context:');
+  lines.push(`- project: ${ctx.projectSlug}`);
+  if (ctx.workstreamId) lines.push(`- workstream: ${ctx.workstreamId}`);
+  if (ctx.taskId) lines.push(`- task: ${ctx.taskId}`);
+  if (ctx.status) lines.push(`- current status: ${ctx.status}`);
+  lines.push(`- source: ${ctx.publicSourcePath}`);
+
+  if (ctx.actionType === 'investigate-blocker') {
+    lines.push(`- blocked owner: ${ctx.blockedOwner || 'missing'}`);
+    lines.push(`- blocked check-back: ${ctx.blockedCheckBack || 'missing'}`);
+  }
+
+  lines.push('');
+  if (ctx.actionType === 'carry-project-forward') {
+    lines.push('Task: identify the next safe implementation step for this project, then carry it forward if the contract and tests make that safe.');
+  } else if (ctx.actionType === 'carry-task-forward') {
+    lines.push('Task: carry this task forward from its current state. Check dependencies and acceptance criteria before editing implementation files.');
+  } else {
+    lines.push('Task: investigate why this task is blocked. Inspect dependencies and blocker metadata before proposing any reopen, re-block, or follow-up action.');
+  }
+
+  lines.push('');
+  lines.push('Guardrails:');
+  lines.push('- Treat `.project/` as the source of truth.');
+  lines.push('- Use Delano CLI lifecycle commands; do not edit task/status frontmatter directly.');
+  if (ctx.taskId) {
+    lines.push(`- When you have evidence, record progress with \`node bin/delano.js task update ${ctx.projectSlug} ${ctx.taskId} --message "<what changed and what evidence exists>"\`.`);
+  }
+  lines.push('- Do not close, reopen, defer, or block work without evidence and a clear reason.');
+  lines.push('- If `.project/` changes, run `node bin/delano.js validate` before handing off.');
+  lines.push('- Report what changed, what was tested, and what remains blocked.');
+
+  return lines.join('\n');
+}
+
+function buildProviderUrl(provider, prompt) {
+  if (provider === 'codex') {
+    return `codex://threads/new?path=${encodeURIComponent(repoRoot)}&prompt=${encodeURIComponent(prompt)}`;
+  }
+  if (provider === 'claude') {
+    return `claude-cli://open?cwd=${encodeURIComponent(repoRoot)}&q=${encodeURIComponent(prompt)}`;
+  }
+  return null;
+}
+
+function buildAgentLink(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    return { error: 'Request body must be a JSON object.' };
+  }
+
+  const provider = cleanAgentText(body.provider, 40);
+  if (!AGENT_PROVIDERS.has(provider)) return { error: 'provider must be one of: codex, claude.' };
+
+  const actionType = cleanAgentText(body.actionType, 80);
+  if (!AGENT_ACTION_TYPES.has(actionType)) {
+    return { error: 'actionType must be one of: carry-project-forward, carry-task-forward, investigate-blocker.' };
+  }
+
+  const project = requireAgentField(body, 'projectSlug', /^[a-z0-9][a-z0-9-]*$/i, 'projectSlug');
+  if (project.error) return project;
+
+  const source = normalizeAgentSourcePath(body.sourcePath);
+  if (source.error) return source;
+
+  if (!source.sourcePath.startsWith(`projects/${project.value}/`)) {
+    return { error: 'sourcePath must belong to projectSlug.' };
+  }
+
+  const taskRequired = actionType === 'carry-task-forward' || actionType === 'investigate-blocker';
+  const taskId = cleanAgentText(body.taskId, 80);
+  if (taskRequired && !/^[A-Z0-9]+-[A-Z0-9-]+$/i.test(taskId)) {
+    return { error: 'taskId is required for task and blocker agent actions.' };
+  }
+
+  const workstreamId = cleanAgentText(body.workstreamId, 80);
+  if (workstreamId && !/^WS-[A-Z0-9-]+$/i.test(workstreamId)) {
+    return { error: 'workstreamId has an invalid format.' };
+  }
+
+  const ctx = {
+    provider,
+    actionType,
+    projectSlug: project.value,
+    sourcePath: source.sourcePath,
+    publicSourcePath: source.publicSourcePath,
+    workstreamId,
+    taskId,
+    status: cleanAgentText(body.status, 6000),
+    blockedOwner: cleanAgentText(body.blockedOwner, 200),
+    blockedCheckBack: cleanAgentText(body.blockedCheckBack, 200),
+  };
+
+  const warnings = [];
+  let copyOnly = false;
+
+  if (ctx.actionType === 'investigate-blocker' && (!ctx.blockedOwner || !ctx.blockedCheckBack)) {
+    copyOnly = true;
+    warnings.push('Blocker metadata is incomplete; copy the prompt and inspect before opening a lifecycle-oriented agent session.');
+  }
+
+  const prompt = buildAgentPrompt(ctx);
+  if (prompt.length > AGENT_PROMPT_SOFT_LIMIT) {
+    warnings.push(`Prompt is ${prompt.length} characters, above the ${AGENT_PROMPT_SOFT_LIMIT} character reviewability target.`);
+  }
+  if (prompt.length > AGENT_PROMPT_HARD_LIMIT || (provider === 'claude' && prompt.length >= 5000)) {
+    copyOnly = true;
+    warnings.push('Prompt is too long for a safe provider deeplink; use the copy-prompt fallback.');
+  }
+
+  return {
+    provider,
+    actionType,
+    url: copyOnly ? null : buildProviderUrl(provider, prompt),
+    prompt,
+    warnings,
+    copyOnly,
+  };
 }
 
 function projectFileFromRequest(rel) {
@@ -423,10 +663,10 @@ function sendStatic(res, pathname) {
 
 const server = http.createServer((req, res) => {
   try {
-    const parsed = url.parse(req.url, true);
+    const parsed = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
     if (parsed.pathname === '/api/index') return sendJson(res, loadIndex());
     if (parsed.pathname === '/api/doc') {
-      const rel = String(parsed.query.path || '');
+      const rel = String(parsed.searchParams.get('path') || '');
       const file = projectFileFromRequest(rel);
       if (!file) {
         res.writeHead(404); res.end('Document not found'); return;
@@ -435,16 +675,32 @@ const server = http.createServer((req, res) => {
       const meta = docMeta(file);
       return sendJson(res, { ...meta, markdown, body: splitFrontmatter(markdown).body });
     }
+    if (parsed.pathname === '/api/agent-link') {
+      if (req.method !== 'POST') {
+        res.writeHead(405); res.end('Use POST'); return;
+      }
+      readRequestJson(req)
+        .then((body) => {
+          const result = buildAgentLink(body);
+          if (result.error) return sendJson(res, { error: result.error }, 400);
+          return sendJson(res, result);
+        })
+        .catch((error) => {
+          const message = error && error.message === 'Request body too large' ? 'Request body too large' : 'Invalid JSON';
+          sendJson(res, { error: message }, 400);
+        });
+      return;
+    }
     if (parsed.pathname === '/api/open') {
       if (req.method !== 'POST') {
         res.writeHead(405); res.end('Use POST'); return;
       }
-      const rel = String(parsed.query.path || '');
+      const rel = String(parsed.searchParams.get('path') || '');
       const file = projectFileFromRequest(rel);
       if (!file) {
         res.writeHead(404); res.end('Document not found'); return;
       }
-      const result = openTarget(String(parsed.query.target || ''), file);
+      const result = openTarget(String(parsed.searchParams.get('target') || ''), file);
       if (!result.ok) {
         res.writeHead(400, { 'content-type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify(result, null, 2)); return;

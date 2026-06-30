@@ -28,6 +28,7 @@ const I = {
   folder:    <><path d="M3.5 6.5a2 2 0 0 1 2-2h3.5l2 2h7.5a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></>,
   gear:      <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></>,
   code:      <><path d="m9 8-5 4 5 4"/><path d="m15 8 5 4-5 4"/></>,
+  agent:     <><path d="M12 3.5l1.7 5 5 1.7-5 1.7-1.7 5-1.7-5-5-1.7 5-1.7z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></>,
   folderOpen:<><path d="M3 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v1H3z"/><path d="M3 10h18l-2 8a2 2 0 0 1-2 1.5H5a2 2 0 0 1-2-1.5z"/></>,
   user:      <><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/></>,
   chevR:     <path d="m9 6 6 6-6 6"/>,
@@ -630,6 +631,91 @@ const CopyButton = ({ value, label = "value", className = "" }) => {
   );
 };
 
+async function fetchAgentLink(context, provider) {
+  const response = await fetch("/api/agent-link", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...context, provider }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || "Could not build agent link.");
+  return data;
+}
+
+const AgentMenu = ({ context, label = "Agent", align = "right" }) => {
+  const [status, setStatus] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  if (!context?.projectSlug || !context?.sourcePath || !context?.actionType) return null;
+
+  const handleAgentAction = async (provider, mode) => {
+    setBusy(true);
+    setStatus("");
+    try {
+      const result = await fetchAgentLink(context, provider);
+      if (mode === "copy" || !result.url) {
+        const ok = await copyTextToClipboard(result.prompt || "");
+        setStatus(ok ? "Prompt copied" : "Copy failed");
+        announceCopy("agent prompt");
+        return;
+      }
+      window.location.href = result.url;
+      setStatus(result.warnings?.length ? "Opened with warning" : "Opening agent…");
+    } catch (error) {
+      setStatus(error?.message || "Agent link failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <details className={`agent-menu agent-menu-${align}`}>
+      <summary className="btn agent-summary" aria-label={`${label} menu`}>
+        <Icon d={I.agent} size={14} /> {label}
+      </summary>
+      <div className="agent-panel">
+        <button className="agent-item" type="button" disabled={busy} onClick={() => handleAgentAction("codex", "open")}>
+          Open in Codex
+        </button>
+        <button className="agent-item" type="button" disabled={busy} onClick={() => handleAgentAction("claude", "open")}>
+          Open in Claude Code
+        </button>
+        <button className="agent-item" type="button" disabled={busy} onClick={() => handleAgentAction("codex", "copy")}>
+          Copy prompt
+        </button>
+        {status && <div className="agent-status" role="status">{status}</div>}
+      </div>
+    </details>
+  );
+};
+
+function projectAgentContext(project, docs) {
+  if (!project?.slug || !project?.outline) return null;
+  const sourcePath = project.outline.spec || project.outline.plan || (project.docs || [])[0];
+  if (!sourcePath) return null;
+  const sourceDoc = docs.find((doc) => doc.path === sourcePath) || null;
+  return {
+    actionType: "carry-project-forward",
+    projectSlug: project.slug,
+    sourcePath,
+    status: sourceDoc?.status || project.status || "",
+  };
+}
+
+function taskAgentContext(project, taskDoc, taskNav, actionType = "carry-task-forward") {
+  if (!project?.slug || !taskDoc?.path || taskDoc.role !== "task") return null;
+  return {
+    actionType,
+    projectSlug: project.slug,
+    sourcePath: taskDoc.path,
+    workstreamId: taskDoc.workstreamId || taskNav?.parent?.id || "",
+    taskId: taskDoc.taskId || taskDoc.frontmatter?.id || "",
+    status: taskDoc.status || "",
+    blockedOwner: taskDoc.frontmatter?.blocked_owner || "",
+    blockedCheckBack: taskDoc.frontmatter?.blocked_check_back || "",
+  };
+}
+
 const Field = ({ label, children, mono, copyValue, copyLabel }) => (
   <div className="field">
     <div className="field-label">{label}</div>
@@ -1084,6 +1170,7 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
     : health.pct < 100
     ? "Complete remaining tasks"
     : "All tasks complete";
+  const agentContext = projectAgentContext(project, docs);
 
   // Auto-open + scroll to section from sidebar nav
   useEffect(() => {
@@ -1101,7 +1188,10 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
   return (
     <div className="page overview-v1">
       <div className="overview-v1-head">
-        <h1 className="page-title">Overview</h1>
+        <div className="page-title-row">
+          <h1 className="page-title">Overview</h1>
+          <AgentMenu context={agentContext} label="Agent" />
+        </div>
         <div className="overview-signal-strip signal-color-filled">
           <button className={"signal-pill signal-pill-warning" + (warnings.length ? " has-count" : " is-zero")} onClick={() => toggle("warnings")} type="button">
             <Icon d={I.warn} size={14} />
@@ -1174,11 +1264,20 @@ function Overview({ index, project, docs, scrollTarget, onOpenWorkstream, onOpen
             <div className="delivery-list">
               {openTasks.slice(0, 7).map((task) => {
                 const ws = wsLookup[task.path];
+                const isBlocked = statusLabel(task.status) === "Blocked";
                 return (
                   <div className="delivery-task-row" key={task.path}>
                     <LinkButton onClick={() => onOpenDoc(task.path)} title={task.title}>{task.title}</LinkButton>
                     <span className="td-muted">{ws?.title || "Unassigned"}</span>
                     <StatusChip>{task.status || "Planned"}</StatusChip>
+                    <span className="delivery-agent-cell">
+                      {isBlocked && (
+                        <AgentMenu
+                          context={taskAgentContext(project, task, { parent: ws }, "investigate-blocker")}
+                          label="Investigate"
+                        />
+                      )}
+                    </span>
                   </div>
                 );
               })}
@@ -1377,15 +1476,17 @@ function WorkspacePage({ index, view, page, onPageChange, onOpenProject, onOpenP
 
   const renderTaskRows = (items, emptyText, kind) => {
     const pagination = paginateItems(items, currentPage);
+    const withAgent = kind === "blocked";
     return (
       <>
         {pagination.visible.length > 0 ? (
-          <div className="table table-workspace">
+          <div className={`table ${withAgent ? "table-workspace-agent" : "table-workspace"}`}>
             <div className="tr th">
               <div>Task</div>
               <div>Project</div>
               <div>Workstream</div>
               <div>State</div>
+              {withAgent && <div>Agent</div>}
             </div>
             {pagination.visible.map((task) => (
               <div className="tr" key={`${task.project.slug}:${task.path}`}>
@@ -1399,6 +1500,14 @@ function WorkspacePage({ index, view, page, onPageChange, onOpenProject, onOpenP
                 <div>
                   <StatusChip>{task.status}</StatusChip>
                 </div>
+                {withAgent && (
+                  <div>
+                    <AgentMenu
+                      context={taskAgentContext(task.project, task, { parent: task.workstream }, "investigate-blocker")}
+                      label="Investigate"
+                    />
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1657,11 +1766,12 @@ function DashboardPage({ project, docs, view, onOpenWorkstream, onOpenDoc }) {
 
   const renderBlockers = () =>
     blockers.length > 0 ? (
-      <div className="table table-3">
+      <div className="table table-blockers-agent">
         <div className="tr th">
           <div>Task</div>
           <div>Workstream</div>
           <div>Details</div>
+          <div>Agent</div>
         </div>
         {blockers.map((task, i) => {
           const ws = wsLookup[task.path];
@@ -1682,6 +1792,12 @@ function DashboardPage({ project, docs, view, onOpenWorkstream, onOpenDoc }) {
                 )}
               </div>
               <div className="td-muted">{task.snippet || "-"}</div>
+              <div>
+                <AgentMenu
+                  context={taskAgentContext(project, task, { parent: ws }, "investigate-blocker")}
+                  label="Investigate"
+                />
+              </div>
             </div>
           );
         })}
@@ -2065,6 +2181,9 @@ function DocumentReader({ doc, project, index, onBack, onOpenAction, onOpenDoc, 
           hour: "2-digit", minute: "2-digit", hour12: false,
         })
       : "—";
+  const taskActionType = statusLabel(doc.status) === "Blocked" ? "investigate-blocker" : "carry-task-forward";
+  const agentContext = taskAgentContext(project, doc, taskNav, taskActionType);
+  const agentLabel = taskActionType === "investigate-blocker" ? "Investigate blocker with agent" : "Carry forward with agent";
 
   return (
     <div className="page doc-reader-page">
@@ -2075,7 +2194,10 @@ function DocumentReader({ doc, project, index, onBack, onOpenAction, onOpenDoc, 
           </button>
         )}
         <div className="ws-eyebrow">{titleCase(doc.role)}</div>
-        <h1 className="page-title">{doc.title}</h1>
+        <div className="page-title-row">
+          <h1 className="page-title">{doc.title}</h1>
+          {doc.role === "task" && <AgentMenu context={agentContext} label={agentLabel} align="left" />}
+        </div>
 
         <article
           className="md-body"
