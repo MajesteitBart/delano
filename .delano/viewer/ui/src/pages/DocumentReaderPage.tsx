@@ -2,6 +2,7 @@ import { ArrowLeftIcon, MessageSquareTextIcon, XIcon } from "lucide-react"
 import { type SyntheticEvent, useCallback, useEffect, useMemo, useState } from "react"
 
 import { AnnotationPopover } from "@/components/molecules/AnnotationPopover"
+import { HandoverMenu } from "@/components/molecules/HandoverMenu"
 import { AnnotationDrawer } from "@/components/organisms/AnnotationDrawer"
 import { MarkdownArticle } from "@/components/organisms/MarkdownArticle"
 import { Badge } from "@/components/ui/badge"
@@ -56,6 +57,7 @@ export function DocumentReaderPage({
   const [comment, setComment] = useState("")
   const [type, setType] = useState("comment")
   const [annotationError, setAnnotationError] = useState("")
+  const [notice, setNotice] = useState("")
   const [saving, setSaving] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
   const [activeTocLine, setActiveTocLine] = useState<number | null>(null)
@@ -270,16 +272,26 @@ export function DocumentReaderPage({
               <ArrowLeftIcon data-icon="inline-start" />
               Back
             </Button>
-            <Button
-              variant={reviewOpen ? "secondary" : "outline"}
-              size="sm"
-              onClick={() => setReviewOpen((open) => !open)}
-              aria-pressed={reviewOpen}
-            >
-              <MessageSquareTextIcon data-icon="inline-start" />
-              Review
-              <Badge variant="secondary">{annotations.length}</Badge>
-            </Button>
+            <div className="flex items-center gap-2">
+              {(doc.role === "task" || doc.role === "workstream") && (
+                <HandoverMenu
+                  sourcePath={doc.path}
+                  onStatus={(message, tone) =>
+                    tone === "error" ? setAnnotationError(message) : setNotice(message)
+                  }
+                />
+              )}
+              <Button
+                variant={reviewOpen ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setReviewOpen((open) => !open)}
+                aria-pressed={reviewOpen}
+              >
+                <MessageSquareTextIcon data-icon="inline-start" />
+                Review
+                <Badge variant="secondary">{annotations.length}</Badge>
+              </Button>
+            </div>
           </div>
           <div className="eyebrow">{doc.role ?? "Document"}</div>
           <h2 className="mb-10 text-[30px] font-semibold leading-tight">{doc.title}</h2>
@@ -344,6 +356,19 @@ export function DocumentReaderPage({
             size="icon-xs"
             onClick={() => setAnnotationError("")}
             aria-label="Dismiss annotation error"
+          >
+            <XIcon />
+          </Button>
+        </div>
+      )}
+      {notice && !annotationError && (
+        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm" role="status">
+          <span>{notice}</span>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            onClick={() => setNotice("")}
+            aria-label="Dismiss handover status"
           >
             <XIcon />
           </Button>

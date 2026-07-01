@@ -4,7 +4,7 @@ slug: delano-viewer-annotations-agent-chat
 owner: product
 status: complete
 created: 2026-06-30T14:08:03Z
-updated: 2026-07-01T21:45:26Z
+updated: 2026-07-01T23:22:07Z
 outcome: Delano viewer supports file-scoped annotations, a review panel, and one-click agent handover of annotation bundles for selected .project markdown with explicit write boundaries.
 uncertainty: high
 probe_required: true
@@ -56,6 +56,7 @@ Primary users are project operators reviewing Delano contracts, coding agents th
 - A right-side annotation drawer with count badges, edit/delete/select behavior, and export actions.
 - Agent-ready markdown/JSON export of annotations.
 - Guarded handover endpoint that writes annotation handover files and launches or prints Codex/Claude Code commands.
+- Work-dispatch handover on task and workstream contracts: start-the-work and review-delivered-work intents from documents and list rows.
 - Reviewed apply workflow for turning accepted agent suggestions into file edits.
 - Tests and docs for path safety, write boundaries, browser behavior, and rollback.
 
@@ -79,6 +80,7 @@ Primary users are project operators reviewing Delano contracts, coding agents th
 - FR-007: Handover prompts stay one line and reference the handover file rather than injecting unbounded raw context into the command.
 - FR-008: Apply endpoint shows a diff and requires explicit confirmation before writing to `.project` markdown.
 - FR-009: All write endpoints enforce payload size limits, path containment, file hash or mtime baselines, and no symlink escape.
+- FR-010: Handover supports `start` and `review` intents on task and workstream contracts; these reference the contract path directly and only write a handover file when captured annotations exist to carry as reviewer feedback.
 
 ## Non-Functional Requirements
 

@@ -4,7 +4,7 @@ name: WS-C Codex Chat and Attachment Flow
 owner: product
 status: done
 created: 2026-06-30T14:11:44Z
-updated: 2026-07-01T21:45:26Z
+updated: 2026-07-01T23:22:07Z
 operating_mode: uncertain-feature
 ---
 

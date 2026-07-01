@@ -9,6 +9,10 @@ updated: 2026-07-01T21:40:31Z
 # Decisions: Viewer Annotations and Agent Handover
 
 ## Active Decisions
+- 2026-07-02: Handover also dispatches work, not only feedback.
+  - Decision: task and workstream contracts get handover buttons with two intents. `start` hands the agent the contract to implement (read AGENTS.md and the owning spec/plan, meet the acceptance criteria, record evidence, update lifecycle via the delano CLI). `review` asks the agent to verify acceptance criteria and the evidence log against the implementation, carrying captured annotations along as reviewer feedback when they exist.
+  - Rationale: the owner wants the viewer to trigger work and request review of delivered work directly from the contract surfaces, not only to relay content annotations.
+  - Status: accepted and implemented.
 - 2026-07-01: Replace embedded chat with agent handover.
   - Decision: remove the in-viewer chat surface and AI SDK dependencies. The primary review output is a handover: the server writes the selected annotations to a deterministic file under `.project/viewer/handovers/` and returns a `codex://new` deep link that opens the Codex app with the handover prompt (default), with terminal launch and a copyable one-line command as fallbacks for Codex and Claude Code. Export to markdown/JSON stays available as a secondary action.
   - Rationale: owner review found the embedded chat flimsy and the review surface cluttered. Handing the annotated feedback to a full coding agent is simpler and cheaper than maintaining a chat bridge, and it keeps the viewer guarded and read-focused while the agent works under its own CLI safety model.

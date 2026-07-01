@@ -393,6 +393,12 @@ test("viewer handover API writes a handover file and returns agent commands", as
   const specPath = path.join(projectDir, "spec.md");
   const original = "# Demo\n\nReview this paragraph before implementation.\n";
   fs.writeFileSync(specPath, original, "utf8");
+  fs.mkdirSync(path.join(projectDir, "tasks"), { recursive: true });
+  fs.writeFileSync(
+    path.join(projectDir, "tasks", "T-001-demo-task.md"),
+    "---\nid: T-001\nname: Demo task\nstatus: open\nworkstream: WS-A\n---\n\n# Task: Demo task\n",
+    "utf8"
+  );
 
   const serverPath = path.join(__dirname, "..", ".delano", "viewer", "server.js");
   const port = await getOpenPort();
@@ -467,6 +473,34 @@ test("viewer handover API writes a handover file and returns agent commands", as
   });
   assert.equal(filtered.status, 200);
   assert.equal(filtered.json.annotationCount, 0);
+
+  const startWork = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/tasks/T-001-demo-task.md", intent: "start" }
+  });
+  assert.equal(startWork.status, 200);
+  assert.equal(startWork.json.intent, "start");
+  assert.equal(startWork.json.file, null);
+  assert.match(startWork.json.prompt, /^Work the Delano task \.project\/projects\/demo\/tasks\/T-001-demo-task\.md/);
+  assert.ok(startWork.json.deepLink.startsWith("codex://new?prompt="), startWork.json.deepLink);
+
+  const reviewWork = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec.md", intent: "review" }
+  });
+  assert.equal(reviewWork.status, 200);
+  assert.equal(reviewWork.json.intent, "review");
+  assert.match(reviewWork.json.prompt, /^Review the delivered work for the Delano document/);
+  assert.match(reviewWork.json.prompt, /Reviewer annotations are in \.project\/viewer\/handovers\//);
+  assert.ok(reviewWork.json.file, "review with annotations should write a handover file");
+
+  const reviewNoFeedback = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/tasks/T-001-demo-task.md", intent: "review" }
+  });
+  assert.equal(reviewNoFeedback.status, 200);
+  assert.equal(reviewNoFeedback.json.file, null);
+  assert.doesNotMatch(reviewNoFeedback.json.prompt, /Reviewer annotations/);
 
   const unknown = await requestJson(`${baseUrl}/api/handover`, {
     method: "POST",

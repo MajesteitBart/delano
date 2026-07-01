@@ -3,7 +3,7 @@ name: Viewer Annotations and Agent Chat
 status: done
 lead: product
 created: 2026-06-30T14:08:03Z
-updated: 2026-07-01T21:45:26Z
+updated: 2026-07-01T23:22:07Z
 linear_project_id: 
 risk_level: high
 spec_status_at_plan_time: planned

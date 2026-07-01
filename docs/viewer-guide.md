@@ -82,6 +82,15 @@ The receiving agent works in the repository under its own permissions and safety
 
 Annotation bundles can still be exported as markdown or JSON from the same menu for manual workflows.
 
+## Work Dispatch Handover
+
+Tasks and workstreams also support dispatch-style handover that is about the work itself rather than annotation feedback. A **Hand over** button on task and workstream documents (and a per-row agent button on the Tasks and Workstreams pages) offers two intents:
+
+- **Start the work**: hands the agent a prompt that references the contract file and tells it to read `AGENTS.md` plus the owning spec/plan, implement the acceptance criteria, record evidence, and update lifecycle state with the delano CLI.
+- **Review delivered work**: tells the agent to verify each acceptance criterion and the evidence log against the actual implementation and record findings. When the document has captured annotations, they are written to a handover file and included as reviewer feedback.
+
+Both intents use the same `/api/handover` endpoint (`intent: "start" | "review"`) and the same delivery paths: `codex://new` deep link, terminal launch, or copy command. Start/review handovers reference the contract directly and only write a handover file when there is annotation feedback to carry along.
+
 The viewer client is built from `.delano/viewer/ui` with the shadcn CLI and real shadcn/Radix primitives for annotation controls and markers. When changing the viewer UI in this repository, run:
 
 ```bash

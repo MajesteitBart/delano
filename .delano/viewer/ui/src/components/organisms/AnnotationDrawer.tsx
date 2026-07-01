@@ -31,34 +31,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { messageFromError, requestJson } from "@/lib/api"
 import { quoteInMarkdown } from "@/lib/domain/annotations"
 import { downloadText } from "@/lib/domain/clipboard"
+import {
+  agentLabel,
+  defaultActionFor,
+  performHandover,
+  storedAgent,
+  type HandoverAction,
+  type HandoverAgent,
+} from "@/lib/domain/handover"
 import type { Annotation, ViewerDoc } from "@/lib/domain/types"
-
-type HandoverAgent = "codex" | "claude"
-
-type HandoverResponse = {
-  ok: boolean
-  launched: boolean
-  agent: HandoverAgent
-  file: string
-  prompt: string
-  command: string
-  deepLink: string | null
-  annotationCount: number
-}
-
-const AGENT_STORAGE_KEY = "delano-viewer-handover-agent"
-
-function agentLabel(agent: HandoverAgent) {
-  return agent === "claude" ? "Claude Code" : "Codex"
-}
-
-function storedAgent(): HandoverAgent {
-  try {
-    return window.localStorage.getItem(AGENT_STORAGE_KEY) === "claude" ? "claude" : "codex"
-  } catch {
-    return "codex"
-  }
-}
 
 export function AnnotationDrawer({
   open,
@@ -103,47 +84,19 @@ export function AnnotationDrawer({
     [annotations, doc.markdown]
   )
 
-  const rememberAgent = (next: HandoverAgent) => {
-    setAgent(next)
-    try {
-      window.localStorage.setItem(AGENT_STORAGE_KEY, next)
-    } catch {
-      // Preference persistence is best-effort.
-    }
-  }
-
-  const runHandover = async (
-    action: "deeplink" | "launch" | "command",
-    agentChoice: HandoverAgent
-  ) => {
-    rememberAgent(agentChoice)
+  const runHandover = async (action: HandoverAction, agentChoice: HandoverAgent) => {
+    setAgent(agentChoice)
     setHandoverBusy(true)
     setHandoverStatus("")
     setHandoverError("")
     try {
-      const payload = await requestJson<HandoverResponse>("/api/handover", {
-        method: "POST",
-        body: JSON.stringify({
-          sourcePath: doc.path,
-          ids: selectedIds.length ? selectedIds : undefined,
-          agent: agentChoice,
-          action: action === "launch" ? "launch" : "command",
-        }),
+      const result = await performHandover({
+        sourcePath: doc.path,
+        ids: selectedIds,
+        agent: agentChoice,
+        action,
       })
-      if (action === "deeplink") {
-        if (!payload.deepLink) throw new Error("No deep link available for this agent.")
-        window.location.href = payload.deepLink
-        setHandoverStatus(`Opening the Codex app. Handover file: ${payload.file}`)
-      } else if (action === "command") {
-        await navigator.clipboard.writeText(payload.command)
-        setHandoverStatus(
-          `Command copied. Paste it in a terminal at the repo root. Handover file: ${payload.file}`
-        )
-      } else {
-        setHandoverStatus(
-          `${agentLabel(agentChoice)} opened in a new terminal with ${payload.file}`
-        )
-      }
+      setHandoverStatus(result.message)
     } catch (err) {
       setHandoverError(`${messageFromError(err)} Use "Copy command" as a fallback.`)
     } finally {
@@ -151,8 +104,7 @@ export function AnnotationDrawer({
     }
   }
 
-  const primaryHandover = () =>
-    agent === "codex" ? runHandover("deeplink", "codex") : runHandover("launch", "claude")
+  const primaryHandover = () => runHandover(defaultActionFor(agent), agent)
 
   const exportAnnotations = async (kind: "copy" | "md" | "json") => {
     try {

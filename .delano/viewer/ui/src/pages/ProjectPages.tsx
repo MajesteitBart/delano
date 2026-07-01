@@ -1,6 +1,7 @@
 import { FileTextIcon, FolderIcon, ListChecksIcon } from "lucide-react"
 import { useState } from "react"
 
+import { HandoverMenu } from "@/components/molecules/HandoverMenu"
 import { TablePaginationFooter } from "@/components/molecules/TablePaginationFooter"
 import { StatusBadge } from "@/components/atoms/StatusBadge"
 import { Button } from "@/components/ui/button"
@@ -114,6 +115,7 @@ export function ProjectWorkstreamsPage({
 }) {
   const workstreams = project?.outline?.workstreams ?? []
   const [page, setPage] = useState(1)
+  const [notice, setNotice] = useState<{ message: string; tone: "info" | "error" } | null>(null)
   const paginated = paginateItems(workstreams, page)
 
   return (
@@ -123,6 +125,7 @@ export function ProjectWorkstreamsPage({
         <h2>Workstreams</h2>
         <p>{project?.title ?? "Selected project"}</p>
       </div>
+      <HandoverNotice notice={notice} onDismiss={() => setNotice(null)} />
       {!workstreams.length ? (
         <ProjectEmpty title="No workstreams" description="This project has no workstream contracts." />
       ) : (
@@ -135,6 +138,7 @@ export function ProjectWorkstreamsPage({
                   <TableHead>Tasks</TableHead>
                   <TableHead>Open tasks</TableHead>
                   <TableHead>Contract</TableHead>
+                  <TableHead className="w-10 text-right">Agent</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -157,6 +161,13 @@ export function ProjectWorkstreamsPage({
                         >
                           Open
                         </Button>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <HandoverMenu
+                          sourcePath={workstream.path}
+                          variant="icon"
+                          onStatus={(message, tone) => setNotice({ message, tone })}
+                        />
                       </TableCell>
                     </TableRow>
                   )
@@ -189,6 +200,7 @@ export function ProjectTasksPage({
 }) {
   const tasks = project ? projectTaskDocs(project, docs) : []
   const [page, setPage] = useState(1)
+  const [notice, setNotice] = useState<{ message: string; tone: "info" | "error" } | null>(null)
   const paginated = paginateItems(tasks, page)
 
   return (
@@ -198,12 +210,17 @@ export function ProjectTasksPage({
         <h2>Tasks</h2>
         <p>{project?.title ?? "Selected project"}</p>
       </div>
+      <HandoverNotice notice={notice} onDismiss={() => setNotice(null)} />
       {!tasks.length ? (
         <ProjectEmpty title="No tasks" description="This project has no indexed task contracts." />
       ) : (
         <Card>
           <CardContent>
-            <DocumentTable docs={paginated.items} onOpenDoc={onOpenDoc} />
+            <DocumentTable
+              docs={paginated.items}
+              onOpenDoc={onOpenDoc}
+              onHandoverStatus={(message, tone) => setNotice({ message, tone })}
+            />
           </CardContent>
           <CardFooter>
             <TablePaginationFooter
@@ -226,7 +243,16 @@ function projectTaskDocs(project: ProjectIndex, docs: Map<string, DocMeta>) {
   return paths.map((path) => docs.get(path)).filter((doc): doc is DocMeta => Boolean(doc))
 }
 
-function DocumentTable({ docs, onOpenDoc }: { docs: DocMeta[]; onOpenDoc: (path: string) => void }) {
+function DocumentTable({
+  docs,
+  onOpenDoc,
+  onHandoverStatus,
+}: {
+  docs: DocMeta[]
+  onOpenDoc: (path: string) => void
+  onHandoverStatus?: (message: string, tone: "info" | "error") => void
+}) {
+  const showAgentColumn = Boolean(onHandoverStatus) && docs.some((doc) => doc.role === "task" || doc.role === "workstream")
   return (
     <Table>
       <TableHeader>
@@ -235,6 +261,7 @@ function DocumentTable({ docs, onOpenDoc }: { docs: DocMeta[]; onOpenDoc: (path:
           <TableHead>Role</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Updated</TableHead>
+          {showAgentColumn && <TableHead className="w-10 text-right">Agent</TableHead>}
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -255,10 +282,40 @@ function DocumentTable({ docs, onOpenDoc }: { docs: DocMeta[]; onOpenDoc: (path:
               {doc.status ? <StatusBadge status={doc.status} /> : <span className="text-muted-foreground">None</span>}
             </TableCell>
             <TableCell>{formatDate(doc.updated)}</TableCell>
+            {showAgentColumn && (
+              <TableCell className="text-right">
+                {(doc.role === "task" || doc.role === "workstream") && (
+                  <HandoverMenu sourcePath={doc.path} variant="icon" onStatus={onHandoverStatus} />
+                )}
+              </TableCell>
+            )}
           </TableRow>
         ))}
       </TableBody>
     </Table>
+  )
+}
+
+function HandoverNotice({
+  notice,
+  onDismiss,
+}: {
+  notice: { message: string; tone: "info" | "error" } | null
+  onDismiss: () => void
+}) {
+  if (!notice) return null
+  return (
+    <p
+      className={
+        notice.tone === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"
+      }
+      role="status"
+    >
+      {notice.message}{" "}
+      <Button variant="ghost" size="xs" onClick={onDismiss} aria-label="Dismiss handover status">
+        Dismiss
+      </Button>
+    </p>
   )
 }
 

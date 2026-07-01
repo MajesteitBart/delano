@@ -732,6 +732,28 @@ function launchAgentTerminal(agent, prompt) {
   return { ok: false, error: 'No terminal emulator was found. Copy the command instead.' };
 }
 
+function handoverRoleName(rel) {
+  const role = artifactRoleFor(rel);
+  return role === 'task' || role === 'workstream' ? role : 'document';
+}
+
+function handoverPrompt(intent, source, handoverPath, annotationCount) {
+  const role = handoverRoleName(source.rel);
+  if (intent === 'start') {
+    if (role === 'workstream') {
+      return `Work the Delano workstream ${source.repoPath}. Read AGENTS.md and the owning project spec and plan first, pick up its dependency-safe open tasks, record evidence, and update lifecycle state with the delano CLI.`;
+    }
+    return `Work the Delano ${role} ${source.repoPath}. Read AGENTS.md and the owning project spec and plan first, implement the acceptance criteria, record evidence, and update lifecycle state with the delano CLI.`;
+  }
+  if (intent === 'review') {
+    const feedback = handoverPath && annotationCount > 0
+      ? ` Reviewer annotations are in ${handoverPath}; address every one of them.`
+      : '';
+    return `Review the delivered work for the Delano ${role} ${source.repoPath}. Verify each acceptance criterion and the evidence log against the actual implementation, run the smallest meaningful validation, and record findings with the delano CLI.${feedback}`;
+  }
+  return `Address the Delano review handover in ${handoverPath}. Read ${source.repoPath} and resolve every annotation listed, then record evidence per AGENTS.md.`;
+}
+
 async function handleHandover(req, res) {
   if (req.method !== 'POST') return sendError(res, 405, 'Use POST');
   let payload;
@@ -742,6 +764,7 @@ async function handleHandover(req, res) {
   }
   const agent = payload.agent === 'claude' ? 'claude' : 'codex';
   const action = payload.action === 'launch' ? 'launch' : 'command';
+  const intent = payload.intent === 'start' || payload.intent === 'review' ? payload.intent : 'annotations';
   const source = resolveProjectMarkdownPath(String(payload.sourcePath || ''));
   if (!source) return sendError(res, 404, 'Source document not found.');
   const ids = Array.isArray(payload.ids)
@@ -754,20 +777,25 @@ async function handleHandover(req, res) {
     (!ids || ids.includes(annotation.id))
   ));
 
-  ensureAnnotationStoreDir();
-  fs.mkdirSync(handoverDir, { recursive: true });
-  const fileName = handoverFileName(source.rel);
-  fs.writeFileSync(path.join(handoverDir, fileName), handoverMarkdown(annotations, source), 'utf8');
-  const handoverPath = `.project/viewer/handovers/${fileName}`;
+  // Work-dispatch handovers reference the contract directly; the annotation
+  // file is only written when there is captured feedback to carry along.
+  let handoverPath = null;
+  if (intent === 'annotations' || (intent === 'review' && annotations.length)) {
+    ensureAnnotationStoreDir();
+    fs.mkdirSync(handoverDir, { recursive: true });
+    const fileName = handoverFileName(source.rel);
+    fs.writeFileSync(path.join(handoverDir, fileName), handoverMarkdown(annotations, source), 'utf8');
+    handoverPath = `.project/viewer/handovers/${fileName}`;
+  }
 
-  const prompt = `Address the Delano review handover in ${handoverPath}. Read ${source.repoPath} and resolve every annotation listed, then record evidence per AGENTS.md.`;
+  const prompt = handoverPrompt(intent, source, handoverPath, annotations.length);
   const command = `${agentCliName(agent)} "${prompt}"`;
   // The Codex desktop app registers the codex:// scheme; path must be the
   // absolute workspace root, so this link is only meaningful on this machine.
   const deepLink = agent === 'codex'
     ? `codex://new?prompt=${encodeURIComponent(prompt)}&path=${encodeURIComponent(repoRoot)}`
     : null;
-  const base = { agent, action, file: handoverPath, prompt, command, deepLink, annotationCount: annotations.length };
+  const base = { agent, action, intent, file: handoverPath, prompt, command, deepLink, annotationCount: annotations.length };
 
   if (action === 'launch') {
     const launch = launchAgentTerminal(agent, prompt);
