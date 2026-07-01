@@ -13,14 +13,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@ai-sdk/react": "^4.0.10",
     "@fontsource-variable/geist": "^5.2.9",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@plannotator/web-highlighter": "^0.8.1",
     "@shadcn/react": "^0.2.0",
     "@tailwindcss/vite": "^4",
-    "ai": "^7.0.9",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.22.0",

@@ -38,16 +38,20 @@ export function MarkdownArticle({
   html,
   annotations,
   draftSource,
+  repaintToken,
   onSelectText,
+  onHighlightClick,
 }: {
   html: string
   annotations: Annotation[]
   draftSource?: WebHighlightSource | null
+  repaintToken?: unknown
   onSelectText: (
     event: SyntheticEvent<HTMLElement>,
     source: WebHighlightSource,
     rect: DOMRect
   ) => void
+  onHighlightClick?: (highlightId: string, rect: DOMRect) => void
 }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const highlighterRef = useRef<Highlighter | null>(null)
@@ -68,14 +72,31 @@ export function MarkdownArticle({
 
   useEffect(() => {
     const highlighter = highlighterRef.current
-    if (!highlighter) return
-    highlighter.removeAll()
+    const root = rootRef.current
+    if (!highlighter || !root) return
+    // Repaints must be idempotent: painting splits text nodes and removal
+    // leaves the fragments behind, so anchors drift after a few cycles.
+    // Restoring the pristine markup first keeps every anchor resolvable.
+    root.innerHTML = html
     annotations.forEach((annotation) => {
       if (annotation.status === "deleted") return
       highlightFromStore(highlighter, annotation.anchor?.highlightSource)
     })
     highlightFromStore(highlighter, draftSource)
-  }, [annotations, draftSource, html])
+  }, [annotations, draftSource, html, repaintToken])
+
+  const handleClick = useCallback(
+    (event: SyntheticEvent<HTMLElement>) => {
+      const selection = window.getSelection()
+      if (selection && !selection.isCollapsed) return
+      const target = event.target as HTMLElement
+      const mark = target.closest<HTMLElement>(".md-annotation-mark")
+      const id = mark?.dataset.highlightId
+      if (!mark || !id) return
+      onHighlightClick?.(id, mark.getBoundingClientRect())
+    },
+    [onHighlightClick]
+  )
 
   const handleSelection = useCallback(
     (event: SyntheticEvent<HTMLElement>) => {
@@ -105,6 +126,7 @@ export function MarkdownArticle({
       className="md-body"
       onMouseUp={handleSelection}
       onKeyUp={handleSelection}
+      onClick={handleClick}
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )

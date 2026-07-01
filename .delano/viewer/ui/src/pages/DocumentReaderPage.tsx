@@ -1,5 +1,3 @@
-import { Chat } from "@ai-sdk/react"
-import { DefaultChatTransport } from "ai"
 import { ArrowLeftIcon, MessageSquareTextIcon, XIcon } from "lucide-react"
 import { type SyntheticEvent, useCallback, useEffect, useMemo, useState } from "react"
 
@@ -9,11 +7,41 @@ import { MarkdownArticle } from "@/components/organisms/MarkdownArticle"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { messageFromError, requestJson } from "@/lib/api"
-import { numberOrNull } from "@/lib/domain/annotations"
+import { annotationLine, numberOrNull } from "@/lib/domain/annotations"
 import type { Annotation, DraftAnnotation, ViewerDoc } from "@/lib/domain/types"
-import type { AnnotationChatMessage } from "@/lib/domain/chat"
 import { renderMarkdown } from "@/lib/markdown/renderMarkdown"
+import { extractToc } from "@/lib/markdown/toc"
 import { cn } from "@/lib/utils"
+
+type PopoverState =
+  | { mode: "create"; draft: DraftAnnotation }
+  | {
+      mode: "edit"
+      annotationId: string
+      quote: string
+      lineLabel: string
+      x: number
+      y: number
+      side: "top" | "bottom"
+      initialComment: string
+      initialType: string
+    }
+
+const POPOVER_HEIGHT = 250
+const VIEWPORT_PADDING = 16
+
+function popoverPlacement(rect: DOMRect) {
+  const fitsBelow =
+    rect.bottom + 10 + POPOVER_HEIGHT + VIEWPORT_PADDING <= window.innerHeight
+  return {
+    x: Math.max(
+      VIEWPORT_PADDING,
+      Math.min(rect.left + rect.width / 2, window.innerWidth - VIEWPORT_PADDING)
+    ),
+    y: fitsBelow ? rect.bottom : rect.top,
+    side: (fitsBelow ? "bottom" : "top") as "top" | "bottom",
+  }
+}
 
 export function DocumentReaderPage({
   doc,
@@ -24,22 +52,13 @@ export function DocumentReaderPage({
 }) {
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const [draft, setDraft] = useState<DraftAnnotation | null>(null)
-  const [draftComment, setDraftComment] = useState("")
-  const [draftType, setDraftType] = useState("comment")
+  const [popover, setPopover] = useState<PopoverState | null>(null)
+  const [comment, setComment] = useState("")
+  const [type, setType] = useState("comment")
   const [annotationError, setAnnotationError] = useState("")
-  const [savingDraft, setSavingDraft] = useState(false)
+  const [saving, setSaving] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
-
-  const chat = useMemo(
-    () =>
-      new Chat<AnnotationChatMessage>({
-        transport: new DefaultChatTransport({ api: "/api/ai/chat" }),
-      }),
-    // A new document gets a fresh conversation.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [doc.path]
-  )
+  const [activeTocLine, setActiveTocLine] = useState<number | null>(null)
 
   const loadAnnotations = useCallback(async () => {
     const payload = await requestJson<{ annotations: Annotation[] }>(
@@ -53,8 +72,8 @@ export function DocumentReaderPage({
   }, [doc.path])
 
   useEffect(() => {
-    setDraft(null)
-    setDraftComment("")
+    setPopover(null)
+    setComment("")
     setAnnotationError("")
     void loadAnnotations()
       .then((items) => setReviewOpen(items.length > 0))
@@ -62,65 +81,133 @@ export function DocumentReaderPage({
   }, [loadAnnotations])
 
   const markdown = useMemo(() => renderMarkdown(doc.markdown), [doc.markdown])
+  const toc = useMemo(() => extractToc(doc.markdown), [doc.markdown])
+
+  useEffect(() => {
+    const onScroll = () => {
+      const headings = Array.from(
+        document.querySelectorAll<HTMLElement>('[data-block-kind="heading"]')
+      )
+      let current: number | null = null
+      for (const heading of headings) {
+        if (heading.getBoundingClientRect().top <= 108) {
+          current = numberOrNull(heading.dataset.lineStart)
+        } else {
+          break
+        }
+      }
+      setActiveTocLine(current)
+    }
+    window.addEventListener("scroll", onScroll, { passive: true })
+    onScroll()
+    return () => window.removeEventListener("scroll", onScroll)
+  }, [doc.path])
+
+  const scrollToHeading = (line: number) => {
+    document
+      .querySelector(`[data-block-kind="heading"][data-line-start="${line}"]`)
+      ?.scrollIntoView({ behavior: "smooth", block: "start" })
+  }
+
+  // An unsaved popover is sticky: it only closes through Save, the close
+  // button, or Escape - never by clicking or selecting elsewhere.
+  const popoverDirty = Boolean(
+    popover &&
+      (popover.mode === "create"
+        ? comment.trim() !== ""
+        : comment !== popover.initialComment || type !== popover.initialType)
+  )
+
+  const closePopover = () => {
+    setPopover(null)
+    setComment("")
+    setType("comment")
+    window.getSelection()?.removeAllRanges()
+  }
 
   const handleSelection = (
     event: SyntheticEvent<HTMLElement>,
     highlightSource: DraftAnnotation["anchor"]["highlightSource"],
     rect: DOMRect
   ) => {
+    if (popoverDirty) return
     const quote = highlightSource.text.trim()
     if (!quote || quote.length < 2) return
     const target = event.target as HTMLElement
     const block = target.closest<HTMLElement>("[data-block-id]")
-    const viewportPadding = 16
-    const popoverHeight = 250
-    const fitsBelow = rect.bottom + 10 + popoverHeight + viewportPadding <= window.innerHeight
-    setDraft({
-      quote: quote.slice(0, 1200),
-      x: Math.max(
-        viewportPadding,
-        Math.min(rect.left + rect.width / 2, window.innerWidth - viewportPadding)
-      ),
-      y: fitsBelow ? rect.bottom : rect.top,
-      side: fitsBelow ? "bottom" : "top",
-      anchor: {
-        blockId: block?.dataset.blockId ?? null,
-        lineStart: numberOrNull(block?.dataset.lineStart),
-        kind: block?.dataset.blockKind ?? "selection",
-        highlightSource,
+    const placement = popoverPlacement(rect)
+    setPopover({
+      mode: "create",
+      draft: {
+        quote: quote.slice(0, 1200),
+        ...placement,
+        anchor: {
+          blockId: block?.dataset.blockId ?? null,
+          lineStart: numberOrNull(block?.dataset.lineStart),
+          kind: block?.dataset.blockKind ?? "selection",
+          highlightSource,
+        },
       },
     })
-    setDraftComment("")
-    setDraftType("comment")
+    setComment("")
+    setType("comment")
+  }
+
+  const handleHighlightClick = (highlightId: string, rect: DOMRect) => {
+    const annotation = annotations.find(
+      (item) => item.anchor?.highlightSource?.id === highlightId
+    )
+    if (!annotation) return
+    if (popoverDirty && !(popover?.mode === "edit" && popover.annotationId === annotation.id)) {
+      return
+    }
+    const placement = popoverPlacement(rect)
+    setPopover({
+      mode: "edit",
+      annotationId: annotation.id,
+      quote: annotation.quote,
+      lineLabel: annotationLine(annotation),
+      ...placement,
+      initialComment: annotation.comment,
+      initialType: annotation.type,
+    })
+    setComment(annotation.comment)
+    setType(annotation.type)
   }
 
   const saveAnnotation = async () => {
-    if (!draft || !draftComment.trim()) return
-    setSavingDraft(true)
+    if (!popover || !comment.trim()) return
+    setSaving(true)
     setAnnotationError("")
     try {
-      const payload = await requestJson<{ annotation: Annotation }>("/api/annotations", {
-        method: "POST",
-        body: JSON.stringify({
-          sourcePath: doc.path,
-          quote: draft.quote,
-          comment: draftComment,
-          type: draftType,
-          labels: draftType === "comment" ? [] : [draftType],
-          anchor: draft.anchor,
-          author: { name: "viewer" },
-        }),
-      })
-      setAnnotations((items) => [...items, payload.annotation])
-      setSelectedIds((ids) => [...ids, payload.annotation.id])
-      setDraft(null)
-      setDraftComment("")
-      setReviewOpen(true)
-      window.getSelection()?.removeAllRanges()
+      if (popover.mode === "create") {
+        const payload = await requestJson<{ annotation: Annotation }>("/api/annotations", {
+          method: "POST",
+          body: JSON.stringify({
+            sourcePath: doc.path,
+            quote: popover.draft.quote,
+            comment,
+            type,
+            labels: type === "comment" ? [] : [type],
+            anchor: popover.draft.anchor,
+            author: { name: "viewer" },
+          }),
+        })
+        setAnnotations((items) => [...items, payload.annotation])
+        setSelectedIds((ids) => [...ids, payload.annotation.id])
+        setReviewOpen(true)
+      } else {
+        await updateAnnotation(popover.annotationId, {
+          comment,
+          type,
+          labels: type === "comment" ? [] : [type],
+        })
+      }
+      closePopover()
     } catch (err) {
       setAnnotationError(messageFromError(err))
     } finally {
-      setSavingDraft(false)
+      setSaving(false)
     }
   }
 
@@ -140,44 +227,76 @@ export function DocumentReaderPage({
     setSelectedIds((ids) => ids.filter((item) => item !== id))
   }
 
+  const deleteFromPopover = () => {
+    if (popover?.mode !== "edit") return
+    deleteAnnotation(popover.annotationId)
+      .then(closePopover)
+      .catch((err) => setAnnotationError(messageFromError(err)))
+  }
+
   return (
     <div
       className={cn(
         "transition-[padding] duration-300 ease-in-out",
-        reviewOpen && "min-[1240px]:pr-[416px]"
+        reviewOpen && "min-[1280px]:pr-[416px]"
       )}
     >
-      <article className="mx-auto w-full max-w-[740px] pb-20">
-        <div className="mb-7 flex items-center justify-between gap-3">
-          <Button variant="ghost" size="sm" onClick={onBack}>
-            <ArrowLeftIcon data-icon="inline-start" />
-            Back
-          </Button>
-          <Button
-            variant={reviewOpen ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setReviewOpen((open) => !open)}
-            aria-pressed={reviewOpen}
-          >
-            <MessageSquareTextIcon data-icon="inline-start" />
-            Review
-            <Badge variant="secondary">{annotations.length}</Badge>
-          </Button>
-        </div>
-        <div className="eyebrow">{doc.role ?? "Document"}</div>
-        <h2 className="mb-10 max-w-[720px] text-[30px] font-semibold leading-tight">{doc.title}</h2>
-        <MarkdownArticle
-          html={markdown}
-          annotations={annotations}
-          draftSource={draft?.anchor.highlightSource}
-          onSelectText={handleSelection}
-        />
-      </article>
+      <div className="reader-layout">
+        {toc.length > 1 && (
+          <nav className="reader-toc" aria-label="Document contents">
+            <div className="reader-toc-title">Contents</div>
+            <ul>
+              {toc.map((item) => (
+                <li key={`${item.line}-${item.text}`}>
+                  <button
+                    type="button"
+                    className={cn(
+                      "reader-toc-item",
+                      item.level > 1 && `reader-toc-level-${item.level}`,
+                      activeTocLine === item.line && "is-active"
+                    )}
+                    onClick={() => scrollToHeading(item.line)}
+                  >
+                    {item.text}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
+        <article className="reader-article pb-20">
+          <div className="mb-8 flex items-center justify-between gap-3">
+            <Button variant="ghost" size="sm" onClick={onBack}>
+              <ArrowLeftIcon data-icon="inline-start" />
+              Back
+            </Button>
+            <Button
+              variant={reviewOpen ? "secondary" : "outline"}
+              size="sm"
+              onClick={() => setReviewOpen((open) => !open)}
+              aria-pressed={reviewOpen}
+            >
+              <MessageSquareTextIcon data-icon="inline-start" />
+              Review
+              <Badge variant="secondary">{annotations.length}</Badge>
+            </Button>
+          </div>
+          <div className="eyebrow">{doc.role ?? "Document"}</div>
+          <h2 className="mb-10 text-[30px] font-semibold leading-tight">{doc.title}</h2>
+          <MarkdownArticle
+            html={markdown}
+            annotations={annotations}
+            draftSource={popover?.mode === "create" ? popover.draft.anchor.highlightSource : null}
+            repaintToken={reviewOpen}
+            onSelectText={handleSelection}
+            onHighlightClick={handleHighlightClick}
+          />
+        </article>
+      </div>
       <AnnotationDrawer
         open={reviewOpen}
         onOpenChange={setReviewOpen}
         doc={doc}
-        chat={chat}
         annotations={annotations}
         selectedIds={selectedIds}
         onToggleSelected={(id) =>
@@ -195,19 +314,26 @@ export function DocumentReaderPage({
           loadAnnotations().catch((err) => setAnnotationError(messageFromError(err)))
         }
       />
-      {draft && (
+      {popover && (
         <AnnotationPopover
-          draft={draft}
-          type={draftType}
-          comment={draftComment}
-          saving={savingDraft}
-          onTypeChange={setDraftType}
-          onCommentChange={setDraftComment}
-          onCancel={() => {
-            setDraft(null)
-            window.getSelection()?.removeAllRanges()
-          }}
-          onSave={saveAnnotation}
+          mode={popover.mode}
+          quote={popover.mode === "create" ? popover.draft.quote : popover.quote}
+          lineLabel={
+            popover.mode === "create"
+              ? annotationLine({ anchor: popover.draft.anchor })
+              : popover.lineLabel
+          }
+          x={popover.mode === "create" ? popover.draft.x : popover.x}
+          y={popover.mode === "create" ? popover.draft.y : popover.y}
+          side={popover.mode === "create" ? popover.draft.side : popover.side}
+          type={type}
+          comment={comment}
+          saving={saving}
+          onTypeChange={setType}
+          onCommentChange={setComment}
+          onCancel={closePopover}
+          onSave={() => void saveAnnotation()}
+          onDelete={popover.mode === "edit" ? deleteFromPopover : undefined}
         />
       )}
       {annotationError && (

@@ -102,7 +102,7 @@
 
 @layer components {
   .app-shell {
-    @apply grid min-h-svh grid-cols-[232px_minmax(0,1fr)] bg-background;
+    @apply grid min-h-svh grid-cols-[264px_minmax(0,1fr)] bg-background;
   }
 
   .sidebar {
@@ -196,6 +196,18 @@
     @apply cursor-default opacity-50;
   }
 
+  .nav-subitem {
+    @apply flex h-7 w-full min-w-0 items-center gap-2 rounded-[4px] py-1 pl-8 pr-2 text-left text-[12.5px] text-sidebar-foreground/70 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground;
+  }
+
+  .nav-subitem.is-active {
+    @apply bg-sidebar-accent font-medium text-sidebar-accent-foreground;
+  }
+
+  .nav-subitem-id {
+    @apply shrink-0 font-mono text-[10.5px] uppercase tracking-wide text-muted-foreground;
+  }
+
   .sheet-sidebar .sidebar {
     @apply h-full max-h-none border-b-0 border-r bg-sidebar;
   }
@@ -265,16 +277,53 @@
     @apply mb-4 text-xs font-medium uppercase tracking-normal text-muted-foreground;
   }
 
+  .reader-layout {
+    @apply mx-auto flex w-full max-w-[1120px] items-start justify-center gap-12;
+  }
+
+  .reader-toc {
+    @apply sticky top-24 hidden w-[210px] shrink-0 flex-col pt-1 min-[1160px]:flex;
+  }
+
+  .reader-toc-title {
+    @apply mb-2 px-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground;
+  }
+
+  .reader-toc ul {
+    @apply flex max-h-[calc(100svh-10rem)] flex-col gap-0.5 overflow-y-auto;
+  }
+
+  .reader-toc-item {
+    @apply w-full truncate rounded-[4px] px-2 py-1 text-left text-[13px] leading-5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+  }
+
+  .reader-toc-item.is-active {
+    @apply bg-accent font-medium text-foreground;
+  }
+
+  .reader-toc-level-2 {
+    @apply pl-5;
+  }
+
+  .reader-toc-level-3 {
+    @apply pl-8;
+  }
+
+  .reader-article {
+    @apply w-full min-w-0 max-w-[760px];
+  }
+
   .md-body {
-    @apply max-w-[72ch] text-[15px] leading-7 text-foreground;
+    @apply text-[15px] leading-7 text-foreground;
   }
 
   .md-block {
     @apply relative mb-5 min-w-0;
+    scroll-margin-top: 96px;
   }
 
   .md-annotation-mark {
-    @apply rounded-[2px] text-foreground;
+    @apply cursor-pointer rounded-[2px] text-foreground;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;
     background: var(--annotation-highlight);

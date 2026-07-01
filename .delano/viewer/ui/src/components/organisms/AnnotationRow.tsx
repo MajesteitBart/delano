@@ -41,9 +41,14 @@ export function AnnotationRow({
   }, [annotation.comment, annotation.id, editing])
 
   return (
-    <div className={cn("flex items-start gap-2.5 p-3 transition-colors", selected && "bg-muted/55")}>
+    <div
+      className={cn(
+        "flex items-start gap-3 rounded-lg border bg-card p-3.5 shadow-xs transition-colors",
+        selected && "border-ring/40 bg-muted/40"
+      )}
+    >
       <Checkbox className="mt-0.5" checked={selected} onCheckedChange={onToggle} aria-label="Select annotation" />
-      <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
         <div className="flex min-w-0 items-start justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Badge variant={typeVariant(annotation.type)}>{annotation.type}</Badge>

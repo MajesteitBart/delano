@@ -207,7 +207,7 @@ bash .agents/scripts/pm/import-spec-kit.sh <slug> <source-md> [--name <project-n
 bash .agents/scripts/pm/research.sh <project-slug> <research-slug> [--title <title>] [--question <question>] [--json]
 ```
 
-`delano viewer` serves the selected repository's `.project` files on `http://127.0.0.1:3977` by default. It can store selected-text annotations in `.project/viewer/annotations.json`, send selected annotations through chat as structured attachments, and apply markdown changes only through explicit preview/apply checks. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.
+`delano viewer` serves the selected repository's `.project` files on `http://127.0.0.1:3977` by default. It can store selected-text annotations in `.project/viewer/annotations.json`, hand selected annotations over to a coding agent (Codex or Claude Code) via generated handover files, and apply markdown changes only through explicit preview/apply checks. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.
 
 `delano context` is the agent-friendly way to inspect `.project/context` before implementation work:
 

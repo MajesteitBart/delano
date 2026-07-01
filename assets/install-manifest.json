@@ -25,6 +25,7 @@
     ".agents/logs/schema.md",
     ".agents/rules/README.md",
     ".agents/rules/agent-coordination.md",
+    ".agents/rules/browser-delegation.md",
     ".agents/rules/datetime.md",
     ".agents/rules/delivery-modes.md",
     ".agents/rules/frontmatter-operations.md",

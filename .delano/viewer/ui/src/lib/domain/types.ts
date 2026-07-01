@@ -6,6 +6,8 @@ export type DocMeta = {
   project?: string | null
   role?: string
   artifactRole?: string
+  workstreamId?: string | null
+  taskId?: string | null
   updated?: string
   snippet?: string
   frontmatter?: Record<string, unknown>
@@ -92,12 +94,4 @@ export type WebHighlightSource = {
   id: string
   extra?: unknown
   __isHighlightSource?: unknown
-}
-
-export type ChatMessage = {
-  id: string
-  role: "user" | "assistant"
-  text: string
-  attachments?: Annotation[]
-  streaming?: boolean
 }

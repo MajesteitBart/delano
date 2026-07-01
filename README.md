@@ -225,7 +225,7 @@ bash .agents/scripts/pm/research.sh <project-slug> <research-slug> --title "Rese
 
 ## Local viewer
 
-The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files in guarded review mode. It can store annotations in `.project/viewer/annotations.json`, send annotation attachments through chat, and write canonical markdown only through explicit preview/apply checks. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port.
+The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files in guarded review mode. It can store annotations in `.project/viewer/annotations.json`, hand annotation bundles over to a coding agent (Codex or Claude Code) through generated handover files, and write canonical markdown only through explicit preview/apply checks. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port.
 
 It indexes `.project/context`, `.project/templates`, and `.project/projects`, then derives artifact roles, statuses, project outlines, task/workstream relationships, snippets, and rendered markdown for local inspection.
 

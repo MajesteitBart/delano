@@ -26,7 +26,7 @@ import {
   type ViewerRoute,
   type WorkspaceView,
 } from "@/lib/domain/navigation"
-import type { ProjectIndex, ViewerIndex } from "@/lib/domain/types"
+import type { DocMeta, ProjectIndex, ViewerIndex } from "@/lib/domain/types"
 import { sidebarCounts, selectableProjects } from "@/lib/domain/workspace-model"
 import { cn } from "@/lib/utils"
 
@@ -90,6 +90,20 @@ export function Sidebar({
     [projectDocs]
   )
 
+  const workstreamDocs = useMemo(() => {
+    if (!activeProject || !index?.docs) return []
+    return index.docs
+      .filter((doc) => doc.project === activeProject.slug && doc.role === "workstream")
+      .sort((a, b) => a.path.localeCompare(b.path))
+  }, [activeProject, index])
+
+  const taskDocs = useMemo(() => {
+    if (!activeProject || !index?.docs) return []
+    return index.docs
+      .filter((doc) => doc.project === activeProject.slug && doc.role === "task")
+      .sort((a, b) => a.path.localeCompare(b.path))
+  }, [activeProject, index])
+
   return (
     <aside className="sidebar">
       <div className="brand-lockup">
@@ -143,15 +157,23 @@ export function Sidebar({
               <NavButton
                 icon={FolderIcon}
                 label="Workstreams"
+                count={workstreamDocs.length || undefined}
                 active={route.kind === "project-workstreams"}
                 onClick={onOpenProjectWorkstreams}
               />
+              {workstreamDocs.map((doc) => (
+                <SubDocNav key={doc.path} doc={doc} activePath={activePath} onOpen={onOpenDoc} />
+              ))}
               <NavButton
                 icon={CheckCircle2Icon}
                 label="Tasks"
+                count={taskDocs.length || undefined}
                 active={route.kind === "project-tasks"}
                 onClick={onOpenProjectTasks}
               />
+              {taskDocs.map((doc) => (
+                <SubDocNav key={doc.path} doc={doc} activePath={activePath} onOpen={onOpenDoc} />
+              ))}
               {!!progressItems.length && (
                 <>
                   <Separator />
@@ -211,6 +233,30 @@ function NavButton({
       <span className="min-w-0 flex-1 truncate text-left">{label}</span>
       {typeof count === "number" && <CountBadge>{count}</CountBadge>}
     </Button>
+  )
+}
+
+function SubDocNav({
+  activePath,
+  doc,
+  onOpen,
+}: {
+  activePath: string | null
+  doc: DocMeta
+  onOpen: (path: string) => void
+}) {
+  const docPath = normalizeDocPath(doc.path)
+  const id = doc.taskId ?? doc.workstreamId ?? null
+  return (
+    <button
+      type="button"
+      className={cn("nav-subitem", activePath === docPath && "is-active")}
+      onClick={() => onOpen(docPath)}
+      title={doc.title}
+    >
+      {id && <span className="nav-subitem-id">{id}</span>}
+      <span className="min-w-0 flex-1 truncate text-left">{doc.title}</span>
+    </button>
   )
 }
 

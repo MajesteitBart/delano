@@ -87,6 +87,8 @@ A task is not done until the implementation or contract change is present, valid
 
 Run lint, type-check, tests, build, GUI checks, or `delano validate` when relevant to the changed surface. If a check is skipped or cannot run, say why. Say what passed, what was not run, and what remains blocked.
 
+Delegate browser testing, GUI smoke checks, and screenshot capture to the Codex CLI (`codex exec`) instead of spawning browser-automation subagents; see `.agents/rules/browser-delegation.md`.
+
 ## Safety boundaries
 
 - Do not take destructive actions, force-push, rewrite shared history, or apply remote writes unless the task explicitly asks for it.

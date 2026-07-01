@@ -384,8 +384,8 @@ test("viewer index falls back when context metadata cannot be listed", async (t)
   assert.ok(index.contextPack.warnings.some((warning) => warning.includes("Shared context reader failed")));
 });
 
-test("viewer chat API streams AI SDK UI message chunks and validates payloads", async (t) => {
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "delano-viewer-chat-"));
+test("viewer handover API writes a handover file and returns agent commands", async (t) => {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "delano-viewer-handover-"));
   const projectDir = path.join(repo, ".project", "projects", "demo");
   fs.mkdirSync(projectDir, { recursive: true });
   fs.mkdirSync(path.join(repo, ".project", "context"), { recursive: true });
@@ -393,100 +393,6 @@ test("viewer chat API streams AI SDK UI message chunks and validates payloads", 
   const specPath = path.join(projectDir, "spec.md");
   const original = "# Demo\n\nReview this paragraph before implementation.\n";
   fs.writeFileSync(specPath, original, "utf8");
-
-  const serverPath = path.join(__dirname, "..", ".delano", "viewer", "server.js");
-  const port = await getOpenPort();
-  const envWithoutPath = Object.fromEntries(Object.entries(process.env).filter(([key]) => key.toUpperCase() !== "PATH"));
-  const child = spawn(process.execPath, [serverPath], {
-    cwd: path.join(__dirname, ".."),
-    env: {
-      ...envWithoutPath,
-      DELANO_VIEWER_ROOT: repo,
-      DELANO_VIEWER_PORT: String(port),
-      PATH: ""
-    },
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-
-  t.after(() => {
-    if (!child.killed) child.kill();
-  });
-
-  const output = await waitForViewer(child);
-  const match = output.match(/http:\/\/127\.0\.0\.1:(\d+)/);
-  assert.ok(match, output);
-  const baseUrl = `http://127.0.0.1:${match[1]}`;
-
-  const streamed = await requestRaw(`${baseUrl}/api/ai/chat`, {
-    method: "POST",
-    body: {
-      messages: [
-        {
-          id: "u1",
-          role: "user",
-          parts: [{ type: "text", text: "Review this annotation." }]
-        }
-      ],
-      sourcePath: "projects/demo/spec.md",
-      annotations: [
-        {
-          id: "a1",
-          sourcePath: "projects/demo/spec.md",
-          repoPath: ".project/projects/demo/spec.md",
-          type: "comment",
-          quote: "Review this paragraph",
-          comment: "Clarify implementation scope.",
-          labels: ["clarify"],
-          status: "open",
-          anchor: { lineStart: 3 }
-        }
-      ],
-      contextProfile: "implementation"
-    }
-  });
-  assert.equal(streamed.status, 200);
-  assert.match(streamed.headers["content-type"], /text\/event-stream/);
-  assert.match(streamed.raw, /"type":"text-start"/);
-  assert.match(streamed.raw, /"type":"text-delta"/);
-  assert.match(streamed.raw, /Codex CLI[\s\S]*not found/);
-  assert.match(streamed.raw, /\[DONE\]/);
-  assert.doesNotMatch(streamed.raw, /^event:\s*delta/m);
-  assert.equal(fs.readFileSync(specPath, "utf8"), original);
-
-  const rejected = await requestJson(`${baseUrl}/api/ai/chat`, {
-    method: "POST",
-    body: {
-      sourcePath: "projects/demo/spec.md",
-      annotations: []
-    }
-  });
-  assert.equal(rejected.status, 400);
-  assert.match(rejected.json.error, /message is required/);
-});
-
-test("viewer chat API can stream local Codex CLI subscription-auth output", async (t) => {
-  const repo = fs.mkdtempSync(path.join(os.tmpdir(), "delano-viewer-chat-codex-"));
-  const projectDir = path.join(repo, ".project", "projects", "demo");
-  fs.mkdirSync(projectDir, { recursive: true });
-  fs.mkdirSync(path.join(repo, ".project", "context"), { recursive: true });
-  fs.writeFileSync(path.join(repo, ".project", "context", "README.md"), "# Context\n", "utf8");
-  const specPath = path.join(projectDir, "spec.md");
-  const original = "# Demo\n\nReview this paragraph before implementation.\n";
-  fs.writeFileSync(specPath, original, "utf8");
-
-  const stubPath = path.join(repo, "codex-stub.cjs");
-  fs.writeFileSync(stubPath, [
-    "let prompt = '';",
-    "process.stdin.setEncoding('utf8');",
-    "process.stdin.on('data', (chunk) => { prompt += chunk; });",
-    "process.stdin.on('end', () => {",
-    "  if (!prompt.includes('Annotation attachments:')) process.exit(2);",
-    "  console.log(JSON.stringify({ type: 'thread.started', thread_id: 'test-thread' }));",
-    "  console.log(JSON.stringify({ type: 'agent_message_delta', delta: 'Fake Codex CLI ' }));",
-    "  console.log(JSON.stringify({ type: 'item.completed', item: { id: 'item_0', type: 'agent_message', text: 'Fake Codex CLI subscription response.' } }));",
-    "  console.log(JSON.stringify({ type: 'turn.completed', usage: { input_tokens: 1, output_tokens: 1 } }));",
-    "});",
-  ].join("\n"), "utf8");
 
   const serverPath = path.join(__dirname, "..", ".delano", "viewer", "server.js");
   const port = await getOpenPort();
@@ -495,9 +401,7 @@ test("viewer chat API can stream local Codex CLI subscription-auth output", asyn
     env: {
       ...process.env,
       DELANO_VIEWER_ROOT: repo,
-      DELANO_VIEWER_PORT: String(port),
-      DELANO_VIEWER_CODEX_COMMAND: process.execPath,
-      DELANO_VIEWER_CODEX_COMMAND_ARGS: JSON.stringify([stubPath])
+      DELANO_VIEWER_PORT: String(port)
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -511,39 +415,67 @@ test("viewer chat API can stream local Codex CLI subscription-auth output", asyn
   assert.ok(match, output);
   const baseUrl = `http://127.0.0.1:${match[1]}`;
 
-  const streamed = await requestRaw(`${baseUrl}/api/ai/chat`, {
+  const created = await requestJson(`${baseUrl}/api/annotations`, {
     method: "POST",
     body: {
-      messages: [
-        {
-          id: "u1",
-          role: "user",
-          parts: [{ type: "text", text: "Review this annotation." }]
-        }
-      ],
       sourcePath: "projects/demo/spec.md",
-      annotations: [
-        {
-          id: "a1",
-          sourcePath: "projects/demo/spec.md",
-          repoPath: ".project/projects/demo/spec.md",
-          type: "comment",
-          quote: "Review this paragraph",
-          comment: "Clarify implementation scope.",
-          labels: ["clarify"],
-          status: "open",
-          anchor: { lineStart: 3 }
-        }
-      ],
-      contextProfile: "implementation"
+      quote: "Review this paragraph",
+      comment: "Clarify implementation scope.",
+      type: "comment",
+      anchor: { lineStart: 3 }
     }
   });
+  assert.equal(created.status, 201);
+  const annotationId = created.json.annotation.id;
 
-  assert.equal(streamed.status, 200);
-  assert.match(streamed.raw, /"type":"text-delta"/);
-  assert.match(streamed.raw, /Fake Codex CLI /);
-  assert.match(streamed.raw, /subscription response\./);
-  assert.doesNotMatch(streamed.raw, /"delta":"Fake Codex CLI subscription response\."/);
-  assert.doesNotMatch(streamed.raw, /Codex CLI disabled/);
+  const handover = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec.md" }
+  });
+  assert.equal(handover.status, 200);
+  assert.equal(handover.json.ok, true);
+  assert.equal(handover.json.launched, false);
+  assert.equal(handover.json.agent, "codex");
+  assert.equal(handover.json.annotationCount, 1);
+  assert.match(handover.json.file, /^\.project\/viewer\/handovers\/handover-.*-spec\.md$/);
+  assert.ok(handover.json.command.startsWith(`codex "`), handover.json.command);
+  assert.ok(handover.json.prompt.includes(handover.json.file), handover.json.prompt);
+  assert.ok(handover.json.prompt.includes(".project/projects/demo/spec.md"), handover.json.prompt);
+  assert.ok(handover.json.deepLink.startsWith("codex://new?prompt="), handover.json.deepLink);
+  assert.ok(handover.json.deepLink.includes(`&path=${encodeURIComponent(repo)}`), handover.json.deepLink);
+
+  const handoverFile = path.join(repo, handover.json.file.replace(/^\.project\//, ".project/"));
+  assert.ok(fs.existsSync(handoverFile), handoverFile);
+  const handoverText = fs.readFileSync(handoverFile, "utf8");
+  assert.match(handoverText, /# Delano Review Handover/);
+  assert.match(handoverText, /Clarify implementation scope\./);
+  assert.match(handoverText, /\.project\/projects\/demo\/spec\.md/);
+
+  const claude = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec.md", agent: "claude", ids: [annotationId] }
+  });
+  assert.equal(claude.status, 200);
+  assert.equal(claude.json.agent, "claude");
+  assert.equal(claude.json.annotationCount, 1);
+  assert.ok(claude.json.command.startsWith(`claude "`), claude.json.command);
+  assert.equal(claude.json.deepLink, null);
+
+  const filtered = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec.md", ids: ["missing-id"] }
+  });
+  assert.equal(filtered.status, 200);
+  assert.equal(filtered.json.annotationCount, 0);
+
+  const unknown = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/missing.md" }
+  });
+  assert.equal(unknown.status, 404);
+
+  const wrongMethod = await requestJson(`${baseUrl}/api/handover`, { method: "GET" });
+  assert.equal(wrongMethod.status, 405);
+
   assert.equal(fs.readFileSync(specPath, "utf8"), original);
 });

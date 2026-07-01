@@ -28,7 +28,7 @@ Use these in order:
 
 - [`user-guide.md`](user-guide.md): setup, install behavior, day-to-day workflow, and first commands.
 - [`cli-reference.md`](cli-reference.md): `delano` commands, options, examples, output expectations, and lifecycle rollups.
-- [`viewer-guide.md`](viewer-guide.md): launch, target selection, port behavior, guarded annotation/chat boundaries, and workflow use.
+- [`viewer-guide.md`](viewer-guide.md): launch, target selection, port behavior, guarded annotation/handover boundaries, and workflow use.
 - [`agent-operator-guide.md`](agent-operator-guide.md): prompts and guardrails for using agents with Delano.
 - [`spec-kit-and-research.md`](spec-kit-and-research.md): what Spec Kit-style import means, what it creates, and how research skill work should fold forward.
 - [`research-intake.md`](research-intake.md): detailed research file roles and lifecycle.

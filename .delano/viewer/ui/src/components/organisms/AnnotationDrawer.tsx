@@ -1,40 +1,69 @@
-import type { Chat } from "@ai-sdk/react"
-import { ChevronDownIcon, ClipboardIcon, CodeIcon, DownloadIcon, PencilIcon, RefreshCwIcon, XIcon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  ClipboardIcon,
+  CodeIcon,
+  DownloadIcon,
+  PencilIcon,
+  RefreshCwIcon,
+  SquareArrowOutUpRightIcon,
+  TerminalIcon,
+  XIcon,
+} from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { AnnotationRow } from "@/components/organisms/AnnotationRow"
-import { ChatPanel } from "@/components/organisms/ChatPanel"
 import { DocumentMetaFields } from "@/components/organisms/DocumentMetaPanel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
+import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { messageFromError, requestJson } from "@/lib/api"
 import { quoteInMarkdown } from "@/lib/domain/annotations"
-import type { AnnotationChatMessage } from "@/lib/domain/chat"
 import { downloadText } from "@/lib/domain/clipboard"
 import type { Annotation, ViewerDoc } from "@/lib/domain/types"
+
+type HandoverAgent = "codex" | "claude"
+
+type HandoverResponse = {
+  ok: boolean
+  launched: boolean
+  agent: HandoverAgent
+  file: string
+  prompt: string
+  command: string
+  deepLink: string | null
+  annotationCount: number
+}
+
+const AGENT_STORAGE_KEY = "delano-viewer-handover-agent"
+
+function agentLabel(agent: HandoverAgent) {
+  return agent === "claude" ? "Claude Code" : "Codex"
+}
+
+function storedAgent(): HandoverAgent {
+  try {
+    return window.localStorage.getItem(AGENT_STORAGE_KEY) === "claude" ? "claude" : "codex"
+  } catch {
+    return "codex"
+  }
+}
 
 export function AnnotationDrawer({
   open,
   onOpenChange,
   doc,
-  chat,
   annotations,
   selectedIds,
   onToggleSelected,
@@ -45,7 +74,6 @@ export function AnnotationDrawer({
   open: boolean
   onOpenChange: (open: boolean) => void
   doc: ViewerDoc
-  chat: Chat<AnnotationChatMessage>
   annotations: Annotation[]
   selectedIds: string[]
   onToggleSelected: (id: string) => void
@@ -53,15 +81,18 @@ export function AnnotationDrawer({
   onDelete: (id: string) => void
   onRefresh: () => void
 }) {
-  const [exportError, setExportError] = useState("")
+  const [agent, setAgent] = useState<HandoverAgent>(storedAgent)
+  const [handoverBusy, setHandoverBusy] = useState(false)
+  const [handoverStatus, setHandoverStatus] = useState("")
+  const [handoverError, setHandoverError] = useState("")
   const selected = selectedIds.length
     ? annotations.filter((annotation) => selectedIds.includes(annotation.id))
     : annotations
-  const exportSelectionLabel = selectedIds.length
-    ? `${selected.length} selected for export`
+  const scopeLabel = selectedIds.length
+    ? `${selected.length} of ${annotations.length} selected`
     : annotations.length
-      ? `${annotations.length} available for export`
-      : "No annotations to export"
+      ? `All ${annotations.length} annotation${annotations.length === 1 ? "" : "s"}`
+      : "No annotations yet"
   const staleIds = useMemo(
     () =>
       new Set(
@@ -72,15 +103,68 @@ export function AnnotationDrawer({
     [annotations, doc.markdown]
   )
 
+  const rememberAgent = (next: HandoverAgent) => {
+    setAgent(next)
+    try {
+      window.localStorage.setItem(AGENT_STORAGE_KEY, next)
+    } catch {
+      // Preference persistence is best-effort.
+    }
+  }
+
+  const runHandover = async (
+    action: "deeplink" | "launch" | "command",
+    agentChoice: HandoverAgent
+  ) => {
+    rememberAgent(agentChoice)
+    setHandoverBusy(true)
+    setHandoverStatus("")
+    setHandoverError("")
+    try {
+      const payload = await requestJson<HandoverResponse>("/api/handover", {
+        method: "POST",
+        body: JSON.stringify({
+          sourcePath: doc.path,
+          ids: selectedIds.length ? selectedIds : undefined,
+          agent: agentChoice,
+          action: action === "launch" ? "launch" : "command",
+        }),
+      })
+      if (action === "deeplink") {
+        if (!payload.deepLink) throw new Error("No deep link available for this agent.")
+        window.location.href = payload.deepLink
+        setHandoverStatus(`Opening the Codex app. Handover file: ${payload.file}`)
+      } else if (action === "command") {
+        await navigator.clipboard.writeText(payload.command)
+        setHandoverStatus(
+          `Command copied. Paste it in a terminal at the repo root. Handover file: ${payload.file}`
+        )
+      } else {
+        setHandoverStatus(
+          `${agentLabel(agentChoice)} opened in a new terminal with ${payload.file}`
+        )
+      }
+    } catch (err) {
+      setHandoverError(`${messageFromError(err)} Use "Copy command" as a fallback.`)
+    } finally {
+      setHandoverBusy(false)
+    }
+  }
+
+  const primaryHandover = () =>
+    agent === "codex" ? runHandover("deeplink", "codex") : runHandover("launch", "claude")
+
   const exportAnnotations = async (kind: "copy" | "md" | "json") => {
     try {
-      setExportError("")
+      setHandoverError("")
+      setHandoverStatus("")
       const ids = selected.map((annotation) => annotation.id).join(",")
       const payload = await requestJson<{ markdown: string; json: unknown }>(
         `/api/annotations/export?path=${encodeURIComponent(doc.path)}&ids=${encodeURIComponent(ids)}`
       )
       if (kind === "copy") {
         await navigator.clipboard.writeText(payload.markdown)
+        setHandoverStatus("Annotation markdown copied.")
         return
       }
       if (kind === "json") {
@@ -89,23 +173,28 @@ export function AnnotationDrawer({
       }
       downloadText("delano-annotations.md", payload.markdown, "text/markdown")
     } catch (err) {
-      setExportError(messageFromError(err))
+      setHandoverError(messageFromError(err))
     }
   }
 
+  // A plain fixed panel, not a dialog/drawer primitive: overlay libraries
+  // interfere with background pointer events while open, and this panel must
+  // coexist with text selection and highlight clicks in the document.
   return (
-    <Drawer direction="right" modal={false} dismissible={false} open={open} onOpenChange={onOpenChange}>
-      <DrawerContent
-        showOverlay={false}
-        className="w-full border-l shadow-lg sm:max-w-[400px]"
-      >
-        <DrawerHeader className="border-b">
+    <aside
+      role="complementary"
+      aria-label="Review panel"
+      aria-hidden={!open}
+      data-open={open}
+      className="fixed inset-y-0 right-0 z-40 flex w-full translate-x-full flex-col border-l bg-popover text-sm text-popover-foreground shadow-lg transition-transform duration-300 ease-in-out data-[open=false]:pointer-events-none data-[open=true]:translate-x-0 sm:max-w-[400px]"
+    >
+        <div className="flex flex-col gap-0.5 border-b p-4">
           <div className="flex items-start justify-between gap-2">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <DrawerTitle>Review</DrawerTitle>
-              <DrawerDescription className="truncate font-mono text-xs">
+              <h2 className="font-heading text-base font-medium text-foreground">Review</h2>
+              <p className="truncate font-mono text-xs text-muted-foreground">
                 {doc.path}
-              </DrawerDescription>
+              </p>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <Tooltip>
@@ -126,47 +215,16 @@ export function AnnotationDrawer({
               </Button>
             </div>
           </div>
-        </DrawerHeader>
-        <Tabs defaultValue="annotations" className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-          <TabsList className="grid w-full grid-cols-3">
+        </div>
+        <Tabs defaultValue="annotations" className="flex min-h-0 flex-1 flex-col gap-4 p-5">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="annotations">
               Annotations <Badge variant="secondary">{annotations.length}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="chat">
-              Chat <Badge variant="secondary">{selectedIds.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="details">Details</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="annotations" className="flex min-h-0 flex-1 flex-col gap-3">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-muted-foreground">{exportSelectionLabel}</span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={!annotations.length}>
-                    <DownloadIcon data-icon="inline-start" />
-                    Export
-                    <ChevronDownIcon data-icon="inline-end" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem onClick={() => void exportAnnotations("copy")}>
-                      <ClipboardIcon />
-                      Copy markdown
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => void exportAnnotations("md")}>
-                      <DownloadIcon />
-                      Download markdown
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => void exportAnnotations("json")}>
-                      <CodeIcon />
-                      Download JSON
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+          <TabsContent value="annotations" className="flex min-h-0 flex-1 flex-col gap-4">
             <div className="min-h-0 flex-1 overflow-y-auto">
               {!annotations.length ? (
                 <Empty className="min-h-40 border border-dashed bg-muted/20">
@@ -179,7 +237,7 @@ export function AnnotationDrawer({
                   </EmptyHeader>
                 </Empty>
               ) : (
-                <div className="flex flex-col divide-y divide-border overflow-hidden rounded-md border bg-card">
+                <div className="flex flex-col gap-3">
                   {annotations.map((annotation) => (
                     <AnnotationRow
                       key={annotation.id}
@@ -194,24 +252,117 @@ export function AnnotationDrawer({
                 </div>
               )}
             </div>
-            {exportError && <div className="text-sm text-destructive">{exportError}</div>}
-          </TabsContent>
 
-          <TabsContent value="chat" className="min-h-0 flex-1">
-            <ChatPanel
-              doc={doc}
-              chat={chat}
-              annotations={annotations}
-              selectedIds={selectedIds}
-              onToggleSelected={onToggleSelected}
-            />
+            <div className="flex flex-col gap-2 border-t pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-muted-foreground">{scopeLabel}</span>
+              </div>
+              <div className="flex items-stretch gap-2">
+                <Button
+                  className="min-w-0 flex-1"
+                  disabled={!annotations.length || handoverBusy}
+                  onClick={() => void primaryHandover()}
+                >
+                  {handoverBusy ? (
+                    <Spinner data-icon="inline-start" />
+                  ) : (
+                    <SquareArrowOutUpRightIcon data-icon="inline-start" />
+                  )}
+                  Hand over to {agentLabel(agent)}
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label="Handover and export options"
+                      disabled={handoverBusy}
+                    >
+                      <ChevronDownIcon />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Hand over to agent</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        disabled={!annotations.length}
+                        onClick={() => void runHandover("deeplink", "codex")}
+                      >
+                        <SquareArrowOutUpRightIcon />
+                        Open in Codex app
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!annotations.length}
+                        onClick={() => void runHandover("launch", "codex")}
+                      >
+                        <TerminalIcon />
+                        Open Codex in terminal
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!annotations.length}
+                        onClick={() => void runHandover("launch", "claude")}
+                      >
+                        <TerminalIcon />
+                        Open Claude Code in terminal
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!annotations.length}
+                        onClick={() => void runHandover("command", agent)}
+                      >
+                        <ClipboardIcon />
+                        Copy command
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      <DropdownMenuLabel>Export</DropdownMenuLabel>
+                      <DropdownMenuItem
+                        disabled={!annotations.length}
+                        onClick={() => void exportAnnotations("copy")}
+                      >
+                        <ClipboardIcon />
+                        Copy markdown
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!annotations.length}
+                        onClick={() => void exportAnnotations("md")}
+                      >
+                        <DownloadIcon />
+                        Download markdown
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={!annotations.length}
+                        onClick={() => void exportAnnotations("json")}
+                      >
+                        <CodeIcon />
+                        Download JSON
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+              {handoverStatus && (
+                <p className="text-xs leading-5 text-muted-foreground" role="status">
+                  {handoverStatus}
+                </p>
+              )}
+              {handoverError && (
+                <p className="text-xs leading-5 text-destructive" role="alert">
+                  {handoverError}
+                </p>
+              )}
+              <p className="text-[11px] leading-4 text-muted-foreground">
+                Writes a handover file under .project/viewer/handovers, then opens the Codex app
+                via codex:// or starts the agent in a terminal at the repo root. No contract files
+                are changed.
+              </p>
+            </div>
           </TabsContent>
 
           <TabsContent value="details" className="min-h-0 flex-1 overflow-y-auto">
             <DocumentMetaFields doc={doc} />
           </TabsContent>
         </Tabs>
-      </DrawerContent>
-    </Drawer>
+    </aside>
   )
 }

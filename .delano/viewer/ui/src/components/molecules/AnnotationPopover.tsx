@@ -1,5 +1,5 @@
-import { PencilIcon, XIcon, ZapIcon } from "lucide-react"
-import { useEffect } from "react"
+import { CheckIcon, PencilIcon, Trash2Icon, XIcon, ZapIcon } from "lucide-react"
+import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -22,8 +22,6 @@ import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { annotationLine } from "@/lib/domain/annotations"
-import type { DraftAnnotation } from "@/lib/domain/types"
 
 const QUICK_FEEDBACK = [
   { label: "Clarify this", type: "question", comment: "Clarify this. I need a bit more detail here." },
@@ -36,7 +34,12 @@ const QUICK_FEEDBACK = [
 ]
 
 export function AnnotationPopover({
-  draft,
+  mode,
+  quote,
+  lineLabel,
+  x,
+  y,
+  side,
   type,
   comment,
   saving,
@@ -44,8 +47,14 @@ export function AnnotationPopover({
   onCommentChange,
   onCancel,
   onSave,
+  onDelete,
 }: {
-  draft: DraftAnnotation
+  mode: "create" | "edit"
+  quote: string
+  lineLabel: string
+  x: number
+  y: number
+  side: "top" | "bottom"
   type: string
   comment: string
   saving: boolean
@@ -53,7 +62,15 @@ export function AnnotationPopover({
   onCommentChange: (comment: string) => void
   onCancel: () => void
   onSave: () => void
+  onDelete?: () => void
 }) {
+  // Key the delete confirmation to the popover instance so switching
+  // annotations resets it without a state-syncing effect.
+  const popoverKey = `${mode}:${quote}:${x}:${y}`
+  const [confirmState, setConfirmState] = useState<{ key: string; value: boolean } | null>(null)
+  const confirmDelete = confirmState?.key === popoverKey ? confirmState.value : false
+  const setConfirmDelete = (value: boolean) => setConfirmState({ key: popoverKey, value })
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onCancel()
@@ -67,30 +84,67 @@ export function AnnotationPopover({
       <PopoverAnchor asChild>
         <span
           className="fixed z-50 size-px"
-          style={{ left: draft.x, top: draft.y }}
+          style={{ left: x, top: y }}
         />
       </PopoverAnchor>
       <PopoverContent
         align="center"
-        side={draft.side}
+        side={side}
         sideOffset={10}
-        className="w-[380px] gap-3 p-3"
+        className="w-[400px] gap-3 p-4"
         onOpenAutoFocus={(event) => event.preventDefault()}
         onFocusOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
+        onEscapeKeyDown={(event) => event.preventDefault()}
       >
-        <PopoverHeader className="flex-row items-start justify-between gap-3 border-b pb-2">
+        <PopoverHeader className="flex-row items-start justify-between gap-3 border-b pb-2.5">
           <div className="min-w-0">
             <PopoverTitle className="truncate font-mono text-xs">
-              "{draft.quote}"
+              "{quote}"
             </PopoverTitle>
             <PopoverDescription className="mt-1 font-mono text-xs">
-              {annotationLine({ anchor: draft.anchor })}
+              {mode === "edit" ? `Editing annotation, ${lineLabel}` : lineLabel}
             </PopoverDescription>
           </div>
-          <Button variant="ghost" size="icon-xs" onClick={onCancel} aria-label="Cancel annotation">
-            <XIcon />
-          </Button>
+          <div className="flex shrink-0 items-center gap-1">
+            {mode === "edit" && onDelete && (
+              confirmDelete ? (
+                <>
+                  <span className="self-center text-xs text-muted-foreground">Delete?</span>
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => setConfirmDelete(false)}
+                    aria-label="Cancel delete"
+                  >
+                    <XIcon />
+                  </Button>
+                  <Button variant="ghost" size="icon-xs" onClick={onDelete} aria-label="Confirm delete">
+                    <CheckIcon />
+                  </Button>
+                </>
+              ) : (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => setConfirmDelete(true)}
+                      aria-label="Delete annotation"
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete annotation</TooltipContent>
+                </Tooltip>
+              )
+            )}
+            {!confirmDelete && (
+              <Button variant="ghost" size="icon-xs" onClick={onCancel} aria-label="Close annotation popover">
+                <XIcon />
+              </Button>
+            )}
+          </div>
         </PopoverHeader>
         <div className="flex flex-col gap-3">
           <div className="flex items-center gap-2">
@@ -157,7 +211,7 @@ export function AnnotationPopover({
             <span className="text-xs text-muted-foreground">Ctrl+Enter</span>
             <Button onClick={onSave} disabled={!comment.trim() || saving}>
               {saving ? <Spinner data-icon="inline-start" /> : <PencilIcon data-icon="inline-start" />}
-              Save
+              {mode === "edit" ? "Update" : "Save"}
             </Button>
           </div>
         </div>

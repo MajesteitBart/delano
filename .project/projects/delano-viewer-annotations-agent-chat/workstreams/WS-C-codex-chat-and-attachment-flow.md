@@ -4,7 +4,7 @@ name: WS-C Codex Chat and Attachment Flow
 owner: product
 status: done
 created: 2026-06-30T14:11:44Z
-updated: 2026-07-01T01:24:39+02:00
+updated: 2026-07-01T21:45:26Z
 operating_mode: uncertain-feature
 ---
 
@@ -12,6 +12,8 @@ operating_mode: uncertain-feature
 
 ## Objective
 Connect viewer annotations to an agent-facing chat flow so selected feedback can be submitted as structured attachments to a Codex-backed AI session, while keeping hosted sharing and file mutation opt-in and reviewable.
+
+Scope note (2026-07-01): owner review replaced the embedded chat flow with agent handover; T-013 closed this workstream's surface with handover files, a `codex://new` deep link, and terminal launch/copy commands. See decisions.md.
 
 ## Owned Files/Areas
 - Viewer chat server endpoint and client panel once implemented

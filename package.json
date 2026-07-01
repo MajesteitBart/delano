@@ -66,10 +66,5 @@
     "check:adapter-manifests": "node scripts/check-adapter-manifests.mjs",
     "check:claude-mirror": "node scripts/check-claude-mirror-parity.mjs",
     "sync:claude-mirror": "node scripts/sync-claude-mirror.mjs"
-  },
-  "dependencies": {
-    "@ai-sdk/devtools": "^1.0.1",
-    "ai": "^7.0.9",
-    "radix-ui": "^1.6.1"
   }
 }

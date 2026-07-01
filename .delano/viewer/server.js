@@ -19,10 +19,10 @@ const MAX_BODY_BYTES = 512 * 1024;
 const MAX_ANNOTATION_QUOTE = 4000;
 const MAX_ANNOTATION_COMMENT = 12000;
 const MAX_LABELS = 12;
-const MAX_CHAT_MESSAGE = 12000;
-const MAX_CODEX_STDERR = 8000;
+const MAX_HANDOVER_IDS = 200;
 const annotationStoreDir = path.join(projectRoot, 'viewer');
 const annotationStorePath = path.join(annotationStoreDir, 'annotations.json');
+const handoverDir = path.join(annotationStoreDir, 'handovers');
 const startPort = normalizePort(process.env.DELANO_VIEWER_PORT || process.env.PORT, DEFAULT_PORT);
 
 let contextReader = null;
@@ -558,22 +558,16 @@ function visibleAnnotation(annotation) {
   };
 }
 
-function annotationMarkdown(annotations, options = {}) {
-  const sourcePath = options.sourcePath || null;
-  const selected = annotations.map(visibleAnnotation).sort((a, b) => (
+function sortedVisibleAnnotations(annotations) {
+  return annotations.map(visibleAnnotation).sort((a, b) => (
     String(a.sourcePath).localeCompare(String(b.sourcePath)) ||
     Number(a.anchor?.lineStart || 0) - Number(b.anchor?.lineStart || 0) ||
     String(a.createdAt || '').localeCompare(String(b.createdAt || ''))
   ));
-  const lines = [
-    '# Delano Viewer Annotations',
-    '',
-    'Agent instruction: run `delano context read --profile implementation` first, then use these annotation attachments as scoped review feedback.',
-    '',
-    sourcePath ? `Source filter: \`.project/${sourcePath}\`` : 'Source filter: all annotation records',
-    `Annotation count: ${selected.length}`,
-    '',
-  ];
+}
+
+function annotationSectionLines(selected) {
+  const lines = [];
   selected.forEach((annotation, index) => {
     const line = annotation.anchor?.lineStart ? `line ${annotation.anchor.lineStart}` : 'no line anchor';
     lines.push(`## ${index + 1}. ${annotation.type || 'comment'} on \`${annotation.repoPath}\``);
@@ -593,6 +587,43 @@ function annotationMarkdown(annotations, options = {}) {
     lines.push(annotation.comment || '(empty)');
     lines.push('');
   });
+  return lines;
+}
+
+function annotationMarkdown(annotations, options = {}) {
+  const sourcePath = options.sourcePath || null;
+  const selected = sortedVisibleAnnotations(annotations);
+  const lines = [
+    '# Delano Viewer Annotations',
+    '',
+    'Agent instruction: run `delano context read --profile implementation` first, then use these annotation attachments as scoped review feedback.',
+    '',
+    sourcePath ? `Source filter: \`.project/${sourcePath}\`` : 'Source filter: all annotation records',
+    `Annotation count: ${selected.length}`,
+    '',
+    ...annotationSectionLines(selected),
+  ];
+  return lines.join('\n').trimEnd() + '\n';
+}
+
+function handoverMarkdown(annotations, source) {
+  const selected = sortedVisibleAnnotations(annotations);
+  const lines = [
+    '# Delano Review Handover',
+    '',
+    'You are picking up human review feedback captured in the Delano viewer.',
+    '',
+    `- Source document: \`${source.repoPath}\``,
+    `- Annotation count: ${selected.length}`,
+    '',
+    'Instructions:',
+    '',
+    '1. Read the source document first, then address every annotation below.',
+    '2. Follow `AGENTS.md`: smallest task-safe change, record evidence, run the smallest meaningful validation.',
+    '3. When an annotation is unclear or conflicts with the contract, say so instead of guessing.',
+    '',
+    ...annotationSectionLines(selected),
+  ];
   return lines.join('\n').trimEnd() + '\n';
 }
 
@@ -634,275 +665,116 @@ async function readJsonBody(req) {
   return JSON.parse(body);
 }
 
-function buildChatPrompt(payload) {
-  const annotations = Array.isArray(payload.annotations) ? payload.annotations.map(visibleAnnotation) : [];
-  return [
-    'You are helping review Delano .project markdown from the local viewer.',
-    'Default posture: read and reason. Do not claim to have written files.',
-    'If a file change is useful, propose it and say it must go through the viewer preview/apply flow.',
-    '',
-    `Context profile: ${payload.contextProfile || 'implementation'}`,
-    `Document: ${payload.sourcePath ? `.project/${payload.sourcePath}` : 'not specified'}`,
-    '',
-    'User message:',
-    payload.message || '',
-    '',
-    'Annotation attachments:',
-    annotationMarkdown(annotations).trim(),
-  ].join('\n');
+function handoverFileName(sourceRel) {
+  const base = path.basename(String(sourceRel || 'document'))
+    .replace(/\.md$/i, '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .slice(0, 60) || 'document';
+  const stamp = new Date().toISOString().replace(/\..+$/, '').replace(/:/g, '').replace('T', '-');
+  return `handover-${stamp}-${base}.md`;
 }
 
-function textFromUiMessage(message) {
-  if (!message || typeof message !== 'object') return '';
-  if (typeof message.text === 'string') return message.text;
-  if (!Array.isArray(message.parts)) return '';
-  return message.parts
-    .filter((part) => part && part.type === 'text' && typeof part.text === 'string')
-    .map((part) => part.text)
-    .join('');
+function agentCliName(agent) {
+  return agent === 'claude' ? 'claude' : 'codex';
 }
 
-function latestUserMessageText(payload) {
-  const messages = Array.isArray(payload.messages) ? payload.messages : [];
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    if (messages[index]?.role === 'user') return textFromUiMessage(messages[index]);
+function agentDisplayName(agent) {
+  return agent === 'claude' ? 'Claude Code' : 'Codex';
+}
+
+function shellSingleQuote(value) {
+  return `'${String(value).replace(/'/g, `'\\''`)}'`;
+}
+
+function launchAgentTerminal(agent, prompt) {
+  const cliName = agentCliName(agent);
+  if (!commandExists(cliName)) {
+    return { ok: false, error: `${agentDisplayName(agent)} CLI \`${cliName}\` was not found on PATH. Copy the command instead.` };
   }
-  return '';
-}
-
-function normalizeChatPayload(payload) {
-  const message = sanitizeString(payload.message || latestUserMessageText(payload), MAX_CHAT_MESSAGE, 'message', true);
-  const annotations = Array.isArray(payload.annotations) ? payload.annotations.map(visibleAnnotation) : [];
-  const source = payload.sourcePath ? resolveProjectMarkdownPath(payload.sourcePath) : null;
-  return {
-    message,
-    annotations,
-    sourcePath: source?.rel || annotations[0]?.sourcePath || null,
-    contextProfile: sanitizeString(payload.contextProfile || 'implementation', 40, 'contextProfile', false) || 'implementation',
-    originalMessages: Array.isArray(payload.messages) ? payload.messages : undefined,
-  };
-}
-
-function fallbackChatText(payload, reason) {
-  return [
-    `I received ${payload.annotations.length} annotation attachment${payload.annotations.length === 1 ? '' : 's'} for review.`,
-    payload.sourcePath ? `The active source is .project/${payload.sourcePath}.` : 'No active source path was supplied.',
-    `Context profile hint: delano context read --profile ${payload.contextProfile}.`,
-    reason,
-    'No files were written. Any proposed edits must go through preview/apply with the current file baseline.',
-  ].join('\n\n');
-}
-
-function writeTextChunks(writer, textId, text) {
-  for (const chunk of String(text || '').match(/[\s\S]{1,90}/g) || []) {
-    writer.write({ type: 'text-delta', id: textId, delta: chunk });
+  if (/["\r\n]/.test(prompt)) {
+    return { ok: false, error: 'Handover prompt contains unsupported characters.' };
   }
-}
+  const isWin = process.platform === 'win32';
+  const isMac = process.platform === 'darwin';
 
-function codexCliArgs() {
-  const args = [
-    'exec',
-    '--json',
-    '--sandbox',
-    'read-only',
-    '--cd',
-    repoRoot,
-    '--skip-git-repo-check',
-    '--ephemeral',
-    '--ignore-user-config',
-    '--ignore-rules',
-    '-c',
-    'approval_policy="never"',
-    '--color',
-    'never',
+  if (isWin) {
+    const line = `start "Delano handover" /D "${repoRoot}" cmd /k ${cliName} "${prompt}"`;
+    spawn('cmd.exe', ['/d', '/s', '/c', line], {
+      detached: true,
+      stdio: 'ignore',
+      windowsVerbatimArguments: true,
+    }).unref();
+    return { ok: true };
+  }
+
+  const shellLine = `cd ${shellSingleQuote(repoRoot)} && ${cliName} ${shellSingleQuote(prompt)}`;
+  if (isMac) {
+    const appleScript = `tell application "Terminal" to do script "${shellLine.replace(/([\\"])/g, '\\$1')}"`;
+    spawn('osascript', ['-e', appleScript, '-e', 'tell application "Terminal" to activate'], {
+      detached: true,
+      stdio: 'ignore',
+    }).unref();
+    return { ok: true };
+  }
+
+  const candidates = [
+    ['x-terminal-emulator', ['-e', 'bash', '-lc', shellLine]],
+    ['gnome-terminal', ['--', 'bash', '-lc', shellLine]],
+    ['konsole', ['-e', 'bash', '-lc', shellLine]],
+    ['xterm', ['-e', 'bash', '-lc', shellLine]],
   ];
-  if (process.env.DELANO_VIEWER_CODEX_MODEL) {
-    args.push('--model', process.env.DELANO_VIEWER_CODEX_MODEL);
-  }
-  args.push('-');
-  return args;
-}
-
-function envJsonStringArray(name) {
-  const value = process.env[name];
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) return parsed.map(String);
-  } catch {
-    return [];
-  }
-  return [];
-}
-
-function resolveCodexCliCommand() {
-  if (process.env.DELANO_VIEWER_CODEX_COMMAND) {
-    return {
-      path: process.env.DELANO_VIEWER_CODEX_COMMAND,
-      argsPrefix: envJsonStringArray('DELANO_VIEWER_CODEX_COMMAND_ARGS'),
-    };
-  }
-  return resolveCommand('codex');
-}
-
-function textPartFromCodexCliEvent(event) {
-  if (!event || typeof event !== 'object') return null;
-  if (
-    event.type === 'item.completed' &&
-    event.item?.type === 'agent_message' &&
-    typeof event.item.text === 'string'
-  ) {
-    return { kind: 'complete', text: event.item.text };
-  }
-  if (event.type === 'item.updated' && event.item?.type === 'agent_message' && typeof event.item.text === 'string') {
-    return { kind: 'update', text: event.item.text };
-  }
-  if (event.type === 'agent_message_delta' && typeof event.delta === 'string') {
-    return { kind: 'delta', text: event.delta };
-  }
-  if (event.type === 'text_delta' && typeof event.text === 'string') return { kind: 'delta', text: event.text };
-  return null;
-}
-
-async function streamWithCodexCli(payload, writeText, abortSignal) {
-  const command = resolveCodexCliCommand();
-  if (!command) {
-    return { ok: false, reason: 'Codex CLI was not found on PATH. Install Codex and run `codex login` to use subscription-auth chat.' };
-  }
-
-  return new Promise((resolve) => {
-    let stdoutBuffer = '';
-    let stderrBuffer = '';
-    let streamedText = '';
-    let wroteText = false;
-    let settled = false;
-    const child = spawn(command.path, [...(command.argsPrefix || []), ...codexCliArgs()], {
-      cwd: repoRoot,
-      env: { ...process.env, NO_COLOR: '1' },
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    const settle = (result) => {
-      if (settled) return;
-      settled = true;
-      resolve(result);
-    };
-
-    const appendStderr = (chunk) => {
-      stderrBuffer = (stderrBuffer + chunk).slice(-MAX_CODEX_STDERR);
-    };
-
-    const parseLine = (line) => {
-      const trimmed = line.trim();
-      if (!trimmed) return;
-      let event;
-      try {
-        event = JSON.parse(trimmed);
-      } catch {
-        appendStderr(`${trimmed}\n`);
-        return;
-      }
-      const part = textPartFromCodexCliEvent(event);
-      if (part?.text) {
-        let text = part.text;
-        if (part.kind !== 'delta' && streamedText && text.startsWith(streamedText)) {
-          text = text.slice(streamedText.length);
-        }
-        if (!text) return;
-        wroteText = true;
-        streamedText += text;
-        writeText(text);
-      }
-    };
-
-    const flushStdout = () => {
-      const lines = stdoutBuffer.split(/\r?\n/);
-      stdoutBuffer = lines.pop() ?? '';
-      for (const line of lines) parseLine(line);
-    };
-
-    const onAbort = () => {
-      child.kill();
-      settle({ ok: false, reason: 'Codex CLI request was aborted.' });
-    };
-
-    if (abortSignal) {
-      if (abortSignal.aborted) return onAbort();
-      abortSignal.addEventListener('abort', onAbort, { once: true });
+  for (const [command, args] of candidates) {
+    if (commandExists(command)) {
+      spawn(command, args, { detached: true, stdio: 'ignore' }).unref();
+      return { ok: true };
     }
-
-    child.stdout.setEncoding('utf8');
-    child.stderr.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      stdoutBuffer += chunk;
-      flushStdout();
-    });
-    child.stderr.on('data', appendStderr);
-    child.on('error', (error) => {
-      settle({ ok: false, reason: `Codex CLI unavailable: ${error.message}` });
-    });
-    child.on('close', (code, signal) => {
-      if (abortSignal) abortSignal.removeEventListener('abort', onAbort);
-      if (stdoutBuffer.trim()) parseLine(stdoutBuffer);
-      if (wroteText && code === 0) return settle({ ok: true });
-      const detail = stderrBuffer.trim() ? `: ${stderrBuffer.trim().replace(/\s+/g, ' ').slice(0, 600)}` : '';
-      if (code === 0) return settle({ ok: false, reason: 'Codex CLI completed without assistant text.' });
-      return settle({ ok: false, reason: `Codex CLI exited with ${code ?? signal}${detail}` });
-    });
-
-    child.stdin.on('error', () => {});
-    child.stdin.end(buildChatPrompt(payload), 'utf8');
-  });
+  }
+  return { ok: false, error: 'No terminal emulator was found. Copy the command instead.' };
 }
 
-async function streamChatResponse(req, res) {
+async function handleHandover(req, res) {
   if (req.method !== 'POST') return sendError(res, 405, 'Use POST');
-  let normalizedPayload;
+  let payload;
   try {
-    normalizedPayload = normalizeChatPayload(await readJsonBody(req));
+    payload = await readJsonBody(req);
   } catch (error) {
     return sendError(res, 400, error.message);
   }
+  const agent = payload.agent === 'claude' ? 'claude' : 'codex';
+  const action = payload.action === 'launch' ? 'launch' : 'command';
+  const source = resolveProjectMarkdownPath(String(payload.sourcePath || ''));
+  if (!source) return sendError(res, 404, 'Source document not found.');
+  const ids = Array.isArray(payload.ids)
+    ? payload.ids.slice(0, MAX_HANDOVER_IDS).map((id) => String(id))
+    : null;
+  const store = readAnnotationStore();
+  const annotations = store.annotations.filter((annotation) => (
+    annotation.status !== 'deleted' &&
+    annotation.sourcePath === source.rel &&
+    (!ids || ids.includes(annotation.id))
+  ));
 
-  const { createUIMessageStream, pipeUIMessageStreamToResponse } = await import('ai');
-  const abortController = new AbortController();
-  req.on('close', () => {
-    if (!res.writableEnded) abortController.abort();
-  });
-  const stream = createUIMessageStream({
-    originalMessages: normalizedPayload.originalMessages,
-    execute: async ({ writer }) => {
-      const textId = `answer-${crypto.randomUUID()}`;
-      let wroteText = false;
-      writer.write({ type: 'text-start', id: textId });
-      const codexResult = await streamWithCodexCli(
-        normalizedPayload,
-        (text) => {
-          wroteText = wroteText || !!text;
-          writeTextChunks(writer, textId, text);
-        },
-        abortController.signal
-      );
-      if (!codexResult.ok) {
-        writeTextChunks(writer, textId, fallbackChatText(normalizedPayload, codexResult.reason));
-      } else if (!wroteText) {
-        writeTextChunks(writer, textId, 'Codex returned no response text. No files were written.');
-      }
-      writer.write({ type: 'text-end', id: textId });
-    },
-    onError: (error) => {
-      const message = error && typeof error === 'object' && 'message' in error ? error.message : 'unknown error';
-      return `Chat request failed: ${message}. No files were written.`;
-    },
-  });
+  ensureAnnotationStoreDir();
+  fs.mkdirSync(handoverDir, { recursive: true });
+  const fileName = handoverFileName(source.rel);
+  fs.writeFileSync(path.join(handoverDir, fileName), handoverMarkdown(annotations, source), 'utf8');
+  const handoverPath = `.project/viewer/handovers/${fileName}`;
 
-  pipeUIMessageStreamToResponse({
-    response: res,
-    stream,
-    headers: {
-      'cache-control': 'no-store',
-    },
-  });
+  const prompt = `Address the Delano review handover in ${handoverPath}. Read ${source.repoPath} and resolve every annotation listed, then record evidence per AGENTS.md.`;
+  const command = `${agentCliName(agent)} "${prompt}"`;
+  // The Codex desktop app registers the codex:// scheme; path must be the
+  // absolute workspace root, so this link is only meaningful on this machine.
+  const deepLink = agent === 'codex'
+    ? `codex://new?prompt=${encodeURIComponent(prompt)}&path=${encodeURIComponent(repoRoot)}`
+    : null;
+  const base = { agent, action, file: handoverPath, prompt, command, deepLink, annotationCount: annotations.length };
+
+  if (action === 'launch') {
+    const launch = launchAgentTerminal(agent, prompt);
+    if (!launch.ok) return sendJsonStatus(res, 400, { ok: false, error: launch.error, ...base });
+    return sendJson(res, { ok: true, launched: true, ...base });
+  }
+  return sendJson(res, { ok: true, launched: false, ...base });
 }
 
 function windowsPath(file) {
@@ -1177,8 +1049,8 @@ const server = http.createServer(async (req, res) => {
     if (parsed.pathname === '/api/apply') {
       return handleApplyPreview(req, res, true);
     }
-    if (parsed.pathname === '/api/ai/chat') {
-      return streamChatResponse(req, res);
+    if (parsed.pathname === '/api/handover') {
+      return handleHandover(req, res);
     }
     if (parsed.pathname === '/api/open') {
       if (req.method !== 'POST') {
