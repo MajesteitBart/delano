@@ -1,10 +1,10 @@
 ---
 name: Viewer Annotations and Agent Chat
-status: planned
+status: done
 lead: product
 created: 2026-06-30T14:08:03Z
-updated: 2026-06-30T14:20:00Z
-linear_project_id:
+updated: 2026-06-30T23:37:39Z
+linear_project_id: 
 risk_level: high
 spec_status_at_plan_time: planned
 operating_mode: uncertain-feature
@@ -18,7 +18,7 @@ Research narrowed the project from "make the viewer writable" to four gated capa
 
 ## Technical Context
 
-The current Delano viewer is a Node `http` server with static React/Babel assets. It serves `.project` markdown through `/api/index`, `/api/doc`, and `/api/open`; existing viewer tests assert the read-only banner/logging and API behavior. The markdown reader currently renders HTML strings through `dangerouslySetInnerHTML`, which means annotation support needs either stable rendered block wrappers or a parser-level refactor before reliable anchor restoration.
+The current Delano viewer is a Node `http` server with static React/Babel assets. It serves `.project` markdown through `/api/index`, `/api/doc`, and `/api/open`; earlier viewer tests asserted the read-only banner/logging and API behavior, and this project intentionally changes that boundary to guarded review mode. The markdown reader currently renders HTML strings through `dangerouslySetInnerHTML`, which means annotation support needs stable rendered block wrappers before reliable anchor restoration.
 
 Plannotator offers useful patterns but should not be copied wholesale. Its relevant pieces are:
 
@@ -28,7 +28,7 @@ Plannotator offers useful patterns but should not be copied wholesale. Its relev
 - `packages/ui/components/AnnotationSidebar.tsx` and `ExportModal.tsx`: drawer and copy/download/export UX.
 - `packages/ai/endpoints.ts` and `packages/ai/providers/codex-app-server.ts`: session, query, abort, permission, and Codex app-server safety patterns.
 
-External docs confirm the requested implementation direction: AI SDK Codex harness is installed via `@ai-sdk/harness`, `@ai-sdk/harness-codex`, and `@ai-sdk/sandbox-vercel`, and exposes `codex`/`createCodex`; Shadcn Message Scroller supports anchored streaming chat with `MessageScrollerProvider`, `MessageScrollerViewport`, `MessageScrollerContent`, `MessageScrollerItem`, and `MessageScrollerButton`.
+External docs confirmed the initial Codex harness option, but T-009 now targets the user's requested subscription-auth path: the server runs local `codex exec --json` by default when `codex` is available on `PATH`, reuses the user's Codex CLI login, and bridges assistant output into the AI SDK 7 UI message stream. Shadcn Message Scroller supports anchored streaming chat with `MessageScrollerProvider`, `MessageScrollerViewport`, `MessageScrollerContent`, `MessageScrollerItem`, and `MessageScrollerButton`.
 
 ## Architecture Decisions
 
@@ -52,6 +52,7 @@ External docs confirm the requested implementation direction: AI SDK Codex harne
 - `research/plannotator-agent-chat-integration/`: Created by `delano research` and used as the evidence record.
 - `workstreams/`: Created by `delano workstream add`.
 - `tasks/`: Created by `delano task add`.
+- `loopfile.md`: Stores the follow-on viewer shadcn/domain refactor plan as a repeatable implementation and visual-feedback loop.
 
 ## Complexity Exceptions
 - Viewer write capability is a high-risk feature because it changes a read-only tool into a local mutation surface. The plan keeps write scopes separate: annotation JSON writes first, markdown apply writes only after preview and confirmation.
@@ -59,22 +60,24 @@ External docs confirm the requested implementation direction: AI SDK Codex harne
 ## Probe-Driven Architecture Changes
 
 - Use Plannotator-style annotation event/store concepts, but constrain Delano persistence and paths.
-- Use AI SDK Codex harness for chat transport instead of extending deeplink-only agent buttons.
+- Use an AI SDK UI message stream for chat transport and local Codex CLI subscription auth instead of extending deeplink-only agent buttons.
 - Prefer local annotation export and chat attachments before remote sharing.
 
 ## Workstream Design
 
 - `WS-A Annotation Data and Write Boundaries`: owns data model, path-safe endpoints, draft persistence, and reviewed file-apply workflow.
 - `WS-B Viewer Annotation Drawer UX`: owns rendered markdown anchors, selection toolbar, inline highlights, drawer behavior, and export surface.
-- `WS-C Codex Chat and Attachment Flow`: owns chat endpoint, AI SDK Codex harness integration, Shadcn Chat component usage, optional sharing evaluation, and docs.
+- `WS-C Codex Chat and Attachment Flow`: owns chat endpoint, Codex-backed attachment flow, Shadcn Chat component usage, optional sharing evaluation, and docs.
+- `WS-D AI SDK Message Scroller Chat`: owns the follow-up correction that turns the current optional/manual chat path into a real AI SDK 7 stream rendered with shadcn `Message` and `MessageScroller` primitives and backed by local Codex CLI subscription auth when available, including the responsive placement decision for sidebar, column, drawer, or sheet layouts.
 
 ## Milestone Strategy
 
 1. Land the annotation storage contract and safety tests.
 2. Make the markdown reader annotation-aware with drawer UX and export.
 3. Add Codex-backed chat submission for annotation attachments.
-4. Add reviewed apply workflow for accepted changes.
-5. Evaluate hosted sharing only after local flows are stable.
+4. Replace the chat fallback/stub with a verified AI SDK 7 UI message stream endpoint, local Codex CLI subscription-auth backend, and shadcn message-scroller UX.
+5. Add reviewed apply workflow for accepted changes.
+6. Evaluate hosted sharing only after local flows are stable.
 
 ## Rollout Strategy
 
@@ -87,7 +90,7 @@ External docs confirm the requested implementation direction: AI SDK Codex harne
 
 - Unit tests for annotation payload validation, path containment, symlink escape rejection, stale baseline rejection, and export formatting.
 - Viewer server tests for `/api/annotations`, `/api/annotations/export`, `/api/ai/*`, and reviewed apply endpoints.
-- Browser smoke tests for selection toolbar, drawer list/select/delete, stale-anchor marker, chat attachment submission, streaming scroll behavior, and tablet layout.
+- Browser smoke tests for selection toolbar, drawer list/select/delete, stale-anchor marker, AI SDK chat attachment submission, shadcn `MessageScroller` streaming behavior, and tablet layout.
 - Package validation: `npm test`, `npm run build:assets`, `npm run check:package-manifest`, and `node bin/delano.js validate`.
 
 ## Rollback Strategy
@@ -100,5 +103,5 @@ External docs confirm the requested implementation direction: AI SDK Codex harne
 
 - The viewer may need a build step to use Shadcn Chat components cleanly.
 - Quote-based anchors can become stale after markdown edits; stale UI must be deliberate, not silent.
-- Codex harness availability and authentication vary by environment.
+- Codex CLI availability and login state vary by environment.
 - Hosted sharing needs a separate security and privacy decision before implementation.

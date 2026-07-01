@@ -47,7 +47,7 @@ const commands = {
     help: getInstallHelp
   },
   viewer: {
-    description: "Launch the read-only Delano UI for a local repository.",
+    description: "Launch the guarded Delano review UI for a local repository.",
     run: runViewer,
     help: getViewerHelp
   },
@@ -141,7 +141,7 @@ function getGeneralHelp() {
     "Commands:",
     "  onboarding Analyze AGENTS.md with the approval-first onboarding skill",
     "  install    Install the approved Delano runtime payload",
-    "  viewer     Launch the read-only local UI for .project contracts",
+    "  viewer     Launch the guarded local review UI for .project contracts",
     "  context    List and read .project/context safely",
     "  project    Create, show, and patch project contracts",
     "  workstream Add and patch workstream contracts",

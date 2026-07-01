@@ -2,9 +2,9 @@
 id: WS-B
 name: WS-B Viewer Annotation Drawer UX
 owner: product
-status: planned
+status: done
 created: 2026-06-30T14:11:44Z
-updated: 2026-06-30T14:11:44Z
+updated: 2026-06-30T14:55:39Z
 operating_mode: uncertain-feature
 ---
 

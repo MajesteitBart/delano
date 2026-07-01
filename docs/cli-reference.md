@@ -49,7 +49,7 @@ Use `delano --help` and `delano <command> --help` for live command help.
 | --- | --- | --- |
 | `delano install` | Install the approved runtime payload into a repo. | `.agents/`, `.project/`, `.delano/`, `HANDBOOK.md`, selected allowlist files |
 | `delano onboarding` | Review repo-root agent instructions with explicit approval. | Nothing by default |
-| `delano viewer` | Start the read-only local UI for `.project`. | Nothing |
+| `delano viewer` | Start the guarded local review UI for `.project`. | `.project/viewer/annotations.json`; canonical markdown only through explicit preview/apply |
 | `delano context` | List and read `.project/context` as a safe context pack. | Nothing |
 | `delano project` | Create, show, and patch project contracts. | `.project/projects/<slug>/` |
 | `delano workstream` | Add, show, and patch workstream contracts. | `.project/projects/<slug>/workstreams/` |
@@ -289,6 +289,7 @@ delano validate
 For Delano runtime development, also run:
 
 ```bash
+npm --prefix .delano/viewer/ui run build
 npm run build:assets
 npm run check:package-manifest
 npm test

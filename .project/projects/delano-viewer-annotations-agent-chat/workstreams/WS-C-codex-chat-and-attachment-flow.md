@@ -2,9 +2,9 @@
 id: WS-C
 name: WS-C Codex Chat and Attachment Flow
 owner: product
-status: planned
+status: done
 created: 2026-06-30T14:11:44Z
-updated: 2026-06-30T14:11:44Z
+updated: 2026-07-01T01:24:39+02:00
 operating_mode: uncertain-feature
 ---
 
@@ -15,18 +15,18 @@ Connect viewer annotations to an agent-facing chat flow so selected feedback can
 
 ## Owned Files/Areas
 - Viewer chat server endpoint and client panel once implemented
-- Package dependency changes for AI SDK harnesses and compatible chat UI primitives
+- Package dependency changes for AI SDK stream support and compatible chat UI primitives
 - Documentation for chat attachment format, Codex context instructions, and optional sharing behavior
 - Tests or smoke coverage for streaming chat, attachment payload construction, and disabled/missing credentials states
 
 ## Dependencies
 - WS-A export payload and safe write boundaries.
 - WS-B drawer selection and export surface.
-- AI SDK Codex harness package behavior and authentication requirements.
+- Codex CLI behavior, subscription-auth requirements, and AI SDK stream contract.
 - Shadcn/Radix chat component contracts for MessageScroller, Attachment, Bubble, Message, and Marker.
 
 ## Risks
-- Codex harness sessions need explicit auth, sandbox, timeout, cancellation, and error states before they are safe inside a local viewer.
+- Codex CLI sessions need explicit auth, read-only sandboxing, timeout/cancellation behavior, and error states before they are safe inside a local viewer.
 - Streaming chat can become visually unstable unless message scrolling honors user scroll position.
 - Annotation attachments may leak too much repo context if payload construction is not deliberately scoped.
 - Cloudflare-style sharing has privacy, retention, payload-size, and offline behavior questions that must be answered before becoming a default path.

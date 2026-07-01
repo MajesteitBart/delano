@@ -1,10 +1,10 @@
 ---
 id: T-006
 name: Evaluate optional Cloudflare sharing artifact path
-status: ready
+status: done
 workstream: WS-C
 created: 2026-06-30T14:12:17Z
-updated: 2026-06-30T14:24:00Z
+updated: 2026-06-30T14:56:23Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -26,9 +26,9 @@ Research and, if approved, add an opt-in encrypted sharing/export path for annot
 
 ## Acceptance Criteria
 
-- [ ] Plan documents privacy, retention, payload-size, and offline/self-hosted fallback behavior before any remote upload is enabled.
-- [ ] Sharing can be disabled and local copy/download/export remains fully functional.
-- [ ] If implemented, shared artifacts contain annotation bundles, not unbounded local repo state or secrets.
+- [x] Plan documents privacy, retention, payload-size, and offline/self-hosted fallback behavior before any remote upload is enabled.
+- [x] Sharing can be disabled and local copy/download/export remains fully functional.
+- [x] If implemented, shared artifacts contain annotation bundles, not unbounded local repo state or secrets.
 
 ## Traceability
 - Story: none
@@ -40,11 +40,15 @@ Research and, if approved, add an opt-in encrypted sharing/export path for annot
 - If a hosted artifact path is approved, the payload should be an annotation bundle only, not arbitrary repository files.
 
 ## Definition of Done
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Implementation complete
+- [x] Tests pass
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
+
+- 2026-06-30T14:56:23Z: Evaluated sharing path and kept v1 local/export-first: deterministic markdown and JSON downloads support agent handoff without adding Cloudflare artifact credentials or remote write risk.
+
+- 2026-06-30T14:56:15Z: Core annotation and chat flows are complete; optional sharing is documented as export-first.
 - 2026-06-30T14:12:17Z: Created from .project/templates/task.md by `delano task add`.
 - 2026-06-30T14:24:00Z: Research folded forward from Plannotator sharing flow and Delano local-first safety constraints.

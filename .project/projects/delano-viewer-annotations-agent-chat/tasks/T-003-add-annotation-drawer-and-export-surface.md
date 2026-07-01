@@ -1,10 +1,10 @@
 ---
 id: T-003
 name: Add annotation drawer and export surface
-status: ready
+status: done
 workstream: WS-B
 created: 2026-06-30T14:12:03Z
-updated: 2026-06-30T14:24:00Z
+updated: 2026-06-30T14:55:39Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -26,9 +26,9 @@ Replace ad hoc metadata side panels with an annotation drawer that lists file-sc
 
 ## Acceptance Criteria
 
-- [ ] Drawer is visible from document views, shows counts, supports select/delete/edit, and keeps content readable on tablet and desktop widths.
-- [ ] Export generates deterministic markdown plus JSON payloads that include repo-relative paths and context-reader profile hints.
-- [ ] Drawer uses shadcn/Radix primitives or compatible local equivalents for Marker, Attachment, Bubble, and Message styling.
+- [x] Drawer is visible from document views, shows counts, supports select/delete/edit, and keeps content readable on tablet and desktop widths.
+- [x] Export generates deterministic markdown plus JSON payloads that include repo-relative paths and context-reader profile hints.
+- [x] Drawer and annotation controls use real shadcn/Radix primitives installed through the shadcn CLI.
 
 ## Traceability
 - Story: none
@@ -40,11 +40,16 @@ Replace ad hoc metadata side panels with an annotation drawer that lists file-sc
 - The drawer should be collapsible and should not replace the workspace sidebar.
 
 ## Definition of Done
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Implementation complete
+- [x] Tests pass
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
+
+- 2026-06-30T14:55:39Z: Annotation drawer lists counts, supports select/edit/delete/refresh, exports deterministic markdown and JSON attachments with context-reader profile hints, and browser smoke verified readable tablet and desktop layout.
+- 2026-06-30T15:20:00Z: Replaced the local equivalent drawer UI with the shadcn-generated Vite viewer app and real shadcn primitives for cards, badges, checkboxes, markers, fields, tooltips, and drawer actions.
+
+- 2026-06-30T14:55:33Z: Reader annotations are complete; drawer selection, editing, deletion, export, and responsive behavior are implemented.
 - 2026-06-30T14:12:03Z: Created from .project/templates/task.md by `delano task add`.
 - 2026-06-30T14:24:00Z: Research folded forward from Plannotator sidebar/export behavior and Shadcn chat component docs.

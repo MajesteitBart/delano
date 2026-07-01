@@ -1,10 +1,10 @@
 ---
 id: T-002
 name: Make markdown reader annotation-aware
-status: ready
+status: done
 workstream: WS-B
 created: 2026-06-30T14:12:02Z
-updated: 2026-06-30T14:24:00Z
+updated: 2026-06-30T14:55:27Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -26,9 +26,9 @@ Refactor the document reader so rendered markdown exposes stable line/block anch
 
 ## Acceptance Criteria
 
-- [ ] Selecting text in project/context markdown opens a compact annotation toolbar and creates a comment or quick-label draft.
-- [ ] Annotations restore against quote plus line/block context after reload and degrade to drawer-only when the anchor is stale.
-- [ ] Browser smoke coverage verifies selection, highlight, drawer focus, and stale-anchor behavior.
+- [x] Selecting text in project/context markdown opens a compact annotation toolbar and creates a comment or quick-label draft.
+- [x] Annotations restore against quote plus line/block context after reload and degrade to drawer-only when the anchor is stale.
+- [x] Browser smoke coverage verifies selection, highlight, drawer focus, and stale-anchor behavior.
 
 ## Traceability
 - Story: none
@@ -40,11 +40,15 @@ Refactor the document reader so rendered markdown exposes stable line/block anch
 - Tablet readability remains a regression guard because earlier side panels made document content too narrow.
 
 ## Definition of Done
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Implementation complete
+- [x] Tests pass
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
+
+- 2026-06-30T14:55:27Z: Rendered markdown blocks carry stable block and line metadata, selection creates annotations, exact quotes highlight inline, stale anchors render in the drawer, and Chrome smoke verified 1024x768 readable layout with no overflow.
+
+- 2026-06-30T14:55:21Z: Annotation API foundation is done; reader interaction behavior is implemented and browser-smoked.
 - 2026-06-30T14:12:02Z: Created from .project/templates/task.md by `delano task add`.
 - 2026-06-30T14:24:00Z: Research folded forward from Plannotator highlight behavior and current viewer layout constraints.

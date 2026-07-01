@@ -2,9 +2,9 @@
 name: Viewer Annotations and Agent Chat
 slug: delano-viewer-annotations-agent-chat
 owner: product
-status: planned
+status: complete
 created: 2026-06-30T14:08:03Z
-updated: 2026-06-30T14:20:00Z
+updated: 2026-06-30T23:37:39Z
 outcome: Delano viewer supports file-scoped annotations, an annotation drawer, and agent chat submissions for selected .project markdown with explicit write boundaries.
 uncertainty: high
 probe_required: true
@@ -55,7 +55,7 @@ Primary users are project operators reviewing Delano contracts, coding agents th
 - Viewer selection capture, inline highlights, quick labels, comment creation, and stale-anchor handling.
 - A right-side annotation drawer with count badges, edit/delete/select behavior, and export actions.
 - Agent-ready markdown/JSON export of annotations.
-- AI SDK Codex harness chat endpoint and UI flow for sending document/annotation attachments.
+- AI SDK chat endpoint backed by local Codex CLI subscription auth and UI flow for sending document/annotation attachments.
 - Reviewed apply workflow for turning accepted agent suggestions into file edits.
 - Tests and docs for path safety, write boundaries, browser behavior, and rollback.
 
@@ -74,7 +74,7 @@ Primary users are project operators reviewing Delano contracts, coding agents th
 - FR-003: Annotation records include `sourcePath`, `quote`, `anchor`, `type`, `comment`, `labels`, `author`, timestamps, and stale-anchor state.
 - FR-004: Document rendering exposes stable block or line anchors without breaking existing markdown support for headings, lists, tables, code blocks, task lists, and blockquotes.
 - FR-005: Drawer shows all annotations for the active document and can generate deterministic agent-ready markdown and JSON attachments.
-- FR-006: Chat endpoint uses the AI SDK Codex harness and streams responses to the viewer.
+- FR-006: Chat endpoint uses AI SDK UI message streams and local `codex exec --json` with Codex CLI subscription auth when `codex` is available on `PATH`, with deterministic fallback when unavailable.
 - FR-007: Chat submissions include selected annotations as attachments rather than injecting unbounded raw context into the prompt.
 - FR-008: Apply endpoint shows a diff and requires explicit confirmation before writing to `.project` markdown.
 - FR-009: All write endpoints enforce payload size limits, path containment, file hash or mtime baselines, and no symlink escape.
@@ -96,19 +96,21 @@ Primary users are project operators reviewing Delano contracts, coding agents th
 ## Needs Clarification
 - Whether annotation bundles should be committed with project artifacts by default or remain local draft state until explicitly exported.
 - Whether Cloudflare sharing should target a Delano-owned endpoint, a user-provided endpoint, or stay copy/download-only for V1.
-- Which Shadcn/Radix primitives should be vendored versus used through a future app-stack migration.
+- Which Shadcn/Radix primitives should be added next as the viewer app grows beyond annotation and chat.
 
 ## Hypotheses and Unknowns
 
 - A quote-plus-block/line anchor model should be sufficient for Delano contract review because markdown documents change less often than source code.
-- The current Babel-in-browser viewer can support a focused prototype, but durable Shadcn Chat integration may justify a build step or viewer app stack change.
-- AI SDK Codex harness can replace one-off deeplink prompts for in-view question answering, but write actions still need Delano-specific confirmation.
+- Durable Shadcn Chat integration requires the viewer client to be built as a Vite/Shadcn app instead of editing static in-browser React files.
+- Local Codex CLI chat can replace one-off deeplink prompts for in-view question answering, but write actions still need Delano-specific confirmation.
 
 ## Touchpoints to Exercise
 
 - `.delano/viewer/server.js`
-- `.delano/viewer/public/app.jsx`
-- `.delano/viewer/public/styles.css`
+- `.delano/viewer/ui/src/App.tsx`
+- `.delano/viewer/ui/src/index.css`
+- `.delano/viewer/public/assets/viewer.js`
+- `.delano/viewer/public/assets/index.css`
 - `test/viewer-server.test.js`
 - `src/cli/lib/context-reader.js`
 - `docs/cli-reference.md`
@@ -120,7 +122,7 @@ Primary users are project operators reviewing Delano contracts, coding agents th
 
 - Plannotator separates reusable annotation types/store logic from server transport, then streams snapshots and mutations over SSE with polling fallback. This is a good model for Delano, but Delano should constrain writes to `.project` and keep source paths repo-relative.
 - Plannotator's annotation drawer and export modal prove the desired UX shape: sorted feedback cards, count badges, copy/download, and agent-wrapped markdown.
-- AI SDK's Codex harness is available through `@ai-sdk/harness-codex`, `codex`, and `createCodex`; basic usage creates a `HarnessAgent`, session, and streamed response.
+- AI SDK's Codex harness is available through `@ai-sdk/harness-codex`, `codex`, and `createCodex`, but T-009 uses the local Codex CLI subscription-auth path because the requested community Codex CLI provider is documented for AI SDK v6 and this project uses AI SDK 7.
 - Shadcn's message scroller provides anchored streaming chat behavior that matches the requested drawer/chat experience.
 
 ## Footguns Discovered
@@ -134,15 +136,18 @@ Primary users are project operators reviewing Delano contracts, coding agents th
 
 - Best long-term storage path for annotation bundles.
 - Whether stable anchors should use markdown source line ranges, rendered block ids, text quote selectors, or a hybrid.
-- Whether the viewer should migrate from Babel standalone to a bundled React/Shadcn app before implementation.
+- How much of the remaining markdown renderer should move from local rendering helpers to shared viewer components.
 
 ## Dependencies
 
 - Plannotator source research from `https://github.com/backnotprop/plannotator/tree/main/packages`.
-- AI SDK Codex harness documentation at `https://ai-sdk.dev/providers/ai-sdk-harnesses/codex`.
+- AI SDK Codex harness documentation at `https://ai-sdk.dev/providers/ai-sdk-harnesses/codex` and community Codex CLI provider documentation at `https://ai-sdk.dev/providers/community-providers/codex-cli`.
 - Shadcn/Radix docs for Message Scroller, Marker, Attachment, Bubble, and Message components.
 - Existing Delano context reader and viewer indexing behavior.
 
 ## Approval Notes
+
+- 2026-06-30T22:20:23Z: Reopened to add a follow-up workstream for real AI SDK 7 chat using shadcn Message and MessageScroller primitives.
+- 2026-07-01T01:24:39+02:00: Folded forward the T-009 correction: Codex auth comes from the local Codex CLI subscription login and the server bridges `codex exec --json` into the AI SDK 7 UI message stream.
 
 - Research is complete enough to plan. Implementation should start with storage/write boundaries before UI polish or hosted sharing.

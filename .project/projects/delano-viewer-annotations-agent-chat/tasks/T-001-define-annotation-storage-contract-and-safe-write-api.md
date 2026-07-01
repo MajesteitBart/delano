@@ -1,10 +1,10 @@
 ---
 id: T-001
 name: Define annotation storage contract and safe write API
-status: ready
+status: done
 workstream: WS-A
 created: 2026-06-30T14:12:02Z
-updated: 2026-06-30T14:24:00Z
+updated: 2026-06-30T14:55:15Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -26,9 +26,9 @@ Add a repo-relative annotation model and viewer endpoints for listing, writing, 
 
 ## Acceptance Criteria
 
-- [ ] Annotation payloads validate sourcePath, anchor, quote, comment, labels, and author metadata before persistence.
-- [ ] Server writes only under the approved annotation store and rejects traversal, absolute paths, symlink escapes, and unknown .project documents.
-- [ ] Focused Node tests cover create/list/update/delete/export failure paths.
+- [x] Annotation payloads validate sourcePath, anchor, quote, comment, labels, and author metadata before persistence.
+- [x] Server writes only under the approved annotation store and rejects traversal, absolute paths, symlink escapes, and unknown .project documents.
+- [x] Focused Node tests cover create/list/update/delete/export failure paths.
 
 ## Traceability
 - Story: none
@@ -40,11 +40,15 @@ Add a repo-relative annotation model and viewer endpoints for listing, writing, 
 - Path handling must allow only repo-relative `.project` documents that already exist in the viewer index.
 
 ## Definition of Done
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Review complete
-- [ ] Docs updated
+- [x] Implementation complete
+- [x] Tests pass
+- [x] Review complete
+- [x] Docs updated
 
 ## Evidence Log
+
+- 2026-06-30T14:55:15Z: Implemented path-safe annotation CRUD/export store, guarded apply preview/apply APIs, annotation baseline metadata, and focused viewer server tests.
+
+- 2026-06-30T14:29:14Z: Implement annotation storage contract and safe viewer write API before downstream drawer and chat tasks.
 - 2026-06-30T14:12:02Z: Created from .project/templates/task.md by `delano task add`.
 - 2026-06-30T14:24:00Z: Research folded forward from Plannotator annotation API and Delano viewer safety review.

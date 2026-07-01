@@ -2,9 +2,9 @@
 id: WS-A
 name: WS-A Annotation Data and Write Boundaries
 owner: product
-status: planned
+status: done
 created: 2026-06-30T14:11:44Z
-updated: 2026-06-30T14:11:44Z
+updated: 2026-06-30T14:56:09Z
 operating_mode: uncertain-feature
 ---
 
