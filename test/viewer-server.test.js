@@ -5,7 +5,7 @@ const http = require("node:http");
 const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
-const { spawn } = require("node:child_process");
+const { spawn, spawnSync } = require("node:child_process");
 
 function listen(server, port = 0) {
   return new Promise((resolve, reject) => {
@@ -393,6 +393,7 @@ test("viewer handover API writes a handover file and returns agent commands", as
   const specPath = path.join(projectDir, "spec.md");
   const original = "# Demo\n\nReview this paragraph before implementation.\n";
   fs.writeFileSync(specPath, original, "utf8");
+  fs.writeFileSync(path.join(projectDir, "spec$(touch pwned).md"), "# Demo\n\nShell metacharacters stay inert.\n", "utf8");
   fs.mkdirSync(path.join(projectDir, "tasks"), { recursive: true });
   fs.writeFileSync(
     path.join(projectDir, "tasks", "T-001-demo-task.md"),
@@ -444,7 +445,7 @@ test("viewer handover API writes a handover file and returns agent commands", as
   assert.equal(handover.json.agent, "codex");
   assert.equal(handover.json.annotationCount, 1);
   assert.match(handover.json.file, /^\.project\/viewer\/handovers\/handover-.*-spec\.md$/);
-  assert.ok(handover.json.command.startsWith(`codex "`), handover.json.command);
+  assert.ok(handover.json.command.startsWith(`codex '`), handover.json.command);
   assert.ok(handover.json.prompt.includes(handover.json.file), handover.json.prompt);
   assert.ok(handover.json.prompt.includes(".project/projects/demo/spec.md"), handover.json.prompt);
   assert.ok(handover.json.deepLink.startsWith("codex://new?prompt="), handover.json.deepLink);
@@ -464,7 +465,7 @@ test("viewer handover API writes a handover file and returns agent commands", as
   assert.equal(claude.status, 200);
   assert.equal(claude.json.agent, "claude");
   assert.equal(claude.json.annotationCount, 1);
-  assert.ok(claude.json.command.startsWith(`claude "`), claude.json.command);
+  assert.ok(claude.json.command.startsWith(`claude '`), claude.json.command);
   assert.equal(claude.json.deepLink, null);
 
   const filtered = await requestJson(`${baseUrl}/api/handover`, {
@@ -473,6 +474,25 @@ test("viewer handover API writes a handover file and returns agent commands", as
   });
   assert.equal(filtered.status, 200);
   assert.equal(filtered.json.annotationCount, 0);
+
+  const shellMeta = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec$(touch pwned).md" }
+  });
+  assert.equal(shellMeta.status, 200);
+  assert.ok(shellMeta.json.command.startsWith(`codex '`), shellMeta.json.command);
+  assert.match(shellMeta.json.command, /spec\$\(touch pwned\)\.md/);
+  assert.doesNotMatch(shellMeta.json.command, /^codex \"/);
+
+  if (process.platform !== "win32") {
+    const shellCheck = spawnSync("bash", ["-lc", `codex() { printf '%s' "$1"; }; ${shellMeta.json.command}`], {
+      cwd: repo,
+      encoding: "utf8"
+    });
+    assert.equal(shellCheck.status, 0, shellCheck.stderr || shellCheck.stdout);
+    assert.match(shellCheck.stdout, /spec\$\(touch pwned\)\.md/);
+    assert.equal(fs.existsSync(path.join(repo, "pwned")), false, shellMeta.json.command);
+  }
 
   const startWork = await requestJson(`${baseUrl}/api/handover`, {
     method: "POST",

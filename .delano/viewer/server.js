@@ -686,6 +686,10 @@ function shellSingleQuote(value) {
   return `'${String(value).replace(/'/g, `'\\''`)}'`;
 }
 
+function handoverCommand(agent, prompt) {
+  return `${agentCliName(agent)} ${shellSingleQuote(prompt)}`;
+}
+
 function launchAgentTerminal(agent, prompt) {
   const cliName = agentCliName(agent);
   if (!commandExists(cliName)) {
@@ -789,7 +793,7 @@ async function handleHandover(req, res) {
   }
 
   const prompt = handoverPrompt(intent, source, handoverPath, annotations.length);
-  const command = `${agentCliName(agent)} "${prompt}"`;
+  const command = handoverCommand(agent, prompt);
   // The Codex desktop app registers the codex:// scheme; path must be the
   // absolute workspace root, so this link is only meaningful on this machine.
   const deepLink = agent === 'codex'
