@@ -272,6 +272,52 @@ test("status transition validation rejects unresolved progressed transitions", (
   assert.match(checkResult.stderr, /cannot transition to in-progress with unresolved dependency status: ready/);
 });
 
+test("status transition validation rejects task statuses outside the task schema enum", () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-invalid-task-status-"));
+  const projectDir = path.join(tmpDir, "sample-project");
+  const tasksDir = path.join(projectDir, "tasks");
+  fs.mkdirSync(tasksDir, { recursive: true });
+  fs.writeFileSync(path.join(tasksDir, "task.md"), `---
+id: T-001
+name: Review task
+status: review
+workstream: WS-A
+created: 2026-05-04T00:00:00Z
+updated: 2026-05-04T00:00:00Z
+depends_on: []
+---
+
+# Task: Review task
+`);
+
+  const checkResult = spawnSync(process.execPath, [
+    "scripts/check-status-transitions.mjs",
+    "--projects-root",
+    tmpDir
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  fs.rmSync(tmpDir, { recursive: true, force: true });
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr, /invalid task status "review"; expected planned\|ready\|in-progress\|blocked\|done\|deferred/);
+});
+
+test("status transition validation rejects transition requests outside the task schema enum", () => {
+  const checkResult = spawnSync(process.execPath, [
+    "scripts/check-status-transitions.mjs",
+    "--validate-transition",
+    "review"
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.notEqual(checkResult.status, 0);
+  assert.match(checkResult.stderr, /invalid task status "review"; expected planned\|ready\|in-progress\|blocked\|done\|deferred/);
+});
+
 test("status transition validation rejects task progress under planned project lifecycle", () => {
   const checkResult = spawnSync(process.execPath, [
     "scripts/check-status-transitions.mjs",

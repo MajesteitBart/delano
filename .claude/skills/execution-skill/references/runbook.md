@@ -1,7 +1,8 @@
 # Execution Runbook
 
-1. Pick dependency-safe task:
+1. Pick a dependency-safe `ready` task:
    - `bash .agents/scripts/pm/next.sh`
+   - Do not treat `planned` as selected work until it is explicitly promoted/readiness-reviewed.
 2. Set task status to `in-progress`.
 3. Execute implementation in owned boundaries.
 4. Record updates in `.project/projects/<slug>/updates/...`.

@@ -178,6 +178,7 @@ test("state creation commands render project artifacts from templates", () => {
   assert.match(workstream, /id: WS-B/);
   assert.match(workstream, /# Workstream: WS-B Command Runtime/);
   assert.match(task, /# Task: Wire state command/);
+  assert.match(task, /^status: planned$/m);
   assert.match(task, /workstream: WS-B/);
   assert.match(task, /Created from \.project\/templates\/task\.md/);
   assert.match(update, /timestamp:/);
@@ -260,7 +261,7 @@ test("task lifecycle refuses progressed tasks with missing workstreams", () => {
   assert.notEqual(startResult.status, 0);
   assert.match(startResult.stderr + startResult.stdout, /workstream WS-Z does not exist/);
 
-  fs.writeFileSync(taskPath, fs.readFileSync(taskPath, "utf8").replace(/^status: ready$/m, "status: in-progress"), "utf8");
+  fs.writeFileSync(taskPath, fs.readFileSync(taskPath, "utf8").replace(/^status: planned$/m, "status: in-progress"), "utf8");
   const validateResult = spawnSync(process.execPath, [path.join(process.cwd(), "scripts", "check-status-transitions.mjs"), "--projects-root", path.join(repo, ".project", "projects")], {
     cwd: process.cwd(),
     encoding: "utf8"

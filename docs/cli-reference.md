@@ -184,6 +184,8 @@ delano task add reminder-email-preferences T-001 \
   --json
 ```
 
+New tasks are created with `status: planned`. Promote them to `ready` only after dependency and execution-readiness review; `ready` remains accepted for existing task files.
+
 Use dependencies when one task cannot start before another:
 
 ```bash

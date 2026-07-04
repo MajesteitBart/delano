@@ -6,16 +6,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = resolveRepoRoot(__dirname);
 const contractPath = path.join(repoRoot, ".agents", "schemas", "status-transitions.json");
+const taskSchemaPath = path.join(repoRoot, ".agents", "schemas", "artifacts", "task.schema.json");
 const args = process.argv.slice(2);
 const projectsRoot = path.resolve(repoRoot, valueAfter(args, "--projects-root") || path.join(".project", "projects"));
 const errors = [];
 
 const contract = readJson(contractPath, "status transition contract");
+const taskSchema = readJson(taskSchemaPath, "task artifact schema");
+const taskStatusEnum = readStringEnum(taskSchema, ["properties", "status", "enum"], "task.status schema enum");
 if (contract.schema_version !== 1) {
   errors.push("status-transitions.json schema_version must be 1.");
 }
 const rules = Array.isArray(contract.task_rules) ? contract.task_rules : [];
 for (const requiredRule of [
+  "planned-default-task-state",
   "dependency-safe-ready-selection",
   "blocked-owner-check-back",
   "progressed-task-requires-active-project",
@@ -60,6 +64,7 @@ for (const projectDir of listDirectories(projectsRoot)) {
     const frontmatter = parseFrontmatter(taskFile);
     const id = frontmatter.id || path.basename(taskFile, ".md").split("-").slice(0, 2).join("-");
     const status = frontmatter.status || "";
+    validateTaskStatus(taskFile, status);
     totalTaskCount += 1;
     if (!isClosedTaskStatus(status)) openTaskCount += 1;
     if (isProgressedTaskStatus(status)) progressedTaskCount += 1;
@@ -143,6 +148,10 @@ function parseTransitionArgs(args) {
 }
 
 function validateTransitionRequest(request) {
+  if (request.nextStatus && !taskStatusEnum.has(request.nextStatus)) {
+    errors.push(`invalid task status "${request.nextStatus}"; expected ${formatTaskStatusEnum()}`);
+  }
+
   if (["in-progress", "done"].includes(request.nextStatus)) {
     for (const dependencyStatus of request.dependencyStatuses) {
       if (dependencyStatus !== "done") {
@@ -216,7 +225,37 @@ function isProgressedTaskStatus(status) {
 }
 
 function isClosedTaskStatus(status) {
-  return ["done", "deferred", "canceled"].includes(status);
+  return ["done", "deferred"].includes(status);
+}
+
+function validateTaskStatus(taskFile, status) {
+  if (!status) {
+    errors.push(`${toRepoPath(taskFile)}: missing task status; expected ${formatTaskStatusEnum()}.`);
+    return;
+  }
+  if (!taskStatusEnum.has(status)) {
+    errors.push(`${toRepoPath(taskFile)}: invalid task status "${status}"; expected ${formatTaskStatusEnum()}.`);
+  }
+}
+
+function readStringEnum(schema, pathParts, label) {
+  let node = schema;
+  for (const part of pathParts) {
+    node = node && node[part];
+  }
+  if (!Array.isArray(node) || node.length === 0) {
+    errors.push(`${label} must define at least one allowed value.`);
+    return new Set();
+  }
+  const values = node.filter((value) => typeof value === "string");
+  if (values.length !== node.length) {
+    errors.push(`${label} must contain only string values for task status validation.`);
+  }
+  return new Set(values);
+}
+
+function formatTaskStatusEnum() {
+  return [...taskStatusEnum].join("|") || "<no task statuses configured>";
 }
 
 function isActiveOrClosedSpecStatus(status) {

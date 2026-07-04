@@ -14,7 +14,7 @@ description: Open and run repo-native research intake before mutating canonical 
 ## Non-triggers
 - obvious implementation tasks with accepted scope
 - simple bug fixes or one-file edits
-- work that already has an approved spec, plan, and ready tasks
+- work that already has an approved spec, plan, and executable `ready` tasks
 - personal Obsidian briefing or vault-based planning
 
 ## Required inputs
