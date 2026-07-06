@@ -6,7 +6,7 @@ description: Execute mapped tasks with stream discipline, dependency safety chec
 # execution-skill
 
 ## Trigger context
-- tasks are ready and dependency-safe
+- tasks are `ready` and dependency-safe; `planned` tasks need readiness review before execution
 
 ## Required inputs
 - task_ids

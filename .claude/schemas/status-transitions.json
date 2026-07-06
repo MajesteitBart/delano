@@ -1,8 +1,14 @@
 {
   "schema_version": 1,
   "status": "draft",
-  "purpose": "Defines local validation rules for Delano task status readiness and blocked-state hygiene.",
+  "purpose": "Defines local validation rules for Delano task status planning, readiness, and blocked-state hygiene.",
   "task_rules": [
+    {
+      "id": "planned-default-task-state",
+      "status": "planned",
+      "description": "A planned task is tracked but not yet selected by the ready queue.",
+      "requires": ["new task templates and generators default to planned unless a blocker is explicit"]
+    },
     {
       "id": "dependency-safe-ready-selection",
       "status": "ready",

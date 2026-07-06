@@ -77,7 +77,7 @@ is_closed_plan_status() {
 
 is_closed_task_status() {
   local status="${1:-unknown}"
-  [[ "$status" == "done" || "$status" == "deferred" || "$status" == "canceled" ]]
+  [[ "$status" == "done" || "$status" == "deferred" ]]
 }
 
 if [[ "$open_only" == "true" ]]; then
@@ -101,14 +101,12 @@ for project_dir in .project/projects/*; do
 
   total=0
   open_tasks=0
-  backlog_count=0
+  planned_count=0
   ready_count=0
   in_progress_count=0
-  review_count=0
   done_count=0
   blocked_count=0
   deferred_count=0
-  canceled_count=0
   unknown_count=0
   for task in "$project_dir"/tasks/*.md; do
     [[ -f "$task" ]] || continue
@@ -118,14 +116,12 @@ for project_dir in .project/projects/*; do
       open_tasks=$((open_tasks + 1))
     fi
     case "$status" in
-      backlog) backlog_count=$((backlog_count + 1)) ;;
+      planned) planned_count=$((planned_count + 1)) ;;
       ready) ready_count=$((ready_count + 1)) ;;
       in-progress) in_progress_count=$((in_progress_count + 1)) ;;
-      review) review_count=$((review_count + 1)) ;;
       done) done_count=$((done_count + 1)) ;;
       blocked) blocked_count=$((blocked_count + 1)) ;;
       deferred) deferred_count=$((deferred_count + 1)) ;;
-      canceled) canceled_count=$((canceled_count + 1)) ;;
       *) unknown_count=$((unknown_count + 1)) ;;
     esac
   done
@@ -148,14 +144,12 @@ for project_dir in .project/projects/*; do
     echo "Project: $slug"
     echo "  Spec status: ${spec_status:-unknown}"
     echo "  Plan status: ${plan_status:-unknown}"
-    [[ $backlog_count -gt 0 ]] && echo "  backlog: $backlog_count"
+    [[ $planned_count -gt 0 ]] && echo "  planned: $planned_count"
     [[ $ready_count -gt 0 ]] && echo "  ready: $ready_count"
     [[ $in_progress_count -gt 0 ]] && echo "  in-progress: $in_progress_count"
-    [[ $review_count -gt 0 ]] && echo "  review: $review_count"
     [[ $done_count -gt 0 ]] && echo "  done: $done_count"
     [[ $blocked_count -gt 0 ]] && echo "  blocked: $blocked_count"
     [[ $deferred_count -gt 0 ]] && echo "  deferred: $deferred_count"
-    [[ $canceled_count -gt 0 ]] && echo "  canceled: $canceled_count"
     [[ $unknown_count -gt 0 ]] && echo "  unknown: $unknown_count"
     echo "  total tasks: $total"
   fi

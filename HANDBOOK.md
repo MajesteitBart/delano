@@ -333,7 +333,7 @@ Required sections:
 ```yaml
 id: T-001
 name: <task-title>
-status: ready|in-progress|blocked|done|deferred
+status: planned|ready|in-progress|blocked|done|deferred
 workstream: WS-A
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
@@ -428,8 +428,8 @@ At modes 0 and 1 the spec and plan are optional artifacts. When they exist they 
 
 The v0.2 runtime uses compact status sets that are enforced by schemas and validation:
 
-- `planned` means a spec, plan, or workstream is defined but not actively being executed.
-- `ready` means a task is executable and should not carry unresolved local dependencies.
+- `planned` means a spec, plan, workstream, or task is defined but not actively being executed or selected. New tasks default to `planned`.
+- `ready` means a task has passed local dependency/readiness review and may enter the executable queue.
 - `in-progress` means implementation has started.
 - `blocked` exposes dependency constraints explicitly.
 - `done` and `complete` are terminal success states for delivery plans/tasks and specs respectively.
@@ -462,12 +462,14 @@ optional terminal: `deferred`
 
 #### Task
 
-`ready -> in-progress -> done`  
+`planned -> ready -> in-progress -> done`
 optional branches: `blocked`, `deferred`
 
 ### 7.3 Transition policy
 
-- `[enforced]` No `ready`, `in-progress`, or `done` transition with unmet local dependencies.
+- `[enforced]` `delano validate` rejects task statuses outside `planned|ready|in-progress|blocked|done|deferred`.
+- `[enforced]` No `in-progress` or `done` transition with unmet local dependencies.
+- `[enforced]` Ready-queue selection skips tasks whose local dependencies are not done; imported legacy `ready` graphs remain readable for migration.
 - `[enforced]` No `done` task without checked acceptance criteria and evidence-log proof.
 - `[enforced]` No project `done` with unresolved required tasks.
 - `[enforced]` No progressed task without an existing parent workstream.
@@ -486,10 +488,11 @@ The native `delano project`, `delano workstream`, and `delano task` commands pat
 
 Task lifecycle commands apply scoped parent rollups:
 
+- `delano task add` creates `planned` tasks by default; `ready` remains supported for tasks that have been explicitly reviewed as executable.
 - `delano task start` and `delano task close` promote planned project and workstream lifecycle to active.
 - `delano task close` and `delano task defer` mark an affected workstream `done` when all tasks in that workstream are closed.
 - `delano task close` and `delano task defer` mark the project spec `complete` and plan `done` when all project tasks are closed.
-- `delano task open` reopens closed parent lifecycle to active when reopening a closed task.
+- `delano task open` marks a task `ready` and reopens closed parent lifecycle to active when reopening a closed task.
 - `delano task close` can open dependency-only blocked dependents when all their local dependencies are now done.
 
 These rollups are intentionally scoped and evidence-driven. They do not remove the need to review changed files, rerun validation, and record release evidence before handoff.
@@ -514,6 +517,7 @@ Minimum review semantics (default policy):
 
 | Delano task status | Preferred Linear state |
 |---|---|
+| planned | Backlog or Todo, depending on team policy |
 | ready | Todo |
 | in-progress | In Progress |
 | done | Done |
@@ -1280,14 +1284,14 @@ These playbooks describe responsibilities, not separate people. In a solo-operat
 
 #### Daily cadence
 
-1. pick dependency-safe task from ready queue
+1. promote reviewed `planned` tasks to `ready` when they are executable, then pick dependency-safe work from the ready queue
 2. execute within stream scope
 3. update evidence, status, and probe findings continuously when applicable
 4. run required quality checks before handoff
 
 #### Stage-specific control points
 
-- Start: verify task is truly ready
+- Start: verify the task is not merely `planned`; it is truly ready or explicitly startable
 - During execution: escalate conflicts early
 - Before review: verify acceptance and evidence completeness
 - Before close: verify sync and quality parity
@@ -1448,7 +1452,7 @@ operating_mode: <patch|scoped-change|feature|uncertain-feature|multi-stream>
 ---
 id: T-001
 name: <task-title>
-status: ready
+status: planned
 workstream: WS-A
 created: <ISO8601 UTC>
 updated: <ISO8601 UTC>
@@ -1658,7 +1662,8 @@ For each active epic scope:
 
 #### Step 4: map statuses
 
-- `open` -> `ready` when executable, or `deferred` when not actionable in the current delivery scope
+- `open`/untriaged -> `planned` by default, `ready` only when execution-readiness and local dependencies have been reviewed, or `deferred` when not actionable in the current delivery scope
+- legacy `ready` remains valid; migrate it to `planned` only when the task is not actually executable yet
 - `in-progress` -> `in-progress`
 - `closed` -> `done`
 
