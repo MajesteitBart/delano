@@ -318,6 +318,24 @@ test("status transition validation rejects transition requests outside the task 
   assert.match(checkResult.stderr, /invalid task status "review"; expected planned\|ready\|in-progress\|blocked\|done\|deferred/);
 });
 
+test("status transition validation rejects transition requests missing a task status", () => {
+  for (const args of [
+    ["--validate-transition"],
+    ["--validate-transition", "--dependency-statuses", "done"]
+  ]) {
+    const checkResult = spawnSync(process.execPath, [
+      "scripts/check-status-transitions.mjs",
+      ...args
+    ], {
+      cwd: repoRoot,
+      encoding: "utf8"
+    });
+
+    assert.notEqual(checkResult.status, 0, checkResult.stdout);
+    assert.match(checkResult.stderr, /missing task status for --validate-transition; expected planned\|ready\|in-progress\|blocked\|done\|deferred/);
+  }
+});
+
 test("status transition validation rejects task progress under planned project lifecycle", () => {
   const checkResult = spawnSync(process.execPath, [
     "scripts/check-status-transitions.mjs",

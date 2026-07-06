@@ -148,7 +148,9 @@ function parseTransitionArgs(args) {
 }
 
 function validateTransitionRequest(request) {
-  if (request.nextStatus && !taskStatusEnum.has(request.nextStatus)) {
+  if (!request.nextStatus || request.nextStatus.startsWith("--")) {
+    errors.push(`missing task status for --validate-transition; expected ${formatTaskStatusEnum()}`);
+  } else if (!taskStatusEnum.has(request.nextStatus)) {
     errors.push(`invalid task status "${request.nextStatus}"; expected ${formatTaskStatusEnum()}`);
   }
 
