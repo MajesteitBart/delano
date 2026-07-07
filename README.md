@@ -69,17 +69,18 @@ See [DESIGN.md](DESIGN.md) and the [Delano Brand Book](docs/delano-brandbook.htm
 - Package: `@bvdm/delano`
 - Current package version: `0.2.11`
 - Binary: `delano`
-- Commands: `onboarding`, `install`, `viewer`, `project`, `workstream`, `task`, `update`, `init`, `import-spec-kit`, `research`, `validate`, `status`, `next`
+- Commands: `onboarding`, `install`, `viewer`, `context`, `project`, `workstream`, `task`, `update`, `init`, `import-spec-kit`, `research`, `validate`, `status`, `next`
 - Primary goal: bootstrap a repo safely, expose local delivery state clearly, and keep runtime gates verifiable
 
 ## Recent main changes
 
-The latest main merges moved Delano beyond a thin install wrapper:
+There have been some major new features added to Delano.
 
-- PR #4, `feat/delano-vnext-runtime-upgrade`, merged on 2026-05-04. This added the v0.2 runtime layer: schema-backed `.project` artifact validation, operating-mode and status-transition checks, evidence mapping, strict validation fixtures, privacy-safe logging defaults, package/payload drift checks, dry-run sync inspection, apply-gated repair planning, lease-based multi-agent coordination, worktree health checks, delivery metrics, context audits, skill-output eval fixtures, and compact root/adapter agent instructions.
-- PR #3, `delano-viewer-design-overhaul`, merged on 2026-04-29. This added the packaged read-only Delano viewer under `.delano/viewer`, including the local Node server, static UI, `.project` indexing APIs, project outlines, workstream/task navigation, rendered markdown, context-aware filters, guarded open actions, and visual/browser smoke evidence.
+Since `v0.2.11`, Delano has gained first-class context-pack reading, a redesigned guarded viewer, selected-text annotations, and agent handover flows for both review feedback and work dispatch. The release also tightens validation around imported task graphs, invalid task statuses, and Windows/CRLF edge cases.
 
-The current runtime still treats `HANDBOOK.md` and `.project/` as the source of truth. The new pieces make that model easier to inspect and harder to bypass accidentally.
+Thank you for the inspiration, [Plannotator](https://github.com/backnotprop/plannotator).
+
+Read the full user-facing summary in [docs/release-notes.md](docs/release-notes.md).
 
 ## One-command bootstrap
 

@@ -103,12 +103,14 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
   const warnings = allDocs.filter((doc) => statusTone(doc.status) === "warning")
   const progress = allDocs.filter((doc) => doc.role === "progress")
   const validation = allDocs.filter((doc) => doc.role !== "context")
+  const annotations = index?.annotationSummary?.total ?? 0
 
   return {
     context,
     projects,
     current,
     progress,
+    annotations,
     validation,
     warnings,
     blockers,
@@ -117,6 +119,7 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
       projects: projects.length,
       open: current.length,
       progress: progress.length,
+      annotations,
       validation: validation.length,
       warnings: warnings.length,
       blockers: blockers.length,

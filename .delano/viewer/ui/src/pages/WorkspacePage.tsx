@@ -1,15 +1,17 @@
 import {
   AlertTriangleIcon,
-  CheckCircle2Icon,
   FileTextIcon,
   FolderIcon,
   ListChecksIcon,
-  TrendingUpIcon,
+  MessageSquareTextIcon,
+  RefreshCwIcon,
+  type LucideIcon,
 } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 import { TablePaginationFooter } from "@/components/molecules/TablePaginationFooter"
 import { StatusBadge } from "@/components/atoms/StatusBadge"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -31,9 +33,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { messageFromError, requestJson } from "@/lib/api"
+import { annotationLine } from "@/lib/domain/annotations"
 import { formatDate } from "@/lib/domain/dates"
 import { paginateItems } from "@/lib/domain/pagination"
-import type { DocMeta, ViewerIndex } from "@/lib/domain/types"
+import type { Annotation, DocMeta, ViewerIndex } from "@/lib/domain/types"
 import { type WorkspaceView } from "@/lib/domain/navigation"
 import { getWorkspaceModel, type ProjectStat, type WorkspaceTaskItem } from "@/lib/domain/workspace-model"
 
@@ -53,6 +57,10 @@ const WORKSPACE_COPY: Record<WorkspaceView, { title: string; description: string
   "workspace-progress": {
     title: "Progress",
     description: "Progress logs and update evidence across projects.",
+  },
+  "workspace-annotations": {
+    title: "Annotations",
+    description: "Review comments captured across every indexed project document.",
   },
   "workspace-validation": {
     title: "Validation",
@@ -81,6 +89,29 @@ export function WorkspacePage({
 }) {
   const workspace = getWorkspaceModel(index)
   const copy = WORKSPACE_COPY[view]
+  const [annotations, setAnnotations] = useState<Annotation[]>([])
+  const [annotationsLoading, setAnnotationsLoading] = useState(false)
+  const [annotationsError, setAnnotationsError] = useState("")
+
+  useEffect(() => {
+    if (view !== "workspace-annotations") return
+    let cancelled = false
+    setAnnotationsLoading(true)
+    setAnnotationsError("")
+    requestJson<{ annotations: Annotation[] }>("/api/annotations")
+      .then((payload) => {
+        if (!cancelled) setAnnotations(payload.annotations ?? [])
+      })
+      .catch((error) => {
+        if (!cancelled) setAnnotationsError(messageFromError(error))
+      })
+      .finally(() => {
+        if (!cancelled) setAnnotationsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [view])
 
   return (
     <section className="workspace-page">
@@ -102,6 +133,15 @@ export function WorkspacePage({
       )}
       {view === "workspace-progress" && (
         <DocTable docs={workspace.progress} emptyTitle="No progress logs" onOpenDoc={onOpenDoc} />
+      )}
+      {view === "workspace-annotations" && (
+        <AnnotationTable
+          annotations={annotations}
+          error={annotationsError}
+          index={index}
+          loading={annotationsLoading}
+          onOpenDoc={onOpenDoc}
+        />
       )}
       {view === "workspace-validation" && (
         <DocTable docs={workspace.validation} emptyTitle="No validation documents" onOpenDoc={onOpenDoc} />
@@ -129,6 +169,124 @@ function PageHeader({ title, description }: { title: string; description: string
       <h2>{title}</h2>
       <p>{description}</p>
     </div>
+  )
+}
+
+function annotationTypeVariant(type: string): "default" | "secondary" | "outline" {
+  if (type === "verify") return "default"
+  if (type === "question") return "outline"
+  return "secondary"
+}
+
+function AnnotationTable({
+  annotations,
+  error,
+  index,
+  loading,
+  onOpenDoc,
+}: {
+  annotations: Annotation[]
+  error: string
+  index: ViewerIndex | null
+  loading: boolean
+  onOpenDoc: (path: string) => void
+}) {
+  const [page, setPage] = useState(1)
+  const docs = useMemo(() => {
+    const map = new Map<string, DocMeta>()
+    ;(index?.docs ?? []).forEach((doc) => map.set(doc.path, doc))
+    return map
+  }, [index])
+  const sorted = useMemo(
+    () =>
+      annotations
+        .filter((annotation) => annotation.status !== "deleted")
+        .slice()
+        .sort((a, b) => (
+          String(b.updatedAt ?? b.createdAt ?? "").localeCompare(String(a.updatedAt ?? a.createdAt ?? "")) ||
+          String(a.sourcePath).localeCompare(String(b.sourcePath)) ||
+          Number(a.anchor?.lineStart ?? 0) - Number(b.anchor?.lineStart ?? 0)
+        )),
+    [annotations]
+  )
+  const paginated = paginateItems(sorted, page)
+
+  useEffect(() => {
+    setPage(1)
+  }, [sorted.length])
+
+  if (loading) {
+    return <EmptyPanel icon={RefreshCwIcon} title="Loading annotations" description="Reading viewer review comments." />
+  }
+
+  if (error) {
+    return <EmptyPanel icon={AlertTriangleIcon} title="Annotations unavailable" description={error} />
+  }
+
+  if (!sorted.length) {
+    return <EmptyPanel icon={MessageSquareTextIcon} title="No annotations" description="No viewer comments have been captured yet." />
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Annotation</TableHead>
+              <TableHead>Source</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Updated</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {paginated.items.map((annotation) => {
+              const sourceDoc = docs.get(annotation.sourcePath)
+              const sourceTitle = sourceDoc?.title ?? annotation.repoPath
+              return (
+                <TableRow key={annotation.id}>
+                  <TableCell className="max-w-[420px]">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant={annotationTypeVariant(annotation.type)}>{annotation.type}</Badge>
+                        <span className="font-mono text-xs text-muted-foreground">{annotation.id.slice(0, 8)}</span>
+                      </div>
+                      <p className="line-clamp-2 text-sm leading-5">{annotation.comment}</p>
+                      <blockquote className="line-clamp-2 border-l-2 border-border pl-2 font-mono text-xs text-muted-foreground">
+                        "{annotation.quote || "Global comment"}"
+                      </blockquote>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      className="h-auto max-w-[320px] justify-start px-0 text-left"
+                      variant="link"
+                      onClick={() => onOpenDoc(annotation.sourcePath)}
+                    >
+                      <span className="truncate">{sourceTitle}</span>
+                    </Button>
+                    <div className="mono-path">{annotation.repoPath}</div>
+                    <div className="mt-1 font-mono text-xs text-muted-foreground">{annotationLine(annotation)}</div>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge status={annotation.status || "open"} />
+                  </TableCell>
+                  <TableCell>{formatDate(annotation.updatedAt ?? annotation.createdAt)}</TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </CardContent>
+      <CardFooter>
+        <TablePaginationFooter
+          page={paginated.page}
+          pageCount={paginated.pageCount}
+          total={paginated.total}
+          onPageChange={setPage}
+        />
+      </CardFooter>
+    </Card>
   )
 }
 
@@ -343,7 +501,7 @@ function EmptyPanel({
   title,
 }: {
   description: string
-  icon: typeof FolderIcon | typeof AlertTriangleIcon | typeof CheckCircle2Icon | typeof FileTextIcon | typeof ListChecksIcon | typeof TrendingUpIcon
+  icon: LucideIcon
   title: string
 }) {
   return (

@@ -326,6 +326,7 @@ function loadContextPack() {
 function loadIndex() {
   const docs = walkMarkdown(projectRoot).map((file) => docMeta(file));
   const contextPack = loadContextPack();
+  const annotationSummaryResult = annotationSummary();
   const projectSlugs = fs.existsSync(path.join(projectRoot, 'projects'))
     ? fs.readdirSync(path.join(projectRoot, 'projects'), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name).sort()
     : [];
@@ -371,7 +372,7 @@ function loadIndex() {
     return String(b.created).localeCompare(String(a.created));
   });
   const projects = [...fixed, ...projectEntries];
-  return { repo: path.basename(repoRoot), generatedAt: new Date().toISOString(), contextPack, projects, docs };
+  return { repo: path.basename(repoRoot), generatedAt: new Date().toISOString(), contextPack, annotationSummary: annotationSummaryResult, projects, docs };
 }
 
 function sendJson(res, data) {
@@ -575,6 +576,54 @@ function sortedVisibleAnnotations(annotations) {
     Number(a.anchor?.lineStart || 0) - Number(b.anchor?.lineStart || 0) ||
     String(a.createdAt || '').localeCompare(String(b.createdAt || ''))
   ));
+}
+
+function annotationSummary() {
+  try {
+    const annotations = sortedVisibleAnnotations(readAnnotationStore().annotations)
+      .filter((annotation) => annotation.status !== 'deleted');
+    const bySource = new Map();
+    let updatedAt = null;
+
+    for (const annotation of annotations) {
+      const sourcePath = annotation.sourcePath;
+      const current = bySource.get(sourcePath) || {
+        sourcePath,
+        repoPath: annotation.repoPath || `.project/${sourcePath}`,
+        count: 0,
+        updatedAt: null,
+      };
+      current.count += 1;
+      if (annotation.updatedAt && (!current.updatedAt || annotation.updatedAt > current.updatedAt)) {
+        current.updatedAt = annotation.updatedAt;
+      }
+      if (annotation.updatedAt && (!updatedAt || annotation.updatedAt > updatedAt)) {
+        updatedAt = annotation.updatedAt;
+      }
+      bySource.set(sourcePath, current);
+    }
+
+    return {
+      storePath: '.project/viewer/annotations.json',
+      total: annotations.length,
+      open: annotations.filter((annotation) => !['closed', 'done', 'resolved'].includes(String(annotation.status || '').toLowerCase())).length,
+      updatedAt,
+      bySource: [...bySource.values()].sort((a, b) => (
+        String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')) ||
+        String(a.sourcePath).localeCompare(String(b.sourcePath))
+      )),
+      warnings: [],
+    };
+  } catch (error) {
+    return {
+      storePath: '.project/viewer/annotations.json',
+      total: 0,
+      open: 0,
+      updatedAt: null,
+      bySource: [],
+      warnings: [error.message],
+    };
+  }
 }
 
 function annotationSectionLines(selected) {

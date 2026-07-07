@@ -6,6 +6,7 @@ export type WorkspaceView =
   | "workspace-projects"
   | "workspace-current"
   | "workspace-progress"
+  | "workspace-annotations"
   | "workspace-validation"
   | "workspace-warnings"
   | "workspace-blockers"
@@ -20,12 +21,13 @@ export type ViewerRoute =
 export const WORKSPACE_NAV: Array<{
   view: WorkspaceView
   label: string
-  countKey: "context" | "projects" | "open" | "progress" | "validation" | "warnings" | "blockers"
+  countKey: "context" | "projects" | "open" | "progress" | "annotations" | "validation" | "warnings" | "blockers"
 }> = [
   { view: "workspace-context", label: "Context pack", countKey: "context" },
   { view: "workspace-projects", label: "Projects", countKey: "projects" },
   { view: "workspace-current", label: "Open work", countKey: "open" },
   { view: "workspace-progress", label: "Progress", countKey: "progress" },
+  { view: "workspace-annotations", label: "Annotations", countKey: "annotations" },
   { view: "workspace-validation", label: "Validation", countKey: "validation" },
   { view: "workspace-warnings", label: "Warnings", countKey: "warnings" },
   { view: "workspace-blockers", label: "Blockers", countKey: "blockers" },

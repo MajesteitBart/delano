@@ -120,6 +120,7 @@ assert.deepEqual(
   workspaceModel.sidebarCounts({
     repo: "demo",
     generatedAt: "2026-06-30T00:00:00Z",
+    annotationSummary: { total: 2, open: 2, storePath: ".project/viewer/annotations.json" },
     contextPack: { files: [{ path: "context/a.md", title: "A" }] },
     projects: [{ slug: "demo", title: "Demo", outline: { spec: "a.md" }, docs: ["a.md", "b.md", "c.md"] }],
     docs: [
@@ -134,6 +135,7 @@ assert.deepEqual(
     projects: 1,
     open: 2,
     progress: 1,
+    annotations: 2,
     validation: 3,
     warnings: 1,
     blockers: 1,

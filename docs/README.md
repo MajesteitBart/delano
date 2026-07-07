@@ -11,7 +11,8 @@ Use these in order:
 3. [`cli-reference.md`](cli-reference.md) - command reference and lifecycle examples.
 4. [`viewer-guide.md`](viewer-guide.md) - guarded viewer setup and usage.
 5. [`agent-operator-guide.md`](agent-operator-guide.md) - how to instruct coding agents to work safely with Delano.
-6. [`spec-kit-and-research.md`](spec-kit-and-research.md) - Spec Kit-style import, research intake, and fold-forward rules.
+6. [`release-notes.md`](release-notes.md) - readable summary of the major changes since `v0.2.11`.
+7. [`spec-kit-and-research.md`](spec-kit-and-research.md) - Spec Kit-style import, research intake, and fold-forward rules.
 
 ## Do Not Miss
 
@@ -30,6 +31,7 @@ Use these in order:
 - [`cli-reference.md`](cli-reference.md): `delano` commands, options, examples, output expectations, and lifecycle rollups.
 - [`viewer-guide.md`](viewer-guide.md): launch, target selection, port behavior, guarded annotation/handover boundaries, and workflow use.
 - [`agent-operator-guide.md`](agent-operator-guide.md): prompts and guardrails for using agents with Delano.
+- [`release-notes.md`](release-notes.md): user-facing summary of context reading, viewer annotations, agent handover, dispatch, and validation changes since `v0.2.11`.
 - [`spec-kit-and-research.md`](spec-kit-and-research.md): what Spec Kit-style import means, what it creates, and how research skill work should fold forward.
 - [`research-intake.md`](research-intake.md): detailed research file roles and lifecycle.
 - [`spec-kit/import-contract.md`](spec-kit/import-contract.md): importer contract and accepted first artifact shape.

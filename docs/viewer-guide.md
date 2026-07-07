@@ -53,6 +53,8 @@ It derives:
 
 Project folders show a project-oriented outline for specs, plans, decisions, updates, workstreams, and tasks. Selecting a workstream narrows the task view to that workstream.
 
+The workspace sidebar also includes an **Annotations** page. It lists viewer comments across all projects, links each row back to its source document, and stays outside the selected-project navigation.
+
 ## Guarded Write Boundary
 
 The viewer writes only constrained review artifacts by default. Selected-text annotations are stored in `.project/viewer/annotations.json` and reference `.project` markdown by repo-relative path.

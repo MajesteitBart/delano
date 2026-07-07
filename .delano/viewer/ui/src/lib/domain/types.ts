@@ -31,6 +31,19 @@ export type ProjectIndex = {
 export type ViewerIndex = {
   repo: string
   generatedAt: string
+  annotationSummary?: {
+    storePath: string
+    total: number
+    open: number
+    updatedAt?: string | null
+    warnings?: string[]
+    bySource?: Array<{
+      sourcePath: string
+      repoPath: string
+      count: number
+      updatedAt?: string | null
+    }>
+  }
   contextPack?: {
     files?: Array<{ path: string; title: string; profile?: string; required?: boolean }>
   }
@@ -59,6 +72,12 @@ export type Annotation = {
   comment: string
   labels: string[]
   status: string
+  author?: {
+    name?: string
+  }
+  createdAt?: string
+  updatedAt?: string
+  baseline?: Baseline | null
   anchor?: {
     blockId?: string | null
     lineStart?: number | null

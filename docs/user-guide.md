@@ -234,6 +234,7 @@ Use the focused guides when you need more than the quick path:
 - [`cli-reference.md`](cli-reference.md) for the full CLI surface, lifecycle commands, JSON output, task close behavior, and validation commands.
 - [`viewer-guide.md`](viewer-guide.md) for starting and using the guarded local UI.
 - [`agent-operator-guide.md`](agent-operator-guide.md) for instructing coding agents, assigning work, and preserving evidence discipline.
+- [`release-notes.md`](release-notes.md) for a readable summary of the major context, viewer, handover, dispatch, and validation changes since `v0.2.11`.
 - [`spec-kit-and-research.md`](spec-kit-and-research.md) for Spec Kit-style import, the research skill, and fold-forward rules.
 - [`research-intake.md`](research-intake.md) for the detailed research file lifecycle.
 - [`spec-kit/import-contract.md`](spec-kit/import-contract.md) for the accepted first import shape and mapping rules.
@@ -282,6 +283,7 @@ Delano stays intentionally narrow:
 - `docs/cli-reference.md` for the command reference
 - `docs/viewer-guide.md` for the guarded viewer workflow
 - `docs/agent-operator-guide.md` for instructing agents
+- `docs/release-notes.md` for the current release summary
 - `docs/spec-kit-and-research.md` for import and research workflows
 - `README.md` for the short overview
 - `HANDBOOK.md` for the full operating model

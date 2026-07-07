@@ -276,6 +276,17 @@ test("viewer annotation API validates paths and supports CRUD/export", async (t)
   assert.equal(listed.status, 200);
   assert.equal(listed.json.annotations.length, 1);
 
+  const allAnnotations = await requestJson(`${baseUrl}/api/annotations`);
+  assert.equal(allAnnotations.status, 200);
+  assert.equal(allAnnotations.json.annotations.length, 1);
+  assert.equal(allAnnotations.json.sourcePath, null);
+
+  const index = await requestJson(`${baseUrl}/api/index`);
+  assert.equal(index.status, 200);
+  assert.equal(index.json.annotationSummary.total, 1);
+  assert.equal(index.json.annotationSummary.open, 1);
+  assert.equal(index.json.annotationSummary.bySource[0].sourcePath, "projects/demo/spec.md");
+
   const doc = await requestJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
   assert.equal(doc.status, 200);
   assert.equal(doc.json.path, "projects/demo/spec.md");
