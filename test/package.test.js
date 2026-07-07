@@ -34,14 +34,14 @@ test("npm pack excludes repo root Git config files from the payload", () => {
   assert.ok(!packedPaths.has("assets/payload/__dot_gitignore__"));
   assert.ok(!packedPaths.has("assets/payload/.gitattributes"));
   assert.ok(packedPaths.has(".delano/viewer/server.js"));
-  assert.ok(packedPaths.has(".delano/viewer/public/app.js"));
-  assert.ok(packedPaths.has(".delano/viewer/public/app.jsx"));
+  assert.ok(packedPaths.has(".delano/viewer/public/assets/index.css"));
+  assert.ok(packedPaths.has(".delano/viewer/public/assets/viewer.js"));
   assert.ok(packedPaths.has(".delano/viewer/public/delano-logo.svg"));
   assert.ok(packedPaths.has(".delano/viewer/public/favicon.png"));
-  assert.ok(packedPaths.has(".delano/viewer/public/styles.css"));
   assert.ok(packedPaths.has(".delano/viewer/public/explorer.svg"));
   assert.ok(packedPaths.has("assets/payload/.delano/viewer/server.js"));
-  assert.ok(packedPaths.has("assets/payload/.delano/viewer/public/app.jsx"));
+  assert.ok(packedPaths.has("assets/payload/.delano/viewer/public/assets/index.css"));
+  assert.ok(packedPaths.has("assets/payload/.delano/viewer/public/assets/viewer.js"));
   assert.ok(packedPaths.has("assets/payload/.delano/viewer/public/favicon.png"));
   assert.ok(packedPaths.has("assets/payload/.delano/viewer/public/vscode.svg"));
 

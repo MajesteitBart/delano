@@ -44,7 +44,11 @@ function getViewerHelp() {
     "",
     "Environment:",
     "  DELANO_VIEWER_PORT or PORT sets the starting port, defaulting to 3977.",
-    "  If that port is busy, the viewer starts on the next available port."
+    "  If that port is busy, the viewer starts on the next available port.",
+    "",
+    "Review mode:",
+    "  Annotations are stored in .project/viewer/annotations.json.",
+    "  Canonical markdown writes require preview/apply with a current file hash."
   ].join("\n");
 }
 

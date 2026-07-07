@@ -29,7 +29,7 @@ The product posture is a local dossier: warm paper, ledger ink, visible source p
 | `HANDBOOK.md` | Canonical operating model |
 | `.project/` | File-backed delivery contracts: specs, plans, workstreams, tasks, decisions, updates, evidence |
 | `.agents/` | Shared runtime: scripts, rules, hooks, skills, adapters |
-| `.delano/` | Read-only local viewer for inspecting `.project` state |
+| `.delano/` | Guarded local viewer for inspecting, annotating, and reviewing `.project` state |
 | `docs/delano-brandbook.html` | Brand book for the Delano visual language |
 
 ## Quick start
@@ -40,7 +40,7 @@ npx -y @bvdm/delano@latest viewer
 npx -y @bvdm/delano@latest validate
 ```
 
-The viewer opens a localhost-only read surface for `.project` contracts. Validation checks that the runtime, contracts, package payload, and local gates still line up.
+The viewer opens a localhost-only guarded review surface for `.project` contracts. Validation checks that the runtime, contracts, package payload, and local gates still line up.
 
 ## What Delano is
 
@@ -50,7 +50,7 @@ The viewer opens a localhost-only read surface for `.project` contracts. Validat
 - `.claude/` is a compatibility mirror of `.agents/`, not a second runtime.
 - `.delano/` is an optional UI layer.
 
-The npm package is intentionally thin. It distributes the approved runtime payload, includes the read-only viewer UI, and wraps the existing shell-based PM scripts. It does not replace the handbook, the file contracts, or the underlying bash/Python execution layer.
+The npm package is intentionally thin. It distributes the approved runtime payload, includes the guarded viewer UI, and wraps the existing shell-based PM scripts. It does not replace the handbook, the file contracts, or the underlying bash/Python execution layer.
 
 ## Design language
 
@@ -131,7 +131,7 @@ delano research <project-slug> <research-slug> [--title <title>] [--question <qu
 Command intent:
 
 - `delano install` bootstraps the Delano runtime into the current repository
-- `delano viewer` launches the read-only local UI for `.project` contracts
+- `delano viewer` launches the guarded local review UI for `.project` contracts
 - `delano validate` checks whether the runtime and required assets are in place
 - `delano init` creates a delivery project inside a repository that already has Delano installed
 - `delano import-spec-kit` creates a planned Delano project from the first supported Spec Kit-style markdown fixture and then runs validation
@@ -225,11 +225,11 @@ bash .agents/scripts/pm/research.sh <project-slug> <research-slug> --title "Rese
 
 ## Local viewer
 
-The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files read-only. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port.
+The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files in guarded review mode. It can store annotations in `.project/viewer/annotations.json`, hand annotation bundles over to a coding agent (Codex or Claude Code) through generated handover files, and write canonical markdown only through explicit preview/apply checks. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port.
 
 It indexes `.project/context`, `.project/templates`, and `.project/projects`, then derives artifact roles, statuses, project outlines, task/workstream relationships, snippets, and rendered markdown for local inspection.
 
-The viewer follows the same design language as the brand book: source paths stay visible, status is shown with labels and dots, and dense project state is separated with hairlines rather than decorative cards.
+The viewer client is built from `.delano/viewer/ui` with the shadcn CLI and real shadcn/Radix primitives. When changing viewer UI, run `npm --prefix .delano/viewer/ui run build` before `npm run build:assets`.
 
 ## Required dependencies
 
@@ -255,7 +255,7 @@ The CLI does not bundle its own shell or Python runtime.
 - it does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`
 
 The base install payload intentionally excludes top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, and `PI.md`. Those remain opt-in only.
-The base install payload includes `.delano/`, including the read-only viewer UI.
+The base install payload includes `.delano/`, including the guarded viewer UI.
 The base install payload also includes `.codex/hooks.json`, a Codex `SessionStart` hook config that injects compact open-project context when Codex hooks are enabled. If a target repo already has `.codex/hooks.json`, `delano install` merges the Delano hook into the existing JSON instead of replacing it. Invalid or non-file hook configs are skipped without blocking the rest of the install.
 
 Codex hook activation is intentionally manual:
@@ -313,7 +313,7 @@ When working in this repository:
 - use the Delano status model and evidence discipline from `HANDBOOK.md`
 - keep sync and quality gates aligned with the handbook
 - use `delano init <slug> "<Project Name>" [owner] [lead]` to scaffold a new delivery project when needed
-- use `delano viewer` to inspect `.project/` through the read-only local UI
+- use `delano viewer` to inspect and annotate `.project/` through the guarded local UI
 ```
 
 ## Runtime boundaries
@@ -343,6 +343,7 @@ The v0.2 runtime upgrade expanded `delano validate` and `bash .agents/scripts/pm
 For release readiness, run:
 
 ```bash
+npm --prefix .delano/viewer/ui run build
 npm run build:assets
 npm run check:package-manifest
 bash .agents/scripts/pm/validate.sh
@@ -354,6 +355,7 @@ npm test
 From this repository:
 
 ```bash
+npm --prefix .delano/viewer/ui run build
 npm run build:assets
 node bin/delano.js --help
 node bin/delano.js --yes --target ./tmp/cli-install-smoke
@@ -381,7 +383,7 @@ If npm publish fails after the package checks pass, verify that the npm trusted 
 - `docs/README.md` for the user documentation index
 - `docs/user-guide.md` for the practical user flow
 - `docs/cli-reference.md` for the CLI command reference
-- `docs/viewer-guide.md` for the read-only viewer workflow
+- `docs/viewer-guide.md` for the guarded viewer workflow
 - `docs/agent-operator-guide.md` for instructing agents
 - `docs/spec-kit-and-research.md` for Spec Kit-style import and research intake
 - `HANDBOOK.md` for the full operating model

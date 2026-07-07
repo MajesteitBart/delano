@@ -9,9 +9,9 @@ Delano has four important layers:
 - npm package: distribution and command surface
 - `.agents/`: shared runtime
 - `.project/`: delivery truth inside your repo
-- `.delano/`: optional read-only UI layer
+- `.delano/`: optional guarded viewer UI layer
 
-The CLI is intentionally thin. It installs the approved runtime payload, launches the read-only viewer, and wraps the existing PM scripts. It does not replace the handbook or the file-contract model.
+The CLI is intentionally thin. It installs the approved runtime payload, launches the guarded viewer, and wraps the existing PM scripts. It does not replace the handbook or the file-contract model.
 
 ## Primary install flow
 
@@ -61,7 +61,7 @@ delano init <slug> "<Project Name>" [owner] [lead]
 Important distinction:
 
 - `delano install` installs the Delano runtime into the repository
-- `delano viewer` launches the packaged read-only UI for `.project` contracts
+- `delano viewer` launches the packaged guarded review UI for `.project` contracts
 - `delano context` lists and reads `.project/context` through a safe read-only context-pack API
 - `delano validate` verifies that the runtime is correctly installed
 - `delano init` creates a delivery project after the runtime is already present
@@ -207,7 +207,7 @@ bash .agents/scripts/pm/import-spec-kit.sh <slug> <source-md> [--name <project-n
 bash .agents/scripts/pm/research.sh <project-slug> <research-slug> [--title <title>] [--question <question>] [--json]
 ```
 
-`delano viewer` serves the selected repository's `.project` files read-only on `http://127.0.0.1:3977` by default. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.
+`delano viewer` serves the selected repository's `.project` files on `http://127.0.0.1:3977` by default. It can store selected-text annotations in `.project/viewer/annotations.json`, hand selected annotations over to a coding agent (Codex or Claude Code) via generated handover files, and apply markdown changes only through explicit preview/apply checks. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.
 
 `delano context` is the agent-friendly way to inspect `.project/context` before implementation work:
 
@@ -232,7 +232,7 @@ For release review of the interop work itself, use [`spec-kit-interop-release-cl
 Use the focused guides when you need more than the quick path:
 
 - [`cli-reference.md`](cli-reference.md) for the full CLI surface, lifecycle commands, JSON output, task close behavior, and validation commands.
-- [`viewer-guide.md`](viewer-guide.md) for starting and using the read-only local UI.
+- [`viewer-guide.md`](viewer-guide.md) for starting and using the guarded local UI.
 - [`agent-operator-guide.md`](agent-operator-guide.md) for instructing coding agents, assigning work, and preserving evidence discipline.
 - [`spec-kit-and-research.md`](spec-kit-and-research.md) for Spec Kit-style import, the research skill, and fold-forward rules.
 - [`research-intake.md`](research-intake.md) for the detailed research file lifecycle.
@@ -280,7 +280,7 @@ Delano stays intentionally narrow:
 
 - `docs/README.md` for the user documentation index
 - `docs/cli-reference.md` for the command reference
-- `docs/viewer-guide.md` for the read-only UI workflow
+- `docs/viewer-guide.md` for the guarded viewer workflow
 - `docs/agent-operator-guide.md` for instructing agents
 - `docs/spec-kit-and-research.md` for import and research workflows
 - `README.md` for the short overview

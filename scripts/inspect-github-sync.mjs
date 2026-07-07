@@ -94,11 +94,34 @@ function normalizeGitHubRepo(value) {
 }
 
 function readGitRemote(root) {
-  const configPath = path.join(root, ".git", "config");
-  if (!existsSync(configPath)) return "";
+  const configPath = resolveGitConfigPath(root);
+  if (!configPath || !existsSync(configPath)) return "";
   const text = readFileSync(configPath, "utf8");
   const match = text.match(/\[remote "origin"\][\s\S]*?url = (.+)/);
   return match ? match[1].trim() : "";
+}
+
+function resolveGitConfigPath(root) {
+  const gitEntry = path.join(root, ".git");
+  if (!existsSync(gitEntry)) return null;
+  const direct = path.join(gitEntry, "config");
+  if (existsSync(direct)) return direct;
+  // Linked worktrees keep `.git` as a pointer file; the shared config lives in
+  // the common git dir referenced through gitdir + commondir.
+  let gitdir;
+  try {
+    gitdir = readFileSync(gitEntry, "utf8").match(/^gitdir:\s*(.+)\s*$/m)?.[1];
+  } catch {
+    return null;
+  }
+  if (!gitdir) return null;
+  const resolvedGitDir = path.resolve(root, gitdir);
+  const commonDirFile = path.join(resolvedGitDir, "commondir");
+  if (existsSync(commonDirFile)) {
+    const commonDir = readFileSync(commonDirFile, "utf8").trim();
+    return path.join(path.resolve(resolvedGitDir, commonDir), "config");
+  }
+  return path.join(resolvedGitDir, "config");
 }
 
 function resolveRepoRoot(startDir) {

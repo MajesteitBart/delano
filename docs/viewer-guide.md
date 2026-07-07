@@ -1,8 +1,8 @@
 # Delano Viewer Guide
 
-The Delano viewer is a local, read-only UI for inspecting `.project` delivery contracts.
+The Delano viewer is a local, guarded review UI for inspecting and annotating `.project` delivery contracts.
 
-It helps people and agents understand current delivery state without editing files. It is not a replacement for `.project`, `HANDBOOK.md`, or validation.
+It helps people and agents understand current delivery state, attach review feedback to exact markdown selections, and hand annotation bundles over to a coding agent such as Codex or Claude Code. It is not a replacement for `.project`, `HANDBOOK.md`, or validation.
 
 ## Start The Viewer
 
@@ -53,11 +53,50 @@ It derives:
 
 Project folders show a project-oriented outline for specs, plans, decisions, updates, workstreams, and tasks. Selecting a workstream narrows the task view to that workstream.
 
-## Read-Only Boundary
+## Guarded Write Boundary
 
-The viewer does not write delivery state.
+The viewer writes only constrained review artifacts by default. Selected-text annotations are stored in `.project/viewer/annotations.json` and reference `.project` markdown by repo-relative path.
 
-It may expose convenience actions to open a selected markdown file or folder locally, but those actions are guarded to `.project` markdown files. Edit the files with your normal editor or through the Delano CLI, then refresh the viewer.
+Canonical markdown writes are separate from annotations and handover. A file apply request must target a known `.project` markdown file, include the current file hash, pass path containment checks, preview a diff, and set `confirm: true`.
+
+The viewer may expose convenience actions to open a selected markdown file or folder locally, but those actions are guarded to `.project` markdown files.
+
+## Annotations and Agent Handover
+
+In a document view:
+
+- select text to open the annotation popover;
+- add a comment, question, verify request, or a quick review label;
+- click an existing highlight to reopen its popover and edit or delete the annotation;
+- use the review panel to select annotations and hand the bundle over to an agent.
+
+The annotation popover is sticky: it closes only through Save, the close button, or Escape - clicking elsewhere in the document never discards unsaved feedback.
+
+Handover is the primary review output. The **Hand over** button posts to `/api/handover`, which writes a handover file under `.project/viewer/handovers/` containing the selected annotations plus agent instructions, and then either:
+
+- opens the Codex app through its `codex://new` deep link with the handover prompt and the repo as workspace (default for Codex),
+- opens the chosen agent (`codex` or `claude`) in a new terminal at the repo root with a prompt that references the handover file, or
+- copies the equivalent one-line command to the clipboard so it can be pasted into any terminal.
+
+The receiving agent works in the repository under its own permissions and safety model; the viewer itself never writes canonical markdown through handover. The deep link needs the Codex desktop app installed; the terminal launch needs the Codex CLI (`codex login`) or Claude Code (`claude`) on `PATH`. When neither is available, use **Copy command** instead.
+
+Annotation bundles can still be exported as markdown or JSON from the same menu for manual workflows.
+
+## Work Dispatch Handover
+
+Tasks and workstreams also support dispatch-style handover that is about the work itself rather than annotation feedback. A **Hand over** button on task and workstream documents (and a per-row agent button on the Tasks and Workstreams pages) offers two intents:
+
+- **Start the work**: hands the agent a prompt that references the contract file and tells it to read `AGENTS.md` plus the owning spec/plan, implement the acceptance criteria, record evidence, and update lifecycle state with the delano CLI.
+- **Review delivered work**: tells the agent to verify each acceptance criterion and the evidence log against the actual implementation and record findings. When the document has captured annotations, they are written to a handover file and included as reviewer feedback.
+
+Both intents use the same `/api/handover` endpoint (`intent: "start" | "review"`) and the same delivery paths: `codex://new` deep link, terminal launch, or copy command. Start/review handovers reference the contract directly and only write a handover file when there is annotation feedback to carry along.
+
+The viewer client is built from `.delano/viewer/ui` with the shadcn CLI and real shadcn/Radix primitives for annotation controls and markers. When changing the viewer UI in this repository, run:
+
+```bash
+npm --prefix .delano/viewer/ui run build
+npm run build:assets
+```
 
 ## When To Use It
 
@@ -66,7 +105,7 @@ Use the viewer:
 - after install, to confirm `.project` is visible;
 - before assigning work, to scan open projects and blocked tasks;
 - during planning, to review spec, plan, workstreams, and tasks together;
-- during review, to inspect evidence logs and updates;
+- during review, to annotate contract text and hand scoped feedback over to an agent;
 - before closeout, to check whether the project story is understandable from files alone.
 
 Do not use the viewer as proof that validation passed. Always run:
@@ -87,10 +126,10 @@ Then open the task file, inspect its dependencies and evidence expectations, and
 
 ## Agent Usage
 
-Agents can use the viewer as a reading aid, but they should still inspect files directly before editing. A good instruction is:
+Agents can use the viewer as a reading and review aid, but they should still inspect files directly before editing. A good instruction is:
 
 ```text
-Use `delano status --open --brief` and the viewer to understand the project. Before editing, read the relevant spec, plan, workstream, and task files. Keep `.project` as the source of truth and run `delano validate` before handoff.
+Use `delano status --open --brief` and the viewer to understand the project. Run `delano context read --profile implementation`, then consume the review handover file under `.project/viewer/handovers/` as scoped feedback. Before editing, read the relevant spec, plan, workstream, and task files. Keep `.project` as the source of truth and run `delano validate` before handoff.
 ```
 
 If an agent changes project contracts while the viewer is open, refresh the browser after the change.
