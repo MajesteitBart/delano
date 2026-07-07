@@ -5,7 +5,7 @@ project: delano-viewer-annotations-agent-chat
 owner: product
 status: active
 created: 2026-06-30T18:12:52Z
-updated: 2026-06-30T18:12:52Z
+updated: 2026-07-06T11:15:06Z
 loop_type: visual-refactor
 validation: npm --prefix .delano/viewer/ui run build; npm run build:assets; npm run check:package-manifest; npm test; node bin/delano.js validate -- --release
 ---
@@ -60,12 +60,12 @@ The original architectural catch still matters: shadcn/ui is not a script-tag de
           markdownBlocks.ts
         domain/
           status.ts
-          project-model.ts
           workspace-model.ts
           navigation.ts
           dates.ts
           pagination.ts
           clipboard.ts
+          handover.ts
         utils.ts
       components/
         ui/
@@ -80,6 +80,7 @@ The original architectural catch still matters: shadcn/ui is not a script-tag de
           MetadataField.tsx
           SectionHeader.tsx
           PaginationControls.tsx
+          HandoverMenu.tsx
           NavItem.tsx
           ProjectSelect.tsx
           SearchBox.tsx
@@ -88,7 +89,6 @@ The original architectural catch still matters: shadcn/ui is not a script-tag de
           Sidebar.tsx
           Topbar.tsx
           AnnotationDrawer.tsx
-          ChatPanel.tsx
           MarkdownArticle.tsx
           DocumentMetaPanel.tsx
           TaskNavigationPanel.tsx
@@ -130,7 +130,7 @@ The original architectural catch still matters: shadcn/ui is not a script-tag de
 | Tables | `WorkspaceTable`, `TaskTable` | shadcn `Table` |
 | Markdown body | `MarkdownArticle` | local component first, possible `react-markdown` later |
 | Annotation list | `AnnotationDrawer` | shadcn `Card`, `Checkbox`, `Marker`, `Textarea` |
-| Agent chat | `ChatPanel` | shadcn `MessageScroller`, `Message`, `Bubble`, `Attachment`, `InputGroup` |
+| Agent handover | `HandoverMenu`, row action menus | shadcn `DropdownMenu`, `Button`, `Tooltip`, `CopyButton` |
 
 ## Token Strategy
 
@@ -150,7 +150,7 @@ Map that language through shadcn semantic variables and variants. Do not restyle
 
 ### Loop 1: Domain Extraction
 
-- Move status, date, pagination, navigation, copy, workspace, and project-model helpers out of `App.tsx`.
+- Move status, date, pagination, navigation, copy, and workspace helpers out of `App.tsx`.
 - Add focused tests for pure helpers.
 - Keep rendered UI behavior unchanged.
 - Validation target: helper tests plus viewer server tests pass.
@@ -165,7 +165,7 @@ Map that language through shadcn semantic variables and variants. Do not restyle
 
 ### Loop 3: Component Split
 
-- Move `Sidebar`, `Topbar`, `AnnotationDrawer`, `ChatPanel`, `MetadataCard`, nav rows, and document layout into components.
+- Move `Sidebar`, `Topbar`, `AnnotationDrawer`, `HandoverMenu`, `MetadataCard`, nav rows, and document layout into components.
 - Keep shadcn-generated files isolated in `components/ui`.
 - Add Delano-specific wrappers only where semantics justify them.
 - Validation target: TypeScript build and browser smoke.
@@ -184,7 +184,7 @@ Map that language through shadcn semantic variables and variants. Do not restyle
 
 - Run local viewer at a fixed URL.
 - Capture a known-good before screenshot and a post-change screenshot for desktop and tablet widths.
-- Verify protected interactions before visual review: select text, create annotation, drawer row appears, highlight appears, send selected annotation through chat, delete the temporary annotation.
+- Verify protected interactions before visual review: select text, create annotation, drawer row appears, highlight appears, hand selected annotations to an agent or copy the command, delete the temporary annotation.
 - Ask for two prompt-based visual reviews:
   - `claude -p "<prompt>"`
   - `pi -p "<prompt>"`
@@ -200,7 +200,7 @@ Focus on visual and interaction quality:
 - content width and tablet readability;
 - whether the shadcn/Radix primitives look native rather than imitation;
 - hierarchy, density, spacing, and sidebar discoverability;
-- annotation drawer and chat usability;
+- annotation drawer and handover-menu usability;
 - regressions against a quiet Delano/Keendoc-style local review tool.
 
 Do not propose a new product direction. Return concise issues, severity, and concrete fixes.
@@ -212,7 +212,6 @@ Prompt feedback from `claude -p` and `pi -p` on 2026-06-30 agreed that the loop 
 
 | Finding | Severity | Loop Impact |
 | --- | --- | --- |
-| `.shimmer` is referenced during chat streaming but no app-level `.shimmer` style exists. | high | Fix or replace before visual polish; otherwise streaming chat looks unfinished. |
 | Annotation mark rendering uses first-match HTML string replacement and can mis-highlight duplicate, formatted, special-character, or cross-block quotes. | high | Add fixtures before Loop 2 extraction so broken behavior is not encoded as the baseline. |
 | Selection popover positioning only clamps bottom/right and can drift off-screen near tablet edges. | medium | Include edge-selection browser checks before changing annotation UI. |
 | Annotation drawer and chat can create nested vertical scroll regions on tablet. | medium | Decide the scroll owner during component split and tablet review. |

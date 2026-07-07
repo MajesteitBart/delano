@@ -17,7 +17,7 @@ export function extractToc(markdown: string): TocItem[] {
       return
     }
     if (inCode) return
-    const match = line.match(/^(#{1,3})\s+(.+)$/)
+    const match = line.match(/^(#{1,6})\s+(.+)$/)
     if (!match) return
     items.push({
       level: match[1].length,

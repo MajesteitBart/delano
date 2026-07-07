@@ -1,4 +1,5 @@
 import { requestJson } from "@/lib/api"
+import { copyText } from "@/lib/domain/clipboard"
 
 export type HandoverAgent = "codex" | "claude"
 export type HandoverIntent = "annotations" | "start" | "review"
@@ -68,7 +69,7 @@ export async function performHandover(options: {
     return { message: `Opening the Codex app.${fileNote}`, payload }
   }
   if (action === "command") {
-    await navigator.clipboard.writeText(payload.command)
+    await copyText(payload.command)
     return {
       message: `Command copied. Paste it in a terminal at the repo root.${fileNote}`,
       payload,

@@ -4,7 +4,7 @@ name: Integrate Codex-backed chat with annotation attachments
 status: done
 workstream: WS-C
 created: 2026-06-30T14:12:03Z
-updated: 2026-06-30T14:55:55Z
+updated: 2026-06-30T23:24:39Z
 linear_issue_id:
 github_issue:
 github_pr:

@@ -25,6 +25,14 @@ const annotationStorePath = path.join(annotationStoreDir, 'annotations.json');
 const handoverDir = path.join(annotationStoreDir, 'handovers');
 const startPort = normalizePort(process.env.DELANO_VIEWER_PORT || process.env.PORT, DEFAULT_PORT);
 
+class HttpRequestError extends Error {
+  constructor(message, statusCode = 400) {
+    super(message);
+    this.name = 'HttpRequestError';
+    this.statusCode = statusCode;
+  }
+}
+
 let contextReader = null;
 try {
   contextReader = require(path.resolve(__dirname, '..', '..', 'src', 'cli', 'lib', 'context-reader'));
@@ -434,8 +442,11 @@ function readAnnotationStore() {
       annotations: Array.isArray(parsed.annotations) ? parsed.annotations : [],
       applyAudit: Array.isArray(parsed.applyAudit) ? parsed.applyAudit : [],
     };
-  } catch {
-    return emptyAnnotationStore();
+  } catch (error) {
+    throw new HttpRequestError(
+      `.project/viewer/annotations.json is malformed or unreadable. Repair or restore it before using viewer annotations.`,
+      500
+    );
   }
 }
 
@@ -644,25 +655,41 @@ function readRequestBody(req, maxBytes = MAX_BODY_BYTES) {
   return new Promise((resolve, reject) => {
     let body = '';
     let size = 0;
+    let tooLarge = false;
     req.setEncoding('utf8');
     req.on('data', (chunk) => {
+      if (tooLarge) return;
       size += Buffer.byteLength(chunk, 'utf8');
       if (size > maxBytes) {
-        reject(new Error('Request body is too large.'));
-        req.destroy();
+        tooLarge = true;
+        reject(new HttpRequestError('Request body is too large.', 413));
         return;
       }
       body += chunk;
     });
-    req.on('end', () => resolve(body));
-    req.on('error', reject);
+    req.on('end', () => {
+      if (!tooLarge) resolve(body);
+    });
+    req.on('error', (error) => {
+      if (!tooLarge) reject(error);
+    });
   });
 }
 
 async function readJsonBody(req) {
   const body = await readRequestBody(req);
   if (!body.trim()) return {};
-  return JSON.parse(body);
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw new HttpRequestError('Malformed JSON request body.', 400);
+  }
+}
+
+function statusCodeForError(error) {
+  if (error && Number.isInteger(error.statusCode)) return error.statusCode;
+  const message = error && error.message ? error.message : String(error);
+  return message.includes('too large') ? 413 : 500;
 }
 
 function handoverFileName(sourceRel) {
@@ -764,7 +791,7 @@ async function handleHandover(req, res) {
   try {
     payload = await readJsonBody(req);
   } catch (error) {
-    return sendError(res, 400, error.message);
+    return sendError(res, statusCodeForError(error), error.message);
   }
   const agent = payload.agent === 'claude' ? 'claude' : 'codex';
   const action = payload.action === 'launch' ? 'launch' : 'command';
@@ -1005,7 +1032,12 @@ async function handleAnnotationExport(req, res, parsed) {
 
 async function handleApplyPreview(req, res, shouldWrite) {
   if (req.method !== 'POST') return sendError(res, 405, 'Use POST');
-  const payload = await readJsonBody(req);
+  let payload;
+  try {
+    payload = await readJsonBody(req);
+  } catch (error) {
+    return sendError(res, statusCodeForError(error), error.message);
+  }
   const source = resolveProjectMarkdownPath(payload.sourcePath);
   if (!source) return sendError(res, 400, 'sourcePath must point at a known .project markdown document.');
   const replacementMarkdown = String(payload.replacementMarkdown ?? '');
@@ -1030,9 +1062,9 @@ async function handleApplyPreview(req, res, shouldWrite) {
     });
   }
   if (payload.confirm !== true) return sendError(res, 400, 'confirm:true is required before writing.');
+  const store = readAnnotationStore();
   fs.writeFileSync(source.file, replacementMarkdown, 'utf8');
   const nextBaseline = fileBaseline(source.file);
-  const store = readAnnotationStore();
   store.applyAudit.push({
     id: crypto.randomUUID(),
     sourcePath: source.rel,
@@ -1070,19 +1102,19 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, { ...meta, markdown, body: splitFrontmatter(markdown).body, baseline: fileBaseline(source.file) });
     }
     if (parsed.pathname === '/api/annotations') {
-      return handleAnnotations(req, res, parsed);
+      return await handleAnnotations(req, res, parsed);
     }
     if (parsed.pathname === '/api/annotations/export') {
-      return handleAnnotationExport(req, res, parsed);
+      return await handleAnnotationExport(req, res, parsed);
     }
     if (parsed.pathname === '/api/apply/preview') {
-      return handleApplyPreview(req, res, false);
+      return await handleApplyPreview(req, res, false);
     }
     if (parsed.pathname === '/api/apply') {
-      return handleApplyPreview(req, res, true);
+      return await handleApplyPreview(req, res, true);
     }
     if (parsed.pathname === '/api/handover') {
-      return handleHandover(req, res);
+      return await handleHandover(req, res);
     }
     if (parsed.pathname === '/api/open') {
       if (req.method !== 'POST') {
@@ -1103,7 +1135,7 @@ const server = http.createServer(async (req, res) => {
     return sendStatic(res, decodeURIComponent(parsed.pathname));
   } catch (error) {
     const message = error && error.message ? error.message : String(error);
-    sendError(res, message.includes('too large') ? 413 : 500, message);
+    sendError(res, statusCodeForError(error), message);
   }
 });
 

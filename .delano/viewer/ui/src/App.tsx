@@ -7,7 +7,10 @@ import { useViewerNavigation } from "@/app/useViewerNavigation"
 import { AppShell } from "@/components/organisms/AppShell"
 import { Topbar } from "@/components/organisms/Topbar"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { WORKSPACE_NAV, type ViewerRoute as ViewerRouteState } from "@/lib/domain/navigation"
+import {
+  WORKSPACE_NAV,
+  type ViewerRoute as ViewerRouteState,
+} from "@/lib/domain/navigation"
 import type { ProjectIndex, ViewerDoc, ViewerIndex } from "@/lib/domain/types"
 
 function App() {
@@ -21,7 +24,12 @@ function App() {
   )
   const isCompact = useViewport("(max-width: 900px)")
   const error = indexState.error || docState.error
-  const topbar = getTopbarState(navigation.route, activeProject, docState.doc, indexState.index)
+  const topbar = getTopbarState(
+    navigation.route,
+    activeProject,
+    docState.doc,
+    indexState.index
+  )
 
   return (
     <TooltipProvider>
@@ -49,22 +57,22 @@ function App() {
           />
         )}
       >
-          <div className="viewer-stage">
-            <ViewerRoute
-              activeProject={activeProject}
-              doc={docState.doc}
-              docsByPath={navigation.docsByPath}
-              error={error}
-              index={indexState.index}
-              loading={indexState.loading}
-              onOpenDoc={navigation.setActivePath}
-              onOpenProject={navigation.selectProject}
-              onOpenProjectOverview={navigation.openProjectOverview}
-              onOpenProjectTasks={navigation.openProjectTasks}
-              onOpenProjectWorkstreams={navigation.openProjectWorkstreams}
-              route={navigation.route}
-            />
-          </div>
+        <div className="viewer-stage">
+          <ViewerRoute
+            activeProject={activeProject}
+            doc={docState.doc}
+            docsByPath={navigation.docsByPath}
+            error={error}
+            index={indexState.index}
+            loading={indexState.loading}
+            onBackFromDocument={navigation.backFromDocument}
+            onOpenDoc={navigation.setActivePath}
+            onOpenProject={navigation.selectProject}
+            onOpenProjectTasks={navigation.openProjectTasks}
+            onOpenProjectWorkstreams={navigation.openProjectWorkstreams}
+            route={navigation.route}
+          />
+        </div>
       </AppShell>
     </TooltipProvider>
   )
@@ -80,19 +88,35 @@ function getTopbarState(
 ) {
   if (route.kind === "workspace") {
     const item = WORKSPACE_NAV.find((entry) => entry.view === route.view)
-    return { title: item?.label ?? "Workspace", status: null, updated: index?.generatedAt }
+    return {
+      title: item?.label ?? "Workspace",
+      status: null,
+      updated: index?.generatedAt,
+    }
   }
 
   if (route.kind === "project-overview") {
-    return { title: project?.title ?? "Project", status: project?.status, updated: index?.generatedAt }
+    return {
+      title: project?.title ?? "Project",
+      status: project?.status,
+      updated: index?.generatedAt,
+    }
   }
 
   if (route.kind === "project-workstreams") {
-    return { title: `${project?.title ?? "Project"} workstreams`, status: project?.status, updated: index?.generatedAt }
+    return {
+      title: `${project?.title ?? "Project"} workstreams`,
+      status: project?.status,
+      updated: index?.generatedAt,
+    }
   }
 
   if (route.kind === "project-tasks") {
-    return { title: `${project?.title ?? "Project"} tasks`, status: project?.status, updated: index?.generatedAt }
+    return {
+      title: `${project?.title ?? "Project"} tasks`,
+      status: project?.status,
+      updated: index?.generatedAt,
+    }
   }
 
   return {

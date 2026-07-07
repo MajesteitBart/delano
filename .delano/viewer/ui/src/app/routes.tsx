@@ -8,7 +8,12 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import type { ViewerRoute } from "@/lib/domain/navigation"
-import type { DocMeta, ProjectIndex, ViewerDoc, ViewerIndex } from "@/lib/domain/types"
+import type {
+  DocMeta,
+  ProjectIndex,
+  ViewerDoc,
+  ViewerIndex,
+} from "@/lib/domain/types"
 import { DocumentReaderPage } from "@/pages/DocumentReaderPage"
 import {
   ProjectOverviewPage,
@@ -26,9 +31,9 @@ export function ViewerRoute({
   loading,
   onOpenDoc,
   onOpenProject,
-  onOpenProjectOverview,
   onOpenProjectTasks,
   onOpenProjectWorkstreams,
+  onBackFromDocument,
   route,
 }: {
   activeProject: ProjectIndex | null
@@ -39,9 +44,9 @@ export function ViewerRoute({
   loading: boolean
   onOpenDoc: (path: string) => void
   onOpenProject: (slug: string) => void
-  onOpenProjectOverview: () => void
   onOpenProjectTasks: () => void
   onOpenProjectWorkstreams: () => void
+  onBackFromDocument: () => void
   route: ViewerRoute
 }) {
   if (loading) {
@@ -107,17 +112,16 @@ export function ViewerRoute({
 
   if (route.kind === "project-tasks") {
     return (
-      <ProjectTasksPage docs={docsByPath} project={activeProject} onOpenDoc={onOpenDoc} />
+      <ProjectTasksPage
+        docs={docsByPath}
+        project={activeProject}
+        onOpenDoc={onOpenDoc}
+      />
     )
   }
 
-  if (route.kind === "document" && doc && activeProject) {
-    return (
-      <DocumentReaderPage
-        doc={doc}
-        onBack={onOpenProjectOverview}
-      />
-    )
+  if (route.kind === "document" && doc) {
+    return <DocumentReaderPage doc={doc} onBack={onBackFromDocument} />
   }
 
   return (
@@ -127,7 +131,9 @@ export function ViewerRoute({
           <FolderIcon />
         </EmptyMedia>
         <EmptyTitle>No document selected</EmptyTitle>
-        <EmptyDescription>Select a contract from the workspace sidebar.</EmptyDescription>
+        <EmptyDescription>
+          Select a contract from the workspace sidebar.
+        </EmptyDescription>
       </EmptyHeader>
     </Empty>
   )

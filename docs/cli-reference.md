@@ -289,6 +289,7 @@ delano validate
 For Delano runtime development, also run:
 
 ```bash
+npm --prefix .delano/viewer/ui install
 npm --prefix .delano/viewer/ui run build
 npm run build:assets
 npm run check:package-manifest

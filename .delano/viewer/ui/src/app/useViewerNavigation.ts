@@ -9,13 +9,25 @@ import {
 import type { DocMeta, ViewerIndex } from "@/lib/domain/types"
 
 export function useViewerNavigation(index: ViewerIndex | null) {
-  const [activeProjectSlug, setActiveProjectSlug] = useState<string | null>(null)
+  const [activeProjectSlug, setActiveProjectSlug] = useState<string | null>(
+    null
+  )
   const [route, setRoute] = useState<ViewerRoute>(defaultRoute)
+  const [documentReturnRoute, setDocumentReturnRoute] =
+    useState<ViewerRoute | null>(null)
 
   useEffect(() => {
     if (!index || activeProjectSlug) return
-    setActiveProjectSlug(pickInitialProjectSlug(index))
-    setRoute(defaultRoute())
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      setActiveProjectSlug(pickInitialProjectSlug(index))
+      setDocumentReturnRoute(null)
+      setRoute(defaultRoute())
+    })
+    return () => {
+      cancelled = true
+    }
   }, [activeProjectSlug, index])
 
   const docsByPath = useMemo(() => {
@@ -24,26 +36,45 @@ export function useViewerNavigation(index: ViewerIndex | null) {
     return map
   }, [index])
 
-  const setActivePath = (path: string) => setRoute({ kind: "document", path })
+  const setActivePath = (path: string) => {
+    if (route.kind !== "document") {
+      setDocumentReturnRoute(route)
+    }
+    setRoute({ kind: "document", path })
+  }
+
+  const backFromDocument = () => {
+    setRoute((current) =>
+      current.kind === "document"
+        ? (documentReturnRoute ?? defaultRoute())
+        : current
+    )
+    setDocumentReturnRoute(null)
+  }
 
   const openWorkspace = (view: WorkspaceView) => {
+    setDocumentReturnRoute(null)
     setRoute({ kind: "workspace", view })
   }
 
   const openProjectOverview = () => {
+    setDocumentReturnRoute(null)
     setRoute({ kind: "project-overview" })
   }
 
   const openProjectWorkstreams = () => {
+    setDocumentReturnRoute(null)
     setRoute({ kind: "project-workstreams" })
   }
 
   const openProjectTasks = () => {
+    setDocumentReturnRoute(null)
     setRoute({ kind: "project-tasks" })
   }
 
   const selectProject = (slug: string) => {
     setActiveProjectSlug(slug)
+    setDocumentReturnRoute(null)
     setRoute({ kind: "project-overview" })
   }
 
@@ -55,6 +86,7 @@ export function useViewerNavigation(index: ViewerIndex | null) {
     openProjectTasks,
     openProjectWorkstreams,
     openWorkspace,
+    backFromDocument,
     route,
     selectProject,
     setActivePath,

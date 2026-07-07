@@ -51,10 +51,10 @@ function loadSourceModule(specifier, parentFile = path.join(srcRoot, "index.ts")
 const annotations = loadSourceModule("@/lib/domain/annotations")
 const navigation = loadSourceModule("@/lib/domain/navigation")
 const pagination = loadSourceModule("@/lib/domain/pagination")
-const projectModel = loadSourceModule("@/lib/domain/project-model")
 const status = loadSourceModule("@/lib/domain/status")
 const workspaceModel = loadSourceModule("@/lib/domain/workspace-model")
 const markdown = loadSourceModule("@/lib/markdown/renderMarkdown")
+const toc = loadSourceModule("@/lib/markdown/toc")
 
 assert.equal(status.statusLabel("in-progress"), "In Progress")
 assert.equal(status.statusLabel(null), "Planned")
@@ -109,7 +109,7 @@ assert.deepEqual(pagination.paginateItems([1, 2, 3, 4], 2, 2), {
 })
 
 assert.equal(
-  projectModel.projectPrimaryPath({
+  workspaceModel.projectPrimaryPath({
     slug: "demo",
     title: "Demo",
     outline: { spec: null, plan: "plan.md", workstreams: [{ path: "ws.md", title: "WS" }] },
@@ -168,17 +168,27 @@ const rendered = markdown.renderMarkdown(
 )
 
 assert.match(rendered, /<h1>Heading<\/h1>/)
+assert.match(rendered, /data-block-id="b4" data-line-start="4" data-block-kind="heading"/)
 assert.match(rendered, /<ol><li>First item<\/li><li>Second item<\/li><\/ol>/)
-assert.match(rendered, /<ul class="task-list"><li>Done<\/li><li>Todo<\/li><\/ul>/)
+assert.match(rendered, /<ul class="task-list"><li data-checked="true"><input type="checkbox" disabled checked aria-hidden="true" \/>Done<\/li><li data-checked="false"><input type="checkbox" disabled aria-hidden="true" \/>Todo<\/li><\/ul>/)
 assert.match(rendered, /<blockquote>Quoted text<\/blockquote>/)
 assert.match(rendered, /<table><thead><tr><th>Name<\/th><th>Value<\/th><\/tr><\/thead>/)
 assert.match(rendered, /<pre><code>&lt;unsafe&gt;<\/code><\/pre>/)
 assert.doesNotMatch(rendered, /md-annotation-mark/)
 assert.match(markdown.renderMarkdown("This is *italic* and _also italic_."), /<em>italic<\/em>/)
+assert.match(markdown.renderMarkdown("`**literal**`"), /<code>\*\*literal\*\*<\/code>/)
+assert.doesNotMatch(markdown.renderMarkdown("`**literal**`"), /<strong>/)
 assert.match(
   markdown.renderMarkdown("[safe](https://example.com)"),
   /<a href="https:\/\/example.com" target="_blank" rel="noopener noreferrer">safe<\/a>/
 )
 assert.doesNotMatch(markdown.renderMarkdown("[bad](javascript:alert(1))"), /javascript:/)
+assert.match(markdown.renderMarkdown("```js\nconst value = 1"), /<pre><code>const value = 1<\/code><\/pre>/)
+assert.match(markdown.renderMarkdown("##### Five\n###### Six"), /<h5>Five<\/h5>/)
+assert.match(markdown.renderMarkdown("##### Five\n###### Six"), /<h6>Six<\/h6>/)
+assert.deepEqual(toc.extractToc("##### Five\n###### Six"), [
+  { level: 5, text: "Five", line: 1 },
+  { level: 6, text: "Six", line: 2 },
+])
 
 console.log("domain and markdown helper checks passed")

@@ -41,7 +41,6 @@ Every color follows the `name` / `name-foreground` convention. The base variable
 | `--ring`                                     | Focus ring color                 |
 | `--chart-1` through `--chart-5`              | Chart/data visualization         |
 | `--sidebar-*`                                | Sidebar-specific colors          |
-| `--surface` / `--surface-foreground`         | Secondary surface                |
 
 Colors use OKLCH: `--primary: oklch(0.205 0 0)` where values are lightness (0–1), chroma (0 = gray), and hue (0–360).
 
@@ -109,6 +108,19 @@ Add variables to the file at `tailwindCssFile` from `npx shadcn@latest info` (ty
 ```
 
 When `tailwindVersion` is `"v3"` (check via `npx shadcn@latest info`), register in `tailwind.config.js` instead:
+
+For Tailwind v3, define the custom variables as raw OKLCH channel values because the config wraps them in `oklch(...)`:
+
+```css
+:root {
+  --warning: 0.84 0.16 84;
+  --warning-foreground: 0.28 0.07 46;
+}
+.dark {
+  --warning: 0.41 0.11 46;
+  --warning-foreground: 0.99 0.02 95;
+}
+```
 
 ```js
 // 2b. Register with Tailwind v3 (tailwind.config.js).

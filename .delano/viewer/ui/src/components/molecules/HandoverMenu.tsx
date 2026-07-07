@@ -1,4 +1,11 @@
-import { ChevronDownIcon, ClipboardIcon, PlayIcon, SearchCheckIcon, SquareArrowOutUpRightIcon, TerminalIcon } from "lucide-react"
+import {
+  ChevronDownIcon,
+  ClipboardIcon,
+  PlayIcon,
+  SearchCheckIcon,
+  SquareArrowOutUpRightIcon,
+  TerminalIcon,
+} from "lucide-react"
 import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
@@ -12,7 +19,11 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Spinner } from "@/components/ui/spinner"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { messageFromError } from "@/lib/api"
 import {
   agentLabel,
@@ -35,7 +46,11 @@ export function HandoverMenu({
 }) {
   const [busy, setBusy] = useState(false)
 
-  const run = async (intent: HandoverIntent, agent: HandoverAgent, action?: HandoverAction) => {
+  const run = async (
+    intent: HandoverIntent,
+    agent: HandoverAgent,
+    action?: HandoverAction
+  ) => {
     setBusy(true)
     try {
       const result = await performHandover({
@@ -46,7 +61,10 @@ export function HandoverMenu({
       })
       onStatus?.(result.message, "info")
     } catch (err) {
-      onStatus?.(`${messageFromError(err)} Use "Copy command" as a fallback.`, "error")
+      onStatus?.(
+        `${messageFromError(err)} Use "Copy command" as a fallback.`,
+        "error"
+      )
     } finally {
       setBusy(false)
     }
@@ -57,7 +75,12 @@ export function HandoverMenu({
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" disabled={busy} aria-label="Hand over to agent">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={busy}
+              aria-label="Hand over to agent"
+            >
               {busy ? <Spinner /> : <SquareArrowOutUpRightIcon />}
             </Button>
           </DropdownMenuTrigger>
@@ -67,7 +90,11 @@ export function HandoverMenu({
     ) : (
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="sm" disabled={busy}>
-          {busy ? <Spinner data-icon="inline-start" /> : <SquareArrowOutUpRightIcon data-icon="inline-start" />}
+          {busy ? (
+            <Spinner data-icon="inline-start" />
+          ) : (
+            <SquareArrowOutUpRightIcon data-icon="inline-start" />
+          )}
           Hand over
           <ChevronDownIcon data-icon="inline-end" />
         </Button>
@@ -77,39 +104,66 @@ export function HandoverMenu({
   return (
     <DropdownMenu>
       {trigger}
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-72 min-w-72 p-1.5">
+        <DropdownMenuItem
+          className="min-h-9 bg-muted/70 px-2 py-2 font-medium whitespace-nowrap"
+          onClick={() => void run("start", storedAgent(), "command")}
+        >
+          <ClipboardIcon className="text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate">Copy start command</span>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Start the work</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => void run("start", "codex")}>
-            <PlayIcon />
-            Start in {agentLabel("codex")} app
+          <DropdownMenuLabel className="px-2">Open in</DropdownMenuLabel>
+          <DropdownMenuItem
+            className="min-h-9 px-2 py-2 whitespace-nowrap"
+            onClick={() => void run("start", "codex")}
+          >
+            <PlayIcon className="text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate">
+              {agentLabel("codex")} app
+            </span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => void run("start", "claude")}>
-            <TerminalIcon />
-            Start in {agentLabel("claude")}
+          <DropdownMenuItem
+            className="min-h-9 px-2 py-2 whitespace-nowrap"
+            onClick={() => void run("start", "claude")}
+          >
+            <TerminalIcon className="text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate">
+              {agentLabel("claude")} terminal
+            </span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Review delivered work</DropdownMenuLabel>
-          <DropdownMenuItem onClick={() => void run("review", "codex")}>
-            <SearchCheckIcon />
-            Review in {agentLabel("codex")} app
+          <DropdownMenuLabel className="px-2">Review</DropdownMenuLabel>
+          <DropdownMenuItem
+            className="min-h-9 px-2 py-2 whitespace-nowrap"
+            onClick={() => void run("review", "codex")}
+          >
+            <SearchCheckIcon className="text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate">
+              {agentLabel("codex")} app
+            </span>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => void run("review", "claude")}>
-            <TerminalIcon />
-            Review in {agentLabel("claude")}
+          <DropdownMenuItem
+            className="min-h-9 px-2 py-2 whitespace-nowrap"
+            onClick={() => void run("review", "claude")}
+          >
+            <TerminalIcon className="text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate">
+              {agentLabel("claude")} terminal
+            </span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => void run("start", storedAgent(), "command")}>
-            <ClipboardIcon />
-            Copy start command
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => void run("review", storedAgent(), "command")}>
-            <ClipboardIcon />
-            Copy review command
+          <DropdownMenuItem
+            className="min-h-9 px-2 py-2 whitespace-nowrap"
+            onClick={() => void run("review", storedAgent(), "command")}
+          >
+            <ClipboardIcon className="text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate">Copy review command</span>
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

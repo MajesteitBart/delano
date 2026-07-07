@@ -1,5 +1,5 @@
 import Highlighter from "@plannotator/web-highlighter"
-import { type SyntheticEvent, useCallback, useEffect, useRef } from "react"
+import { type SyntheticEvent, useCallback, useLayoutEffect, useRef } from "react"
 
 import type { Annotation, WebHighlightSource } from "@/lib/domain/types"
 
@@ -50,13 +50,13 @@ export function MarkdownArticle({
     event: SyntheticEvent<HTMLElement>,
     source: WebHighlightSource,
     rect: DOMRect
-  ) => void
+  ) => boolean
   onHighlightClick?: (highlightId: string, rect: DOMRect) => void
 }) {
   const rootRef = useRef<HTMLDivElement>(null)
   const highlighterRef = useRef<Highlighter | null>(null)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!rootRef.current) return
     const highlighter = new Highlighter({
       $root: rootRef.current,
@@ -70,7 +70,13 @@ export function MarkdownArticle({
     }
   }, [])
 
-  useEffect(() => {
+  // This effect is the sole owner of the article markup. Rendering it through
+  // dangerouslySetInnerHTML instead would hand ownership to React, and React
+  // 19 re-assigns innerHTML on every commit where the prop object identity
+  // changes - destroying the highlight wraps painted below on every parent
+  // re-render (each keystroke in the annotation popover, for instance).
+  // A layout effect keeps the markup in place before first paint.
+  useLayoutEffect(() => {
     const highlighter = highlighterRef.current
     const root = rootRef.current
     if (!highlighter || !root) return
@@ -115,7 +121,11 @@ export function MarkdownArticle({
       if (!rect.width && !rect.height) return
       const source = highlighter.fromRange(range)
       if (!source) return
-      onSelectText(event, plainHighlightSource(source as WebHighlightSource), rect)
+      const highlightSource = plainHighlightSource(source as WebHighlightSource)
+      if (!onSelectText(event, highlightSource, rect)) {
+        highlighter.remove(highlightSource.id)
+        window.getSelection()?.removeAllRanges()
+      }
     },
     [onSelectText]
   )
@@ -127,7 +137,6 @@ export function MarkdownArticle({
       onMouseUp={handleSelection}
       onKeyUp={handleSelection}
       onClick={handleClick}
-      dangerouslySetInnerHTML={{ __html: html }}
     />
   )
 }

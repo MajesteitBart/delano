@@ -169,19 +169,19 @@ const result = await generateText({
 });
 ```
 
-## `toDataStreamResponse` → `createUIMessageStreamResponse`
+## Choosing a stream response helper
 
-When using `useChat` on the frontend, use `createUIMessageStreamResponse()` with `toUIMessageStream()` instead of `toDataStreamResponse()`. The UI message stream format is designed to work with the chat UI components and handles message state correctly.
+Use `createUIMessageStreamResponse()` with `toUIMessageStream()` when the endpoint returns a UI message stream for chat components. Use `toDataStreamResponse()` when you intentionally need the AI SDK data stream protocol. The helpers serve different stream formats; `toDataStreamResponse()` is not deprecated.
 
 ```typescript
-// ❌ Incorrect (when using useChat)
+// Data stream response.
 const result = streamText({
   // config
 });
 
-return result.toDataStreamResponse(); // deprecated for useChat: use createUIMessageStreamResponse
+return result.toDataStreamResponse();
 
-// ✅ Correct
+// UI message stream response.
 const result = streamText({
   // config
 });
@@ -196,16 +196,16 @@ return createUIMessageStreamResponse({
 The `useChat` hook no longer manages input state internally. You must now manage input state manually.
 
 ```tsx
-// ❌ Deprecated
+// Manual input state is required.
 import { useChat } from '@ai-sdk/react';
 
 export default function Page() {
   const {
-    input, // deprecated: manage input state manually with useState
-    handleInputChange, // deprecated: use custom onChange handler
-    handleSubmit, // deprecated: use sendMessage() instead
+    input, // no longer managed internally
+    handleInputChange, // replace with your own state handler
+    handleSubmit, // replace with sendMessage()
   } = useChat({
-    api: '/api/chat', // deprecated: use `transport: new DefaultChatTransport({ api })` instead
+    api: '/api/chat',
   });
 
   return (
@@ -216,7 +216,7 @@ export default function Page() {
   );
 }
 
-// ✅ Correct
+// Transport form is useful when you need explicit transport configuration.
 import { useChat } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { useState } from 'react';

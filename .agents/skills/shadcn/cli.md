@@ -27,7 +27,7 @@ Initializes shadcn/ui in an existing project or creates a new project (when `--n
 
 | Flag                    | Short | Description                                               | Default |
 | ----------------------- | ----- | --------------------------------------------------------- | ------- |
-| `--template <template>` | `-t`  | Template (next, start, vite, next-monorepo, react-router) | —       |
+| `--template <template>` | `-t`  | Template (next, vite, start, react-router, laravel, astro) | —       |
 | `--preset [name]`       | `-p`  | Preset configuration (named, code, or URL)                | —       |
 | `--yes`                 | `-y`  | Skip confirmation prompt                                  | `true`  |
 | `--defaults`            | `-d`  | Use defaults (`--template=next --preset=base-nova`)       | `false` |
@@ -264,7 +264,7 @@ GitHub registry behavior, see [registry.md](./registry.md).
 | `astro`        | Astro          | Yes              |
 | `laravel`      | Laravel        | No               |
 
-All templates support monorepo scaffolding via the `--monorepo` flag. When passed, the CLI uses a monorepo-specific template directory (e.g. `next-monorepo`, `vite-monorepo`). When neither `--monorepo` nor `--no-monorepo` is passed, the CLI prompts interactively. Laravel does not support monorepo scaffolding.
+Supported templates use the `--monorepo` flag for monorepo scaffolding. Pass a normal template value such as `next` or `vite` with `--monorepo`; do not use `next-monorepo` as the `--template` value. When neither `--monorepo` nor `--no-monorepo` is passed, the CLI prompts interactively. Laravel does not support monorepo scaffolding.
 
 ---
 

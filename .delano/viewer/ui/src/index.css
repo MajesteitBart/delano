@@ -309,6 +309,12 @@
     @apply pl-8;
   }
 
+  .reader-toc-level-4,
+  .reader-toc-level-5,
+  .reader-toc-level-6 {
+    @apply pl-10;
+  }
+
   .reader-article {
     @apply w-full min-w-0 max-w-[760px];
   }
@@ -334,6 +340,10 @@
 
   .md-body h1 {
     @apply mb-4 mt-9 text-[25px] font-semibold leading-tight tracking-normal;
+  }
+
+  .reader-article > .md-body > .md-block:first-child h1 {
+    @apply mt-0;
   }
 
   .md-body h2 {

@@ -73,6 +73,7 @@ export function AnnotationPopover({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return
       if (event.key === "Escape") onCancel()
     }
     window.addEventListener("keydown", handleKeyDown)
@@ -91,7 +92,7 @@ export function AnnotationPopover({
         align="center"
         side={side}
         sideOffset={10}
-        className="w-[400px] gap-3 p-4"
+        className="w-[400px] max-w-[calc(100vw-2rem)] gap-3 p-4"
         onOpenAutoFocus={(event) => event.preventDefault()}
         onFocusOutside={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}

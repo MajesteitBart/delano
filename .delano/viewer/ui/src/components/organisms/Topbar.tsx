@@ -77,8 +77,8 @@ export function Topbar({
           Open folder
         </Button>
         {openError && (
-          <span className="flex items-center gap-1 text-xs text-destructive" role="status">
-            {openError}
+          <span className="flex items-center gap-1 text-xs text-destructive">
+            <span role="status">{openError}</span>
             <Button
               variant="ghost"
               size="icon-xs"

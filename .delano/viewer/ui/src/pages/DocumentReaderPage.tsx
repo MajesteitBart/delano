@@ -1,5 +1,11 @@
 import { ArrowLeftIcon, MessageSquareTextIcon, XIcon } from "lucide-react"
-import { type SyntheticEvent, useCallback, useEffect, useMemo, useState } from "react"
+import {
+  type SyntheticEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react"
 
 import { AnnotationPopover } from "@/components/molecules/AnnotationPopover"
 import { HandoverMenu } from "@/components/molecules/HandoverMenu"
@@ -68,18 +74,35 @@ export function DocumentReaderPage({
     )
     setAnnotations(payload.annotations ?? [])
     setSelectedIds((ids) =>
-      ids.filter((id) => (payload.annotations ?? []).some((annotation) => annotation.id === id))
+      ids.filter((id) =>
+        (payload.annotations ?? []).some((annotation) => annotation.id === id)
+      )
     )
     return payload.annotations ?? []
   }, [doc.path])
 
   useEffect(() => {
-    setPopover(null)
-    setComment("")
-    setAnnotationError("")
-    void loadAnnotations()
-      .then((items) => setReviewOpen(items.length > 0))
-      .catch((err) => setAnnotationError(messageFromError(err)))
+    let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      setPopover(null)
+      setComment("")
+      setType("comment")
+      setAnnotations([])
+      setSelectedIds([])
+      setReviewOpen(false)
+      setAnnotationError("")
+      void loadAnnotations()
+        .then((items) => {
+          if (!cancelled) setReviewOpen(items.length > 0)
+        })
+        .catch((err) => {
+          if (!cancelled) setAnnotationError(messageFromError(err))
+        })
+    })
+    return () => {
+      cancelled = true
+    }
   }, [loadAnnotations])
 
   const markdown = useMemo(() => renderMarkdown(doc.markdown), [doc.markdown])
@@ -115,9 +138,9 @@ export function DocumentReaderPage({
   // button, or Escape - never by clicking or selecting elsewhere.
   const popoverDirty = Boolean(
     popover &&
-      (popover.mode === "create"
-        ? comment.trim() !== ""
-        : comment !== popover.initialComment || type !== popover.initialType)
+    (popover.mode === "create"
+      ? comment.trim() !== ""
+      : comment !== popover.initialComment || type !== popover.initialType)
   )
 
   const closePopover = () => {
@@ -132,9 +155,9 @@ export function DocumentReaderPage({
     highlightSource: DraftAnnotation["anchor"]["highlightSource"],
     rect: DOMRect
   ) => {
-    if (popoverDirty) return
+    if (popoverDirty) return false
     const quote = highlightSource.text.trim()
-    if (!quote || quote.length < 2) return
+    if (!quote || quote.length < 2) return false
     const target = event.target as HTMLElement
     const block = target.closest<HTMLElement>("[data-block-id]")
     const placement = popoverPlacement(rect)
@@ -153,6 +176,7 @@ export function DocumentReaderPage({
     })
     setComment("")
     setType("comment")
+    return true
   }
 
   const handleHighlightClick = (highlightId: string, rect: DOMRect) => {
@@ -160,7 +184,10 @@ export function DocumentReaderPage({
       (item) => item.anchor?.highlightSource?.id === highlightId
     )
     if (!annotation) return
-    if (popoverDirty && !(popover?.mode === "edit" && popover.annotationId === annotation.id)) {
+    if (popover?.mode === "edit" && popover.annotationId === annotation.id) {
+      return
+    }
+    if (popoverDirty) {
       return
     }
     const placement = popoverPlacement(rect)
@@ -183,18 +210,21 @@ export function DocumentReaderPage({
     setAnnotationError("")
     try {
       if (popover.mode === "create") {
-        const payload = await requestJson<{ annotation: Annotation }>("/api/annotations", {
-          method: "POST",
-          body: JSON.stringify({
-            sourcePath: doc.path,
-            quote: popover.draft.quote,
-            comment,
-            type,
-            labels: type === "comment" ? [] : [type],
-            anchor: popover.draft.anchor,
-            author: { name: "viewer" },
-          }),
-        })
+        const payload = await requestJson<{ annotation: Annotation }>(
+          "/api/annotations",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              sourcePath: doc.path,
+              quote: popover.draft.quote,
+              comment,
+              type,
+              labels: type === "comment" ? [] : [type],
+              anchor: popover.draft.anchor,
+              author: { name: "viewer" },
+            }),
+          }
+        )
         setAnnotations((items) => [...items, payload.annotation])
         setSelectedIds((ids) => [...ids, payload.annotation.id])
         setReviewOpen(true)
@@ -219,13 +249,19 @@ export function DocumentReaderPage({
       { method: "PATCH", body: JSON.stringify(patch) }
     )
     setAnnotations((items) =>
-      items.map((annotation) => (annotation.id === id ? payload.annotation : annotation))
+      items.map((annotation) =>
+        annotation.id === id ? payload.annotation : annotation
+      )
     )
   }
 
   const deleteAnnotation = async (id: string) => {
-    await requestJson(`/api/annotations?id=${encodeURIComponent(id)}`, { method: "DELETE" })
-    setAnnotations((items) => items.filter((annotation) => annotation.id !== id))
+    await requestJson(`/api/annotations?id=${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    })
+    setAnnotations((items) =>
+      items.filter((annotation) => annotation.id !== id)
+    )
     setSelectedIds((ids) => ids.filter((item) => item !== id))
   }
 
@@ -267,7 +303,7 @@ export function DocumentReaderPage({
           </nav>
         )}
         <article className="reader-article pb-20">
-          <div className="mb-8 flex items-center justify-between gap-3">
+          <div className="mb-6 flex items-center justify-between gap-3">
             <Button variant="ghost" size="sm" onClick={onBack}>
               <ArrowLeftIcon data-icon="inline-start" />
               Back
@@ -276,9 +312,15 @@ export function DocumentReaderPage({
               {(doc.role === "task" || doc.role === "workstream") && (
                 <HandoverMenu
                   sourcePath={doc.path}
-                  onStatus={(message, tone) =>
-                    tone === "error" ? setAnnotationError(message) : setNotice(message)
-                  }
+                  onStatus={(message, tone) => {
+                    if (tone === "error") {
+                      setNotice("")
+                      setAnnotationError(message)
+                    } else {
+                      setAnnotationError("")
+                      setNotice(message)
+                    }
+                  }}
                 />
               )}
               <Button
@@ -293,12 +335,14 @@ export function DocumentReaderPage({
               </Button>
             </div>
           </div>
-          <div className="eyebrow">{doc.role ?? "Document"}</div>
-          <h2 className="mb-10 text-[30px] font-semibold leading-tight">{doc.title}</h2>
           <MarkdownArticle
             html={markdown}
             annotations={annotations}
-            draftSource={popover?.mode === "create" ? popover.draft.anchor.highlightSource : null}
+            draftSource={
+              popover?.mode === "create"
+                ? popover.draft.anchor.highlightSource
+                : null
+            }
             repaintToken={reviewOpen}
             onSelectText={handleSelection}
             onHighlightClick={handleHighlightClick}
@@ -317,19 +361,27 @@ export function DocumentReaderPage({
           )
         }
         onUpdate={(id, patch) =>
-          updateAnnotation(id, patch).catch((err) => setAnnotationError(messageFromError(err)))
+          updateAnnotation(id, patch).catch((err) =>
+            setAnnotationError(messageFromError(err))
+          )
         }
         onDelete={(id) =>
-          deleteAnnotation(id).catch((err) => setAnnotationError(messageFromError(err)))
+          deleteAnnotation(id).catch((err) =>
+            setAnnotationError(messageFromError(err))
+          )
         }
         onRefresh={() =>
-          loadAnnotations().catch((err) => setAnnotationError(messageFromError(err)))
+          loadAnnotations().catch((err) =>
+            setAnnotationError(messageFromError(err))
+          )
         }
       />
       {popover && (
         <AnnotationPopover
           mode={popover.mode}
-          quote={popover.mode === "create" ? popover.draft.quote : popover.quote}
+          quote={
+            popover.mode === "create" ? popover.draft.quote : popover.quote
+          }
           lineLabel={
             popover.mode === "create"
               ? annotationLine({ anchor: popover.draft.anchor })
@@ -362,7 +414,10 @@ export function DocumentReaderPage({
         </div>
       )}
       {notice && !annotationError && (
-        <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm" role="status">
+        <div
+          className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm"
+          role="status"
+        >
           <span>{notice}</span>
           <Button
             variant="ghost"

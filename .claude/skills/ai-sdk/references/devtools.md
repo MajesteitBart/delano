@@ -11,17 +11,25 @@ DevTools captures all AI SDK calls (`generateText`, `streamText`, `ToolLoopAgent
 
 ## Setup
 
-Requires AI SDK 6. Install `@ai-sdk/devtools` using your project's package manager.
+Requires AI SDK v7-compatible packages (`@ai-sdk/provider@4.x`; use `ai@canary` if stable v7 is not available in your project). Install `@ai-sdk/devtools` using your project's package manager.
 
-Wrap your model with the middleware:
+Register the telemetry integration once during local development:
 
 ```ts
-import { wrapLanguageModel, gateway } from 'ai';
-import { devToolsMiddleware } from '@ai-sdk/devtools';
+import { registerTelemetry } from 'ai';
+import { DevToolsTelemetry } from '@ai-sdk/devtools';
 
-const model = wrapLanguageModel({
-  model: gateway('anthropic/claude-sonnet-4.5'),
-  middleware: devToolsMiddleware(),
+registerTelemetry(DevToolsTelemetry());
+```
+
+Telemetry is enabled after registration, so normal AI SDK calls are captured:
+
+```ts
+import { generateText } from 'ai';
+
+const result = await generateText({
+  model: 'anthropic/claude-sonnet-5',
+  prompt: 'What cities are in the United States?',
 });
 ```
 

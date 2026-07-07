@@ -10,12 +10,20 @@ export function pushBlock(
 }
 
 export function stripFrontmatter(markdown: string) {
-  return markdown.replace(/^---[\s\S]*?---\s*/, "")
+  const match = markdown.match(/^---(?:\r?\n[\s\S]*?)?\r?\n---(?:\r?\n|$)/)
+  if (!match) return markdown
+  const lineBreaks = match[0].match(/\r?\n/g)?.length ?? 0
+  return `${"\n".repeat(lineBreaks)}${markdown.slice(match[0].length)}`
 }
 
 export function inline(value: string) {
-  return escapeHtml(value)
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
+  const codeSpans: string[] = []
+  const protectedValue = escapeHtml(value).replace(/`([^`]+)`/g, (_match, code) => {
+    const token = `@@DELANOCODE${codeSpans.length}@@`
+    codeSpans.push(`<code>${code}</code>`)
+    return token
+  })
+  return protectedValue
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>")
     .replace(/_([^_]+)_/g, "<em>$1</em>")
@@ -24,6 +32,7 @@ export function inline(value: string) {
       if (!href) return label
       return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`
     })
+    .replace(/@@DELANOCODE(\d+)@@/g, (_match, index) => codeSpans[Number(index)] ?? "")
 }
 
 export function escapeHtml(value: string) {
