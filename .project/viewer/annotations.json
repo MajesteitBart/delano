@@ -1,0 +1,46 @@
+{
+  "version": 1,
+  "annotations": [
+    {
+      "id": "194bc0df-5244-49aa-b5ac-9d41fe8bfae1",
+      "sourcePath": "projects/delano-viewer-annotations-agent-chat/spec.md",
+      "repoPath": ".project/projects/delano-viewer-annotations-agent-chat/spec.md",
+      "type": "comment",
+      "quote": "Multi-user real-time collaboration, operational transforms, or cursor presence.",
+      "comment": "Well, what if we did?",
+      "labels": [],
+      "anchor": {
+        "blockId": "b65",
+        "kind": "list",
+        "lineStart": 65,
+        "highlightSource": {
+          "startMeta": {
+            "parentTagName": "LI",
+            "parentIndex": 28,
+            "textOffset": 0
+          },
+          "endMeta": {
+            "parentTagName": "LI",
+            "parentIndex": 28,
+            "textOffset": 79
+          },
+          "text": "Multi-user real-time collaboration, operational transforms, or cursor presence.",
+          "id": "fe7917e8-e934-4c06-a938-6ab5fc772e20"
+        }
+      },
+      "author": {
+        "name": "viewer"
+      },
+      "status": "open",
+      "createdAt": "2026-07-07T14:40:37.820Z",
+      "updatedAt": "2026-07-07T14:40:37.820Z",
+      "baseline": {
+        "hash": "6a692f395b26339543e090d14a81daa56aaad47c4ca64294284b922b0341753d",
+        "size": 13197,
+        "mtimeMs": 1783413838587.6587,
+        "updated": "2026-07-07T08:43:58.588Z"
+      }
+    }
+  ],
+  "applyAudit": []
+}

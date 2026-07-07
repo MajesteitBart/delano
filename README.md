@@ -22,6 +22,19 @@ Delano is an agent-agnostic delivery runtime. It keeps planning, execution, vali
 
 The product posture is a local dossier: warm paper, ledger ink, visible source paths, and quiet status signals. The interface and runtime both treat `.project/` as the source of truth.
 
+## New in v0.3: Annotations and Agent handover
+
+### Annotate in documents
+Annotate in documents and leave feedback for your team or agents
+![](docs\images\screenshots\plan-annotation.png)
+
+
+### Handover to coding agents
+Handover plan improvements or tasks to coding agents with a single click
+
+![](docs\images\screenshots\annotation-handover.png)
+
+
 ## At a glance
 
 | Surface | Role |
@@ -35,10 +48,11 @@ The product posture is a local dossier: warm paper, ledger ink, visible source p
 ## Quick start
 
 ```bash
-npx -y @bvdm/delano@latest --yes
-npx -y @bvdm/delano@latest viewer
-npx -y @bvdm/delano@latest validate
+npm install -g @bvdm/delano@latest 
+delano viewer
 ```
+
+(*Or use `npx @bvdm/delano@latest`*)
 
 The viewer opens a localhost-only guarded review surface for `.project` contracts. Validation checks that the runtime, contracts, package payload, and local gates still line up.
 
@@ -67,7 +81,7 @@ See [DESIGN.md](DESIGN.md) and the [Delano Brand Book](docs/delano-brandbook.htm
 ## Delano CLI
 
 - Package: `@bvdm/delano`
-- Current package version: `0.2.11`
+- Current package version: `0.3.0`
 - Binary: `delano`
 - Commands: `onboarding`, `install`, `viewer`, `context`, `project`, `workstream`, `task`, `update`, `init`, `import-spec-kit`, `research`, `validate`, `status`, `next`
 - Primary goal: bootstrap a repo safely, expose local delivery state clearly, and keep runtime gates verifiable
