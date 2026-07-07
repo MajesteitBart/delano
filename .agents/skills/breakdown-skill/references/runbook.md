@@ -1,7 +1,7 @@
 # Breakdown Runbook
 
 1. Read `plan.md` and `workstreams/*.md`.
-2. Generate atomic tasks from `.project/templates/task.md`.
+2. Generate atomic tasks from `.project/templates/task.md`; keep new tasks `planned` until they pass readiness review.
 3. Add binary acceptance criteria per task.
 4. Add dependencies and estimate/priority fields.
 5. Run sequencing checks:
@@ -13,4 +13,5 @@
 Exit gate:
 - Tasks are atomic
 - Dependencies are acyclic
+- Planned tasks are not treated as executable by default
 - Ready tasks are execution-safe

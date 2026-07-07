@@ -4,7 +4,7 @@ const path = require("node:path");
 const { CliError } = require("./errors");
 const { findDelanoRoot } = require("./runtime");
 
-const CLOSED_TASK_STATUSES = new Set(["done", "deferred", "canceled"]);
+const CLOSED_TASK_STATUSES = new Set(["done", "deferred"]);
 const PROGRESSED_TASK_STATUSES = new Set(["in-progress", "done"]);
 const OPERATING_MODE_SLUGS = ["patch", "scoped-change", "feature", "uncertain-feature", "multi-stream"];
 const UPDATE_ADD_STATUSES = ["in-progress", "blocked", "done", "deferred"];

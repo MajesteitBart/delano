@@ -116,8 +116,9 @@ function getTaskHelp() {
     "  -h, --help                     Show help",
     "",
     "Rollups:",
+    "  - add creates tasks with status planned; ready remains valid for executable tasks.",
     "  - start/close promotes planned project and workstream lifecycle to active.",
-    "  - open reopens closed parent lifecycle when reopening a closed task.",
+    "  - open marks a task ready and reopens closed parent lifecycle when reopening a closed task.",
     "  - close/defer marks an affected workstream done when it has no open tasks.",
     "  - close/defer marks spec complete and plan done when the project has no open tasks."
   ].join("\n");

@@ -143,6 +143,7 @@
       ],
       "enum_fields": {
         "status": [
+          "planned",
           "ready",
           "in-progress",
           "blocked",

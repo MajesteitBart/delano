@@ -6,7 +6,7 @@ description: Verify release readiness and enforce quality gates with risk-based 
 # quality-skill
 
 ## Trigger context
-- target tasks are implemented and ready for verification
+- target tasks are implemented and ready for verification; `planned` tasks are not quality targets yet
 
 ## Required inputs
 - changed_scope

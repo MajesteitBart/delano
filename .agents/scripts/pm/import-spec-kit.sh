@@ -464,8 +464,8 @@ def parse_task(raw, index):
     vague = bool(re.search(r"\b(tbd|todo|clarify|needs clarification|unknown|investigate|research)\b", raw, re.IGNORECASE))
     generated_review_task = index == 1 and "Review imported Spec Kit artifact" in raw
     blocked = bool(clarifications) or vague or generated_review_task
-    status = "blocked" if blocked else "ready"
-    reason = "Open clarifications or vague source wording require review before execution." if blocked else "No source clarification blocker detected by importer."
+    status = "blocked" if blocked else "planned"
+    reason = "Open clarifications or vague source wording require review before execution." if blocked else "Imported task is planned; promote to ready only after dependency and execution-readiness review."
     source_task_id = f"T{int(source_task_match.group(1)):03d}" if source_task_match else ""
     return title, parallel, status, reason, story_id, source_task_id
 

@@ -18,6 +18,7 @@ description: Decompose an approved plan into atomic tasks with dependencies and 
 - dependency_graph
 
 ## Quality checks
+- new task frontmatter defaults to `status: planned`
 - acceptance criteria are binary
 - estimate present per task
 - dependency graph acyclic
