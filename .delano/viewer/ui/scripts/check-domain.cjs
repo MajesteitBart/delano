@@ -157,6 +157,9 @@ const rendered = markdown.renderMarkdown(
     "",
     "> Quoted text",
     "",
+    "> [!NOTE]",
+    "> Keep provenance visible.",
+    "",
     "| Name | Value |",
     "| --- | --- |",
     "| alpha | beta |",
@@ -172,8 +175,10 @@ const rendered = markdown.renderMarkdown(
 assert.match(rendered, /<h1>Heading<\/h1>/)
 assert.match(rendered, /data-block-id="b4" data-line-start="4" data-block-kind="heading"/)
 assert.match(rendered, /<ol><li>First item<\/li><li>Second item<\/li><\/ol>/)
-assert.match(rendered, /<ul class="task-list"><li data-checked="true"><input type="checkbox" disabled checked aria-hidden="true" \/>Done<\/li><li data-checked="false"><input type="checkbox" disabled aria-hidden="true" \/>Todo<\/li><\/ul>/)
+assert.match(rendered, /<ul class="task-list"><li data-checked="true"><input type="checkbox" disabled checked aria-label="Completed task" \/><span>Done<\/span><\/li><li data-checked="false"><input type="checkbox" disabled aria-label="Incomplete task" \/><span>Todo<\/span><\/li><\/ul>/)
 assert.match(rendered, /<blockquote>Quoted text<\/blockquote>/)
+assert.match(rendered, /data-block-kind="callout"/)
+assert.match(rendered, /<aside class="md-callout" data-callout="note" role="note" aria-label="Note"><div class="md-callout-title">Note<\/div><div class="md-callout-body">Keep provenance visible\.<\/div><\/aside>/)
 assert.match(rendered, /<table><thead><tr><th>Name<\/th><th>Value<\/th><\/tr><\/thead>/)
 assert.match(rendered, /<pre><code>&lt;unsafe&gt;<\/code><\/pre>/)
 assert.doesNotMatch(rendered, /md-annotation-mark/)

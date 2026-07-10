@@ -3,7 +3,7 @@ name: Viewer OpenKnowledge Parity
 status: done
 lead: bart
 created: 2026-07-09T23:54:25Z
-updated: 2026-07-10T01:14:49Z
+updated: 2026-07-10T18:28:14Z
 linear_project_id: 
 risk_level: medium
 spec_status_at_plan_time: planned
@@ -48,7 +48,7 @@ operating_mode: feature
 - `spec.md`: Created from `.project/templates` by `delano project create`; filled by discovery.
 - `plan.md`: Created from `.project/templates` by `delano project create`; filled by planning.
 - `workstreams/`: WS-A (probe + platform), WS-B (editing), WS-C (real-time), WS-D (handoff polish + quality).
-- `tasks/`: T-001..T-010 created by `delano task add`, acceptance criteria binary, dependencies acyclic.
+- `tasks/`: T-001..T-012 created by `delano task add`, acceptance criteria binary, dependencies acyclic. T-011 adds slash commands in the Markdown editor; T-012 moves document metadata out of the review drawer.
 
 ## Complexity Exceptions
 
@@ -63,9 +63,9 @@ operating_mode: feature
 ## Workstream Design
 
 - **WS-A Probe & Platform** (gates everything): T-001 round-trip fidelity harness + corpus report; T-002 watcher reliability spot-check on win32 (bulk git checkout, editor saves, agent writes).
-- **WS-B Manual Editing**: T-003 guarded save endpoint (Codex); T-004 editor surface — TipTap setup, markdown round-trip integration, frontmatter card, mode toggle (Claude, design-bearing); T-005 save/conflict UX — shortcuts, toasts, banners (Claude).
+- **WS-B Manual Editing**: T-003 guarded save endpoint (Codex); T-004 editor surface — TipTap setup, markdown round-trip integration, frontmatter card, mode toggle (Claude, design-bearing); T-005 save/conflict UX — shortcuts, toasts, banners (Claude); T-011 slash-command menu using the existing Shadcn/Radix component system (planned follow-up).
 - **WS-C Real-Time**: T-006 server watcher + SSE + activity buffer (Codex); T-007 client live-refresh + block flash + activity feed panel + agent-working indicator (Claude).
-- **WS-D Handoff Polish & Quality**: T-008 dispatched-state UX tying handover to the live feed (Claude); T-009 browser E2E smoke of AC-001/002/004/005 via Codex; T-010 packaging, `delano validate`, `npm test`, evidence rollup, closeout.
+- **WS-D Handoff Polish & Quality**: T-008 dispatched-state UX tying handover to the live feed (Claude); T-009 browser E2E smoke of AC-001/002/004/005 via Codex; T-010 packaging, `delano validate`, `npm test`, evidence rollup, closeout; T-012 moves document metadata into the main reader and leaves the review drawer focused on annotations (planned follow-up).
 - One stream owner per shared file: `server.js` owned by Codex tasks (T-003/T-006 sequenced), `ui` reader page owned by Claude tasks; overlaps sequenced, not parallel.
 
 ## Milestone Strategy

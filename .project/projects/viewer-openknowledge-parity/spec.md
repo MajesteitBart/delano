@@ -4,7 +4,7 @@ slug: viewer-openknowledge-parity
 owner: bart
 status: complete
 created: 2026-07-09T23:54:25Z
-updated: 2026-07-10T01:14:49Z
+updated: 2026-07-10T18:28:14Z
 outcome: The Delano viewer matches the OpenKnowledge experience for manual markdown editing, agent handoff, and watching agents work in real time, with the same guarded write boundaries it has today.
 uncertainty: medium
 probe_required: true

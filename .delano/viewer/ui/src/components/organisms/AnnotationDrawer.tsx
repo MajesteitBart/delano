@@ -10,7 +10,6 @@ import { useMemo, useState } from "react"
 
 import { AgentSplitButton } from "@/components/molecules/AgentSplitButton"
 import { AnnotationRow } from "@/components/organisms/AnnotationRow"
-import { DocumentMetaFields } from "@/components/organisms/DocumentMetaPanel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,7 +25,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Tooltip,
   TooltipContent,
@@ -191,21 +189,14 @@ export function AnnotationDrawer({
           </div>
         </div>
       </div>
-      <Tabs
-        defaultValue="annotations"
-        className="flex min-h-0 flex-1 flex-col gap-4 p-5"
-      >
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="annotations">
-            Annotations <Badge variant="secondary">{annotations.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="details">Details</TabsTrigger>
-        </TabsList>
-
-        <TabsContent
-          value="annotations"
-          className="flex min-h-0 flex-1 flex-col gap-4"
-        >
+      <div className="flex min-h-0 flex-1 flex-col gap-4 p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h3 id="review-annotations-heading" className="font-medium">
+            Annotations
+          </h3>
+          <Badge variant="secondary">{annotations.length}</Badge>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
           <div className="min-h-0 flex-1 overflow-y-auto">
             {!annotations.length ? (
               <Empty className="min-h-40 border border-dashed bg-muted/20">
@@ -315,12 +306,8 @@ export function AnnotationDrawer({
               </p>
             )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="details" className="min-h-0 flex-1 overflow-y-auto">
-          <DocumentMetaFields doc={doc} />
-        </TabsContent>
-      </Tabs>
+        </div>
+      </div>
     </aside>
   )
 }

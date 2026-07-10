@@ -9,6 +9,8 @@
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
     "test:domain": "node scripts/check-domain.cjs",
+    "test:editor": "node --test src/editor/slashCommands.test.mjs",
+    "test:reader": "node --test src/components/organisms/documentDetails.test.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },

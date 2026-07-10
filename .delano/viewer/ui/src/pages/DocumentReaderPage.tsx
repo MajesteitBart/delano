@@ -22,6 +22,7 @@ import {
   type DispatchInfo,
 } from "@/components/molecules/HandoverMenu"
 import { AnnotationDrawer } from "@/components/organisms/AnnotationDrawer"
+import { DocumentMetaPanel } from "@/components/organisms/DocumentMetaPanel"
 import { MarkdownArticle } from "@/components/organisms/MarkdownArticle"
 import { TaskContextPanel } from "@/components/organisms/TaskContextPanel"
 import { WorkstreamTaskList } from "@/components/organisms/WorkstreamTaskList"
@@ -166,8 +167,7 @@ export function DocumentReaderPage({
   const markdown = useMemo(() => renderMarkdown(doc.markdown), [doc.markdown])
   const toc = useMemo(() => extractToc(doc.markdown), [doc.markdown])
   const acceptanceCriteriaHeading = useMemo(
-    () =>
-      toc.find((item) => /^Acceptance Criteria$/i.test(item.text)) ?? null,
+    () => toc.find((item) => /^Acceptance Criteria$/i.test(item.text)) ?? null,
     [toc]
   )
 
@@ -453,7 +453,7 @@ export function DocumentReaderPage({
   return (
     <div
       className={cn(
-        "transition-[padding] duration-300 ease-in-out",
+        "overflow-x-clip transition-[padding] duration-300 ease-in-out",
         reviewOpen && "min-[1280px]:pr-[416px]"
       )}
     >
@@ -555,6 +555,7 @@ export function DocumentReaderPage({
               </Button>
             </div>
           )}
+          <DocumentMetaPanel doc={doc} showStatus={doc.role !== "task"} />
           {doc.role === "task" && (
             <TaskContextPanel
               doc={doc}

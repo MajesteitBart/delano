@@ -372,6 +372,119 @@
     @apply mb-2;
   }
 
+  .md-body .task-list,
+  .md-editor .ProseMirror ul[data-type="taskList"] {
+    @apply mb-5 list-none space-y-1.5 pl-0;
+  }
+
+  .md-body .task-list li,
+  .md-editor .ProseMirror ul[data-type="taskList"] li {
+    @apply mb-0 flex items-start gap-2.5;
+  }
+
+  .md-body .task-list li > input {
+    margin-top: 0.35rem;
+  }
+
+  .md-body .task-list input[type="checkbox"],
+  .md-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+    @apply size-4 shrink-0 rounded-[4px];
+    appearance: none;
+    display: grid;
+    place-content: center;
+    border: 1px solid color-mix(in oklch, var(--foreground) 24%, var(--border));
+    background: var(--card);
+    opacity: 1;
+    transition:
+      background-color 120ms cubic-bezier(0.25, 1, 0.5, 1),
+      border-color 120ms cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .md-body .task-list input[type="checkbox"]::before,
+  .md-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"]::before {
+    width: 0.5rem;
+    height: 0.28rem;
+    content: "";
+    border-bottom: 1.5px solid var(--primary-foreground);
+    border-left: 1.5px solid var(--primary-foreground);
+    transform: translateY(-0.04rem) rotate(-45deg) scale(0);
+    transform-origin: center;
+    transition: transform 120ms cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .md-body .task-list input[type="checkbox"]:checked,
+  .md-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked {
+    border-color: var(--primary);
+    background: var(--primary);
+  }
+
+  .md-body .task-list input[type="checkbox"]:checked::before,
+  .md-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"]:checked::before {
+    transform: translateY(-0.04rem) rotate(-45deg) scale(1);
+  }
+
+  .md-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  .md-body .task-list input[type="checkbox"]:disabled {
+    cursor: default;
+  }
+
+  .md-body .task-list li[data-checked="true"] > span,
+  .md-editor .ProseMirror li[data-checked="true"] > div {
+    @apply text-muted-foreground line-through decoration-border;
+  }
+
+  .md-body blockquote:not(.md-callout) {
+    @apply mb-5 rounded-md border bg-card px-4 py-3 text-muted-foreground;
+  }
+
+  .md-body blockquote > :last-child {
+    @apply mb-0;
+  }
+
+  .md-callout {
+    --callout-accent: var(--ring);
+    --callout-surface: color-mix(in oklch, var(--callout-accent) 6%, var(--card));
+    --callout-border: color-mix(in oklch, var(--callout-accent) 28%, var(--border));
+    @apply mb-5 rounded-lg border px-4 py-3;
+    border-color: var(--callout-border);
+    background: var(--callout-surface);
+  }
+
+  .md-callout[data-callout="tip"] {
+    --callout-accent: oklch(0.48 0.08 155);
+  }
+
+  .md-callout[data-callout="important"] {
+    --callout-accent: oklch(0.46 0.09 275);
+  }
+
+  .md-callout[data-callout="warning"] {
+    --callout-accent: var(--status-warning-foreground);
+  }
+
+  .md-callout[data-callout="caution"] {
+    --callout-accent: var(--destructive);
+  }
+
+  .md-callout-title {
+    @apply mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.06em];
+    color: var(--callout-accent);
+  }
+
+  .md-callout-title::before {
+    @apply size-1.5 shrink-0 rounded-full;
+    content: "";
+    background: currentColor;
+  }
+
+  .md-callout-body {
+    @apply text-[0.95em] leading-6 text-foreground/85;
+  }
+
   .md-body code {
     @apply rounded bg-muted px-1.5 py-0.5 font-mono text-[0.88em];
   }
@@ -418,14 +531,6 @@
     content: attr(data-placeholder);
   }
 
-  .md-editor .ProseMirror ul[data-type="taskList"] {
-    @apply list-none pl-1;
-  }
-
-  .md-editor .ProseMirror ul[data-type="taskList"] li {
-    @apply flex items-start gap-2;
-  }
-
   .md-editor .ProseMirror ul[data-type="taskList"] li > label {
     @apply mt-[5px] flex shrink-0 items-center;
   }
@@ -435,11 +540,7 @@
   }
 
   .md-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
-    @apply size-4 cursor-pointer rounded-sm border-border accent-primary;
-  }
-
-  .md-editor .ProseMirror li[data-checked="true"] > div {
-    @apply text-muted-foreground line-through decoration-border;
+    @apply cursor-pointer;
   }
 
   .md-editor .ProseMirror .selectedCell {

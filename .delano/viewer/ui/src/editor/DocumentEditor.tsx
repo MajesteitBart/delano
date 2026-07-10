@@ -1,10 +1,19 @@
-import { EditorContent, useEditor } from "@tiptap/react"
+import { EditorContent, useEditor, type Editor } from "@tiptap/react"
 import {
   ArrowLeftIcon,
   CheckIcon,
+  CodeXmlIcon,
+  Heading1Icon,
+  Heading2Icon,
+  Heading3Icon,
+  ListIcon,
+  ListOrderedIcon,
+  ListTodoIcon,
   LockIcon,
+  MinusIcon,
   RefreshCwIcon,
   SaveIcon,
+  TextQuoteIcon,
   TriangleAlertIcon,
   WandSparklesIcon,
 } from "lucide-react"
@@ -13,8 +22,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
+import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover"
 import { Spinner } from "@/components/ui/spinner"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { messageFromError, requestJson } from "@/lib/api"
 import type { Baseline, ViewerDoc } from "@/lib/domain/types"
 import { cn } from "@/lib/utils"
@@ -26,10 +40,38 @@ import {
   roundTripIsClean,
   splitRawFrontmatter,
 } from "./markdownEditing"
+import {
+  applySlashCommand,
+  filterSlashCommands,
+  matchSlashQuery,
+  slashMenuKeyAction,
+  type SlashCommandId,
+  type SlashCommandRange,
+} from "./slashCommands"
 
 type ConflictState = {
   currentBaseline: Baseline
 }
+
+type SlashMenuState = {
+  query: string
+  range: SlashCommandRange
+  highlightedIndex: number
+}
+
+const slashCommandIcons = {
+  "heading-1": Heading1Icon,
+  "heading-2": Heading2Icon,
+  "heading-3": Heading3Icon,
+  "bullet-list": ListIcon,
+  "ordered-list": ListOrderedIcon,
+  "task-list": ListTodoIcon,
+  blockquote: TextQuoteIcon,
+  "code-block": CodeXmlIcon,
+  "horizontal-rule": MinusIcon,
+} satisfies Record<SlashCommandId, typeof Heading1Icon>
+
+const SLASH_MENU_ID = "editor-slash-command-menu"
 
 function FrontmatterCard({ frontmatterRaw }: { frontmatterRaw: string }) {
   const entries = useMemo(
@@ -139,6 +181,102 @@ export default function DocumentEditor({
   const [saving, setSaving] = useState(false)
   const [conflict, setConflict] = useState<ConflictState | null>(null)
   const [discardArmed, setDiscardArmed] = useState(false)
+  const [slashMenu, setSlashMenu] = useState<SlashMenuState | null>(null)
+  const slashMenuRef = useRef<SlashMenuState | null>(null)
+  const editorRef = useRef<Editor | null>(null)
+  const caretRectRef = useRef<DOMRect | null>(null)
+  const caretAnchorRef = useRef({
+    getBoundingClientRect: () => caretRectRef.current ?? new DOMRect(),
+  })
+
+  const updateSlashMenu = useCallback((next: SlashMenuState | null) => {
+    slashMenuRef.current = next
+    setSlashMenu(next)
+  }, [])
+
+  const syncSlashMenu = useCallback(
+    (activeEditor: Editor) => {
+      const { selection } = activeEditor.state
+      const { $from } = selection
+      if (!selection.empty || !$from.parent.isTextblock) {
+        updateSlashMenu(null)
+        return
+      }
+
+      const textBeforeCursor = $from.parent.textBetween(0, $from.parentOffset)
+      const match = matchSlashQuery(textBeforeCursor)
+      if (!match) {
+        updateSlashMenu(null)
+        return
+      }
+
+      const coordinates = activeEditor.view.coordsAtPos(selection.from)
+      caretRectRef.current = new DOMRect(
+        coordinates.left,
+        coordinates.bottom,
+        Math.max(1, coordinates.right - coordinates.left),
+        1
+      )
+
+      const previous = slashMenuRef.current
+      const commandCount = filterSlashCommands(match.query).length
+      const highlightedIndex =
+        previous?.query === match.query && commandCount > 0
+          ? Math.min(previous.highlightedIndex, commandCount - 1)
+          : 0
+
+      updateSlashMenu({
+        query: match.query,
+        range: {
+          from: selection.from - match.triggerLength,
+          to: selection.from,
+        },
+        highlightedIndex,
+      })
+    },
+    [updateSlashMenu]
+  )
+
+  const selectSlashCommand = useCallback(
+    (commandId: SlashCommandId) => {
+      const activeEditor = editorRef.current
+      const currentMenu = slashMenuRef.current
+      if (!activeEditor || !currentMenu) return
+      updateSlashMenu(null)
+      applySlashCommand(activeEditor, commandId, currentMenu.range)
+    },
+    [updateSlashMenu]
+  )
+
+  const handleSlashMenuKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      const currentMenu = slashMenuRef.current
+      if (!currentMenu) return false
+
+      const commands = filterSlashCommands(currentMenu.query)
+      const action = slashMenuKeyAction(
+        event.key,
+        currentMenu.highlightedIndex,
+        commands
+      )
+      if (action.type === "none") return false
+
+      event.preventDefault()
+      event.stopPropagation()
+      if (action.type === "dismiss") {
+        updateSlashMenu(null)
+      } else if (action.type === "move") {
+        updateSlashMenu({
+          ...currentMenu,
+          highlightedIndex: action.highlightedIndex,
+        })
+      } else {
+        selectSlashCommand(action.commandId)
+      }
+      return true
+    },
+    [selectSlashCommand, updateSlashMenu]
+  )
 
   const editor = useEditor({
     extensions: editorExtensions,
@@ -151,17 +289,54 @@ export default function DocumentEditor({
         role: "textbox",
         "aria-multiline": "true",
         "aria-label": "Document body editor",
+        "aria-haspopup": "listbox",
       },
+      handleKeyDown: (_view, event) => handleSlashMenuKeyDown(event),
     },
     onCreate: ({ editor }) => {
+      editorRef.current = editor
       savedMarkdownRef.current = editor.getMarkdown()
+    },
+    onDestroy: () => {
+      editorRef.current = null
     },
     onUpdate: ({ editor }) => {
       const isDirty = editor.getMarkdown() !== savedMarkdownRef.current
       setDirty(isDirty)
       if (isDirty) setSavedNow(false)
+      syncSlashMenu(editor)
     },
+    onSelectionUpdate: ({ editor }) => syncSlashMenu(editor),
   })
+
+  const filteredSlashCommands = useMemo(
+    () => filterSlashCommands(slashMenu?.query ?? ""),
+    [slashMenu?.query]
+  )
+
+  useEffect(() => {
+    const editorElement = editor?.view.dom
+    if (!editorElement) return
+
+    if (!slashMenu) {
+      editorElement.removeAttribute("aria-controls")
+      editorElement.removeAttribute("aria-expanded")
+      editorElement.removeAttribute("aria-activedescendant")
+      return
+    }
+
+    editorElement.setAttribute("aria-controls", SLASH_MENU_ID)
+    editorElement.setAttribute("aria-expanded", "true")
+    const activeCommand = filteredSlashCommands[slashMenu.highlightedIndex]
+    if (activeCommand) {
+      editorElement.setAttribute(
+        "aria-activedescendant",
+        `${SLASH_MENU_ID}-${activeCommand.id}`
+      )
+    } else {
+      editorElement.removeAttribute("aria-activedescendant")
+    }
+  }, [editor, filteredSlashCommands, slashMenu])
 
   useEffect(() => {
     if (!discardArmed) return
@@ -391,6 +566,80 @@ export default function DocumentEditor({
         <FrontmatterCard frontmatterRaw={split.frontmatterRaw} />
         <div className={cn("md-editor", conflict && "opacity-90")}>
           <EditorContent editor={editor} />
+          <Popover
+            open={Boolean(slashMenu)}
+            onOpenChange={(open) => {
+              if (!open) updateSlashMenu(null)
+            }}
+          >
+            <PopoverAnchor virtualRef={caretAnchorRef} />
+            <PopoverContent
+              id={SLASH_MENU_ID}
+              role="listbox"
+              aria-label="Insert a Markdown block"
+              align="start"
+              side="bottom"
+              sideOffset={6}
+              className="max-h-80 w-72 gap-1 overflow-y-auto p-1.5"
+              onOpenAutoFocus={(event) => event.preventDefault()}
+              onCloseAutoFocus={(event) => event.preventDefault()}
+              onKeyDown={(event) => {
+                handleSlashMenuKeyDown(event.nativeEvent)
+              }}
+            >
+              {filteredSlashCommands.length > 0 ? (
+                filteredSlashCommands.map((command, index) => {
+                  const Icon = slashCommandIcons[command.id]
+                  const highlighted = slashMenu?.highlightedIndex === index
+                  return (
+                    <Button
+                      key={command.id}
+                      id={`${SLASH_MENU_ID}-${command.id}`}
+                      role="option"
+                      aria-label={`Insert ${command.label}`}
+                      aria-selected={highlighted}
+                      variant={highlighted ? "secondary" : "ghost"}
+                      size="sm"
+                      className="w-full justify-start"
+                      onFocus={() => {
+                        const currentMenu = slashMenuRef.current
+                        if (!currentMenu) return
+                        updateSlashMenu({
+                          ...currentMenu,
+                          highlightedIndex: index,
+                        })
+                      }}
+                      onPointerMove={() => {
+                        const currentMenu = slashMenuRef.current
+                        if (
+                          !currentMenu ||
+                          currentMenu.highlightedIndex === index
+                        ) {
+                          return
+                        }
+                        updateSlashMenu({
+                          ...currentMenu,
+                          highlightedIndex: index,
+                        })
+                      }}
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() => selectSlashCommand(command.id)}
+                    >
+                      <Icon data-icon="inline-start" />
+                      {command.label}
+                    </Button>
+                  )
+                })
+              ) : (
+                <p
+                  role="status"
+                  className="px-2 py-5 text-center text-xs text-muted-foreground"
+                >
+                  No matching commands
+                </p>
+              )}
+            </PopoverContent>
+          </Popover>
         </div>
       </article>
     </div>

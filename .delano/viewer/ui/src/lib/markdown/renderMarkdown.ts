@@ -13,6 +13,16 @@ type ListItem = {
   checked?: boolean
 }
 
+const CALLOUT_LABELS = {
+  note: "Note",
+  tip: "Tip",
+  important: "Important",
+  warning: "Warning",
+  caution: "Caution",
+} as const
+
+type CalloutKind = keyof typeof CALLOUT_LABELS
+
 export function renderMarkdown(markdown: string) {
   const body = stripFrontmatter(markdown)
   const lines = body.split(/\r?\n/)
@@ -44,8 +54,8 @@ export function renderMarkdown(markdown: string) {
 
   const flushQuote = (lineNumber: number) => {
     if (!quote.length) return
-    const text = quote.join(" ")
-    pushBlock(output, "blockquote", lineNumber - quote.length, `<blockquote>${inline(text)}</blockquote>`)
+    const rendered = renderQuote(quote)
+    pushBlock(output, rendered.kind, lineNumber - quote.length, rendered.html)
     quote = []
   }
 
@@ -144,7 +154,28 @@ export function renderMarkdown(markdown: string) {
 function renderListItem(item: ListItem, mode: ListMode) {
   if (mode !== "task") return `<li>${inline(item.text)}</li>`
   const checked = item.checked ? " checked" : ""
-  return `<li data-checked="${item.checked ? "true" : "false"}"><input type="checkbox" disabled${checked} aria-hidden="true" />${inline(item.text)}</li>`
+  const label = item.checked ? "Completed task" : "Incomplete task"
+  return `<li data-checked="${item.checked ? "true" : "false"}"><input type="checkbox" disabled${checked} aria-label="${label}" /><span>${inline(item.text)}</span></li>`
+}
+
+function renderQuote(lines: string[]) {
+  const [first = "", ...rest] = lines
+  const marker = first.match(/^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*(.*)$/i)
+  if (!marker) {
+    return {
+      kind: "blockquote",
+      html: `<blockquote>${inline(lines.join(" "))}</blockquote>`,
+    }
+  }
+
+  const kind = marker[1].toLowerCase() as CalloutKind
+  const label = CALLOUT_LABELS[kind]
+  const body = [marker[2], ...rest].filter(Boolean).join(" ").trim()
+  const content = body ? `<div class="md-callout-body">${inline(body)}</div>` : ""
+  return {
+    kind: "callout",
+    html: `<aside class="md-callout" data-callout="${kind}" role="note" aria-label="${label}"><div class="md-callout-title">${label}</div>${content}</aside>`,
+  }
 }
 
 function isTableStart(lines: string[], index: number) {
