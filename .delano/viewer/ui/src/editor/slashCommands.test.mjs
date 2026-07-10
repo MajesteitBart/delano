@@ -1,12 +1,26 @@
 import assert from "node:assert/strict"
+import { readFileSync } from "node:fs"
 import test from "node:test"
+import ts from "typescript"
 
-import {
+const source = readFileSync(
+  new URL("./slashCommands.ts", import.meta.url),
+  "utf8"
+)
+const { outputText } = ts.transpileModule(source, {
+  compilerOptions: {
+    module: ts.ModuleKind.ESNext,
+    target: ts.ScriptTarget.ES2022,
+  },
+  fileName: "slashCommands.ts",
+})
+const moduleUrl = `data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`
+const {
   applySlashCommand,
   filterSlashCommands,
   matchSlashQuery,
   slashMenuKeyAction,
-} from "./slashCommands.ts"
+} = await import(moduleUrl)
 
 test("slash queries trigger only at the start of a text block", () => {
   assert.deepEqual(matchSlashQuery("/"), { query: "", triggerLength: 1 })
