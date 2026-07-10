@@ -14,6 +14,7 @@ export function AppShell({
   activePath,
   activeProject,
   children,
+  filesCount,
   index,
   isCompact,
   onOpenDoc,
@@ -28,6 +29,7 @@ export function AppShell({
   activePath: string | null
   activeProject: ProjectIndex | null
   children: ReactNode
+  filesCount?: number
   index: ViewerIndex | null
   isCompact: boolean
   onOpenDoc: (path: string) => void
@@ -50,6 +52,7 @@ export function AppShell({
       index={index}
       activeProject={activeProject}
       activePath={activePath}
+      filesCount={filesCount}
       route={route}
       onOpenDoc={closeAfter(onOpenDoc)}
       onOpenProjectOverview={closeAfter(onOpenProjectOverview)}

@@ -275,6 +275,134 @@
     @apply px-2 pt-2 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground;
   }
 
+  .viewer-identity {
+    @apply flex min-w-0 items-center gap-1.5 rounded-[4px] text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .viewer-identity-worktree {
+    @apply min-w-0 truncate;
+  }
+
+  .viewer-identity-separator {
+    @apply shrink-0 text-muted-foreground;
+  }
+
+  .viewer-identity-repository {
+    @apply shrink-0 text-muted-foreground;
+  }
+
+  .page-heading-row {
+    @apply flex flex-wrap items-center gap-3;
+  }
+
+  .table-toolbar-card {
+    @apply flex flex-col gap-3 rounded-lg border bg-card px-4 py-3.5;
+  }
+
+  .table-toolbar {
+    @apply flex flex-wrap items-end gap-3;
+  }
+
+  .table-toolbar-search {
+    @apply h-8 w-full min-w-[180px] max-w-[280px] flex-1;
+  }
+
+  .table-toolbar-field {
+    @apply flex flex-col gap-1;
+  }
+
+  .table-toolbar-label {
+    @apply text-[11px] font-medium text-muted-foreground;
+  }
+
+  .table-toolbar-trigger {
+    @apply h-8 min-w-[120px] max-w-[180px];
+  }
+
+  .table-toolbar-reset {
+    @apply ml-auto flex items-end;
+  }
+
+  .table-toolbar-chips {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .table-filter-chip {
+    @apply inline-flex items-center gap-1 rounded-full border bg-background px-2.5 py-0.5 text-xs;
+  }
+
+  .table-filter-chip-remove {
+    @apply flex size-4 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+  }
+
+  .table-toolbar-count {
+    @apply ml-1 font-mono text-xs text-muted-foreground;
+  }
+
+  .table-result-heading {
+    @apply pb-3 text-sm font-medium;
+  }
+
+  .table-sort-button {
+    @apply inline-flex h-full items-center gap-1 rounded-[4px] text-left font-medium transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring;
+  }
+
+  .table-sort-button.is-active {
+    @apply text-foreground;
+  }
+
+  .table-group-row td {
+    @apply bg-muted/40 py-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground;
+  }
+
+  .plan-summary {
+    @apply grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border md:grid-cols-4;
+  }
+
+  .plan-summary-item {
+    @apply flex flex-col gap-1 bg-card px-4 py-3 text-center;
+  }
+
+  .plan-summary-title {
+    @apply text-sm font-semibold;
+  }
+
+  .plan-summary-definition {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .home-split {
+    @apply grid gap-5 min-[1000px]:grid-cols-2;
+  }
+
+  .workspace-inspector {
+    @apply fixed inset-y-0 right-0 z-40 flex w-full translate-x-full flex-col border-l bg-popover text-sm text-popover-foreground shadow-lg transition-transform duration-300 ease-in-out data-[open=false]:pointer-events-none data-[open=true]:translate-x-0 sm:max-w-[400px];
+  }
+
+  .inspector-fields {
+    @apply flex flex-col;
+  }
+
+  .inspector-field {
+    @apply flex items-baseline justify-between gap-3 border-b border-dashed py-2 last:border-b-0;
+  }
+
+  .inspector-field dt {
+    @apply shrink-0 text-xs text-muted-foreground;
+  }
+
+  .inspector-field dd {
+    @apply min-w-0 truncate text-right text-sm;
+  }
+
+  .inspector-section-title {
+    @apply mb-1 text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground;
+  }
+
+  .inspector-subject {
+    @apply rounded-md border bg-muted/30 px-3 py-2.5 text-sm leading-5;
+  }
+
   .eyebrow {
     @apply mb-4 text-xs font-medium uppercase tracking-normal text-muted-foreground;
   }
@@ -536,4 +664,10 @@
     @apply grid-cols-2;
   }
 
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-inspector {
+    transition: none;
+  }
 }

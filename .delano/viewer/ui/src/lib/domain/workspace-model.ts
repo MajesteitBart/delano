@@ -99,6 +99,7 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
   const projects = projectStats(index)
   const context = contextDocs(index)
   const current = tasks.filter((item) => statusTone(item.doc.status) !== "done")
+  const done = tasks.filter((item) => statusTone(item.doc.status) === "done")
   const blockers = tasks.filter((item) => statusTone(item.doc.status) === "blocked")
   const warnings = allDocs.filter((doc) => statusTone(doc.status) === "warning")
   const progress = allDocs.filter((doc) => doc.role === "progress")
@@ -109,12 +110,16 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
     context,
     projects,
     current,
+    done,
     progress,
     annotations,
     validation,
     warnings,
     blockers,
     counts: {
+      // Review and Plan are derived views over the same canonical tasks.
+      review: done.length,
+      plan: current.length,
       context: context.length,
       projects: projects.length,
       open: current.length,
@@ -125,6 +130,11 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
       blockers: blockers.length,
     },
   }
+}
+
+export type WorkspaceCounts = ReturnType<typeof getWorkspaceModel>["counts"] & {
+  /** Updated Files record count; known only once Git activity has loaded. */
+  files?: number
 }
 
 export function sidebarCounts(index: ViewerIndex | null) {

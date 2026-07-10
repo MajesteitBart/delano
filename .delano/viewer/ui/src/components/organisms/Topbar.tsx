@@ -2,40 +2,43 @@ import { CodeIcon, FolderIcon, MenuIcon, XIcon } from "lucide-react"
 import { useState } from "react"
 
 import type { ActivityEvent } from "@/app/useLiveEvents"
-import { StatusBadge } from "@/components/atoms/StatusBadge"
 import { ActivityFeed } from "@/components/molecules/ActivityFeed"
+import { ViewerIdentityLabel } from "@/components/molecules/ViewerIdentityLabel"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { messageFromError, requestJson } from "@/lib/api"
 import { formatDate } from "@/lib/domain/dates"
-import { titleFromSlug } from "@/lib/domain/status"
+import type { ViewerIdentity } from "@/lib/domain/identity"
 import type { ViewerDoc, ViewerIndex } from "@/lib/domain/types"
 
+/**
+ * Global top bar. The left side identifies the running viewer instance on
+ * every route (AD-8B) — `worktree · repository`, never a page title, never an
+ * absolute path. Page and document titles live in the content column.
+ */
 export function Topbar({
   activity = [],
   activityOpen,
   agentWorking = false,
   doc,
+  identity,
   index,
   onActivityOpenChange,
   onOpenDoc,
   onOpenSidebar,
   showSidebarButton = false,
-  status,
-  title,
   updated,
 }: {
   activity?: ActivityEvent[]
   activityOpen?: boolean
   agentWorking?: boolean
   doc: ViewerDoc | null
+  identity: ViewerIdentity | null
   index: ViewerIndex | null
   onActivityOpenChange?: (open: boolean) => void
   onOpenDoc?: (path: string) => void
   onOpenSidebar?: () => void
   showSidebarButton?: boolean
-  status?: string | null
-  title?: string
   updated?: string | null
 }) {
   const [openError, setOpenError] = useState("")
@@ -66,10 +69,7 @@ export function Topbar({
               <TooltipContent>Open navigation</TooltipContent>
             </Tooltip>
           )}
-          <h1 className="truncate text-sm font-medium">
-            {title ?? (doc?.project ? titleFromSlug(doc.project) : index?.repo ?? "Delano")}
-          </h1>
-          {(status ?? doc?.status) && <StatusBadge status={(status ?? doc?.status) as string} />}
+          <ViewerIdentityLabel identity={identity} />
         </div>
       </div>
       <div className="topbar-actions">

@@ -9,7 +9,10 @@ import {
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
 
+import { useTableQuery } from "@/app/useTableQuery"
+import { SortableHead } from "@/components/molecules/SortableHead"
 import { TablePaginationFooter } from "@/components/molecules/TablePaginationFooter"
+import { TableToolbar } from "@/components/molecules/TableToolbar"
 import { StatusBadge } from "@/components/atoms/StatusBadge"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -20,6 +23,7 @@ import {
 } from "@/components/ui/card"
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
@@ -36,12 +40,19 @@ import {
 import { messageFromError, requestJson } from "@/lib/api"
 import { annotationLine } from "@/lib/domain/annotations"
 import { formatDate } from "@/lib/domain/dates"
-import { paginateItems } from "@/lib/domain/pagination"
+import { DEFAULT_PAGE_SIZE } from "@/lib/domain/pagination"
+import { statusLabel } from "@/lib/domain/status"
+import {
+  resultSummaryLabel,
+  TIME_RANGE_OPTIONS,
+  withinTimeRange,
+  type TableQueryConfig,
+} from "@/lib/domain/table-query"
 import type { Annotation, DocMeta, ViewerIndex } from "@/lib/domain/types"
 import { type WorkspaceView } from "@/lib/domain/navigation"
 import { getWorkspaceModel, type ProjectStat, type WorkspaceTaskItem } from "@/lib/domain/workspace-model"
 
-const WORKSPACE_COPY: Record<WorkspaceView, { title: string; description: string }> = {
+const WORKSPACE_COPY: Partial<Record<WorkspaceView, { title: string; description: string }>> = {
   "workspace-context": {
     title: "Context pack",
     description: "Repository context files agents should read before implementation work.",
@@ -88,7 +99,7 @@ export function WorkspacePage({
   view: WorkspaceView
 }) {
   const workspace = getWorkspaceModel(index)
-  const copy = WORKSPACE_COPY[view]
+  const copy = WORKSPACE_COPY[view] ?? { title: "Workspace", description: "" }
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [annotationsLoading, setAnnotationsLoading] = useState(false)
   const [annotationsError, setAnnotationsError] = useState("")
@@ -96,18 +107,21 @@ export function WorkspacePage({
   useEffect(() => {
     if (view !== "workspace-annotations") return
     let cancelled = false
-    setAnnotationsLoading(true)
-    setAnnotationsError("")
-    requestJson<{ annotations: Annotation[] }>("/api/annotations")
-      .then((payload) => {
-        if (!cancelled) setAnnotations(payload.annotations ?? [])
-      })
-      .catch((error) => {
-        if (!cancelled) setAnnotationsError(messageFromError(error))
-      })
-      .finally(() => {
-        if (!cancelled) setAnnotationsLoading(false)
-      })
+    queueMicrotask(() => {
+      if (cancelled) return
+      setAnnotationsLoading(true)
+      setAnnotationsError("")
+      requestJson<{ annotations: Annotation[] }>("/api/annotations")
+        .then((payload) => {
+          if (!cancelled) setAnnotations(payload.annotations ?? [])
+        })
+        .catch((error) => {
+          if (!cancelled) setAnnotationsError(messageFromError(error))
+        })
+        .finally(() => {
+          if (!cancelled) setAnnotationsLoading(false)
+        })
+    })
     return () => {
       cancelled = true
     }
@@ -178,6 +192,27 @@ function annotationTypeVariant(type: string): "default" | "secondary" | "outline
   return "secondary"
 }
 
+function QueryEmpty({ onReset }: { onReset: () => void }) {
+  return (
+    <Empty className="min-h-[220px] border border-dashed bg-muted/20">
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <FileTextIcon />
+        </EmptyMedia>
+        <EmptyTitle>No matching rows</EmptyTitle>
+        <EmptyDescription>
+          Nothing matches the current search and filters.
+        </EmptyDescription>
+        <EmptyContent>
+          <Button variant="outline" size="sm" onClick={onReset}>
+            Reset filters
+          </Button>
+        </EmptyContent>
+      </EmptyHeader>
+    </Empty>
+  )
+}
+
 function AnnotationTable({
   annotations,
   error,
@@ -191,29 +226,61 @@ function AnnotationTable({
   loading: boolean
   onOpenDoc: (path: string) => void
 }) {
-  const [page, setPage] = useState(1)
   const docs = useMemo(() => {
     const map = new Map<string, DocMeta>()
     ;(index?.docs ?? []).forEach((doc) => map.set(doc.path, doc))
     return map
   }, [index])
-  const sorted = useMemo(
-    () =>
-      annotations
-        .filter((annotation) => annotation.status !== "deleted")
-        .slice()
-        .sort((a, b) => (
-          String(b.updatedAt ?? b.createdAt ?? "").localeCompare(String(a.updatedAt ?? a.createdAt ?? "")) ||
-          String(a.sourcePath).localeCompare(String(b.sourcePath)) ||
-          Number(a.anchor?.lineStart ?? 0) - Number(b.anchor?.lineStart ?? 0)
-        )),
+  const visible = useMemo(
+    () => annotations.filter((annotation) => annotation.status !== "deleted"),
     [annotations]
   )
-  const paginated = paginateItems(sorted, page)
-
-  useEffect(() => {
-    setPage(1)
-  }, [sorted.length])
+  const config = useMemo<TableQueryConfig<Annotation>>(
+    () => ({
+      searchText: (annotation) => [
+        annotation.comment,
+        annotation.quote,
+        annotation.repoPath,
+        annotation.sourcePath,
+        annotation.type,
+      ],
+      filters: [
+        {
+          id: "type",
+          label: "Type",
+          value: (annotation) => annotation.type,
+        },
+        {
+          id: "status",
+          label: "Status",
+          value: (annotation) => annotation.status || "open",
+          valueLabel: statusLabel,
+        },
+      ],
+      sorts: [
+        {
+          id: "updated",
+          label: "Updated newest",
+          kind: "date",
+          value: (annotation) => annotation.updatedAt ?? annotation.createdAt ?? null,
+          initialDirection: "desc",
+        },
+        {
+          id: "source",
+          label: "Source",
+          kind: "natural",
+          value: (annotation) => annotation.sourcePath,
+        },
+      ],
+      defaultSort: "updated",
+      defaultDirection: "desc",
+      tieBreaker: (a, b) =>
+        String(a.sourcePath).localeCompare(String(b.sourcePath)) ||
+        Number(a.anchor?.lineStart ?? 0) - Number(b.anchor?.lineStart ?? 0),
+    }),
+    []
+  )
+  const query = useTableQuery(visible, config, { syncToHash: true })
 
   if (loading) {
     return <EmptyPanel icon={RefreshCwIcon} title="Loading annotations" description="Reading viewer review comments." />
@@ -223,70 +290,91 @@ function AnnotationTable({
     return <EmptyPanel icon={AlertTriangleIcon} title="Annotations unavailable" description={error} />
   }
 
-  if (!sorted.length) {
+  if (!visible.length) {
     return <EmptyPanel icon={MessageSquareTextIcon} title="No annotations" description="No viewer comments have been captured yet." />
   }
 
   return (
-    <Card>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Annotation</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.items.map((annotation) => {
-              const sourceDoc = docs.get(annotation.sourcePath)
-              const sourceTitle = sourceDoc?.title ?? annotation.repoPath
-              return (
-                <TableRow key={annotation.id}>
-                  <TableCell className="max-w-[420px]">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant={annotationTypeVariant(annotation.type)}>{annotation.type}</Badge>
-                        <span className="font-mono text-xs text-muted-foreground">{annotation.id.slice(0, 8)}</span>
-                      </div>
-                      <p className="line-clamp-2 text-sm leading-5">{annotation.comment}</p>
-                      <blockquote className="line-clamp-2 border-l-2 border-border pl-2 font-mono text-xs text-muted-foreground">
-                        "{annotation.quote || "Global comment"}"
-                      </blockquote>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      className="h-auto max-w-[320px] justify-start px-0 text-left"
-                      variant="link"
-                      onClick={() => onOpenDoc(annotation.sourcePath)}
-                    >
-                      <span className="truncate">{sourceTitle}</span>
-                    </Button>
-                    <div className="mono-path">{annotation.repoPath}</div>
-                    <div className="mt-1 font-mono text-xs text-muted-foreground">{annotationLine(annotation)}</div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={annotation.status || "open"} />
-                  </TableCell>
-                  <TableCell>{formatDate(annotation.updatedAt ?? annotation.createdAt)}</TableCell>
+    <>
+      <TableToolbar
+        config={config}
+        items={visible}
+        noun="annotations"
+        query={query}
+        searchPlaceholder="Search annotations..."
+      />
+      <Card>
+        <CardContent>
+          {query.result.filteredTotal === 0 ? (
+            <QueryEmpty onReset={query.reset} />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Annotation</TableHead>
+                  <SortableHead label="Source" sortId="source" query={query} />
+                  <TableHead>Status</TableHead>
+                  <SortableHead label="Updated" sortId="updated" query={query} />
                 </TableRow>
-              )
+              </TableHeader>
+              <TableBody>
+                {query.paginated.items.map((annotation) => {
+                  const sourceDoc = docs.get(annotation.sourcePath)
+                  const sourceTitle = sourceDoc?.title ?? annotation.repoPath
+                  return (
+                    <TableRow key={annotation.id}>
+                      <TableCell className="max-w-[420px]">
+                        <div className="flex flex-col gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge variant={annotationTypeVariant(annotation.type)}>{annotation.type}</Badge>
+                            <span className="font-mono text-xs text-muted-foreground">{annotation.id.slice(0, 8)}</span>
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-5">{annotation.comment}</p>
+                          <blockquote className="line-clamp-2 border-l-2 border-border pl-2 font-mono text-xs text-muted-foreground">
+                            "{annotation.quote || "Global comment"}"
+                          </blockquote>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          className="h-auto max-w-[320px] justify-start px-0 text-left"
+                          variant="link"
+                          onClick={() => onOpenDoc(annotation.sourcePath)}
+                        >
+                          <span className="truncate">{sourceTitle}</span>
+                        </Button>
+                        <div className="mono-path">{annotation.repoPath}</div>
+                        <div className="mt-1 font-mono text-xs text-muted-foreground">{annotationLine(annotation)}</div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={annotation.status || "open"} />
+                      </TableCell>
+                      <TableCell>{formatDate(annotation.updatedAt ?? annotation.createdAt)}</TableCell>
+                    </TableRow>
+                  )
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+        <CardFooter>
+          <TablePaginationFooter
+            page={query.paginated.page}
+            pageCount={query.paginated.pageCount}
+            total={query.paginated.total}
+            summary={resultSummaryLabel({
+              filteredTotal: query.result.filteredTotal,
+              noun: "annotations",
+              page: query.paginated.page,
+              pageSize: DEFAULT_PAGE_SIZE,
+              shownCount: query.paginated.items.length,
+              total: query.result.total,
             })}
-          </TableBody>
-        </Table>
-      </CardContent>
-      <CardFooter>
-        <TablePaginationFooter
-          page={paginated.page}
-          pageCount={paginated.pageCount}
-          total={paginated.total}
-          onPageChange={setPage}
-        />
-      </CardFooter>
-    </Card>
+            onPageChange={query.setPage}
+          />
+        </CardFooter>
+      </Card>
+    </>
   )
 }
 
@@ -297,8 +385,54 @@ function ProjectTable({
   items: ProjectStat[]
   onOpenProject: (slug: string) => void
 }) {
-  const [page, setPage] = useState(1)
-  const paginated = paginateItems(items, page)
+  const config = useMemo<TableQueryConfig<ProjectStat>>(
+    () => ({
+      searchText: (item) => [item.project.title, item.project.slug],
+      filters: [
+        {
+          id: "status",
+          label: "Status",
+          value: (item) => item.project.status ?? "planned",
+          valueLabel: statusLabel,
+        },
+        {
+          id: "range",
+          label: "Updated",
+          multi: false,
+          options: TIME_RANGE_OPTIONS,
+          value: (item) => item.updated ?? null,
+          match: (item, selected) => withinTimeRange(item.updated, selected),
+        },
+      ],
+      sorts: [
+        {
+          id: "updated",
+          label: "Updated newest",
+          kind: "date",
+          value: (item) => item.updated ?? null,
+          initialDirection: "desc",
+        },
+        {
+          id: "project",
+          label: "Project",
+          kind: "natural",
+          value: (item) => item.project.title,
+        },
+        {
+          id: "open",
+          label: "Open tasks",
+          kind: "number",
+          value: (item) => item.openTaskCount,
+          initialDirection: "desc",
+        },
+      ],
+      defaultSort: "updated",
+      defaultDirection: "desc",
+      tieBreaker: (a, b) => a.project.slug.localeCompare(b.project.slug),
+    }),
+    []
+  )
+  const query = useTableQuery(items, config, { syncToHash: true })
 
   if (!items.length) {
     return (
@@ -307,50 +441,71 @@ function ProjectTable({
   }
 
   return (
-    <Card>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Workstreams</TableHead>
-              <TableHead>Open tasks</TableHead>
-              <TableHead>Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.items.map((item) => (
-              <TableRow key={item.project.slug}>
-                <TableCell>
-                  <Button
-                    className="h-auto justify-start px-0 text-left"
-                    variant="link"
-                    onClick={() => onOpenProject(item.project.slug)}
-                  >
-                    {item.project.title}
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  {item.project.status ? <StatusBadge status={item.project.status} /> : "Planned"}
-                </TableCell>
-                <TableCell>{item.workstreamCount}</TableCell>
-                <TableCell>{item.openTaskCount}</TableCell>
-                <TableCell>{formatDate(item.updated)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-      <CardFooter>
-        <TablePaginationFooter
-          page={paginated.page}
-          pageCount={paginated.pageCount}
-          total={paginated.total}
-          onPageChange={setPage}
-        />
-      </CardFooter>
-    </Card>
+    <>
+      <TableToolbar
+        config={config}
+        items={items}
+        noun="projects"
+        query={query}
+        searchPlaceholder="Search projects..."
+      />
+      <Card>
+        <CardContent>
+          {query.result.filteredTotal === 0 ? (
+            <QueryEmpty onReset={query.reset} />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableHead label="Project" sortId="project" query={query} />
+                  <TableHead>Status</TableHead>
+                  <TableHead>Workstreams</TableHead>
+                  <SortableHead label="Open tasks" sortId="open" query={query} />
+                  <SortableHead label="Updated" sortId="updated" query={query} />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {query.paginated.items.map((item) => (
+                  <TableRow key={item.project.slug}>
+                    <TableCell>
+                      <Button
+                        className="h-auto justify-start px-0 text-left"
+                        variant="link"
+                        onClick={() => onOpenProject(item.project.slug)}
+                      >
+                        {item.project.title}
+                      </Button>
+                    </TableCell>
+                    <TableCell>
+                      {item.project.status ? <StatusBadge status={item.project.status} /> : "Planned"}
+                    </TableCell>
+                    <TableCell>{item.workstreamCount}</TableCell>
+                    <TableCell>{item.openTaskCount}</TableCell>
+                    <TableCell>{formatDate(item.updated)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+        <CardFooter>
+          <TablePaginationFooter
+            page={query.paginated.page}
+            pageCount={query.paginated.pageCount}
+            total={query.paginated.total}
+            summary={resultSummaryLabel({
+              filteredTotal: query.result.filteredTotal,
+              noun: "projects",
+              page: query.paginated.page,
+              pageSize: DEFAULT_PAGE_SIZE,
+              shownCount: query.paginated.items.length,
+              total: query.result.total,
+            })}
+            onPageChange={query.setPage}
+          />
+        </CardFooter>
+      </Card>
+    </>
   )
 }
 
@@ -367,68 +522,132 @@ function TaskTable({
   onOpenDoc: (path: string) => void
   onOpenProject: (slug: string) => void
 }) {
-  const [page, setPage] = useState(1)
-  const paginated = paginateItems(items, page)
+  const config = useMemo<TableQueryConfig<WorkspaceTaskItem>>(
+    () => ({
+      searchText: (item) => [
+        item.doc.taskId,
+        item.doc.title,
+        item.doc.path,
+        item.project?.title,
+        item.workstream?.title,
+        item.workstream?.id,
+      ],
+      filters: [
+        {
+          id: "project",
+          label: "Project",
+          value: (item) => item.project?.slug ?? null,
+        },
+        {
+          id: "status",
+          label: "Status",
+          value: (item) => item.doc.status ?? "planned",
+          valueLabel: statusLabel,
+        },
+      ],
+      sorts: [
+        {
+          id: "updated",
+          label: "Updated newest",
+          kind: "date",
+          value: (item) => item.doc.updated ?? null,
+          initialDirection: "desc",
+        },
+        {
+          id: "task",
+          label: "Task",
+          kind: "natural",
+          value: (item) => item.doc.taskId ?? item.doc.title,
+        },
+      ],
+      defaultSort: "updated",
+      defaultDirection: "desc",
+      tieBreaker: (a, b) => a.doc.path.localeCompare(b.doc.path),
+    }),
+    []
+  )
+  const query = useTableQuery(items, config, { syncToHash: true })
 
   if (!items.length) {
     return <EmptyPanel icon={ListChecksIcon} title={emptyTitle} description={emptyDescription} />
   }
 
   return (
-    <Card>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Task</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Workstream</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.items.map((item) => (
-              <TableRow key={item.doc.path}>
-                <TableCell>
-                  <Button
-                    className="h-auto justify-start px-0 text-left"
-                    variant="link"
-                    onClick={() => onOpenDoc(item.doc.path)}
-                  >
-                    {item.doc.title}
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  {item.project ? (
-                    <Button
-                      className="h-auto justify-start px-0 text-left"
-                      variant="link"
-                      onClick={() => onOpenProject(item.project?.slug ?? "")}
-                    >
-                      {item.project.title}
-                    </Button>
-                  ) : (
-                    <span className="text-muted-foreground">None</span>
-                  )}
-                </TableCell>
-                <TableCell>{item.workstream?.title ?? <span className="text-muted-foreground">None</span>}</TableCell>
-                <TableCell>
-                  <StatusBadge status={item.doc.status ?? "planned"} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-      <CardFooter>
-        <TablePaginationFooter
-          page={paginated.page}
-          pageCount={paginated.pageCount}
-          total={paginated.total}
-          onPageChange={setPage}
-        />
-      </CardFooter>
-    </Card>
+    <>
+      <TableToolbar
+        config={config}
+        items={items}
+        noun="tasks"
+        query={query}
+        searchPlaceholder="Search tasks..."
+      />
+      <Card>
+        <CardContent>
+          {query.result.filteredTotal === 0 ? (
+            <QueryEmpty onReset={query.reset} />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableHead label="Task" sortId="task" query={query} />
+                  <TableHead>Project</TableHead>
+                  <TableHead>Workstream</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {query.paginated.items.map((item) => (
+                  <TableRow key={item.doc.path}>
+                    <TableCell>
+                      <Button
+                        className="h-auto justify-start px-0 text-left"
+                        variant="link"
+                        onClick={() => onOpenDoc(item.doc.path)}
+                      >
+                        {item.doc.title}
+                      </Button>
+                    </TableCell>
+                    <TableCell>
+                      {item.project ? (
+                        <Button
+                          className="h-auto justify-start px-0 text-left"
+                          variant="link"
+                          onClick={() => onOpenProject(item.project?.slug ?? "")}
+                        >
+                          {item.project.title}
+                        </Button>
+                      ) : (
+                        <span className="text-muted-foreground">None</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{item.workstream?.title ?? <span className="text-muted-foreground">None</span>}</TableCell>
+                    <TableCell>
+                      <StatusBadge status={item.doc.status ?? "planned"} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+        <CardFooter>
+          <TablePaginationFooter
+            page={query.paginated.page}
+            pageCount={query.paginated.pageCount}
+            total={query.paginated.total}
+            summary={resultSummaryLabel({
+              filteredTotal: query.result.filteredTotal,
+              noun: "tasks",
+              page: query.paginated.page,
+              pageSize: DEFAULT_PAGE_SIZE,
+              shownCount: query.paginated.items.length,
+              total: query.result.total,
+            })}
+            onPageChange={query.setPage}
+          />
+        </CardFooter>
+      </Card>
+    </>
   )
 }
 
@@ -441,57 +660,114 @@ function DocTable({
   emptyTitle: string
   onOpenDoc: (path: string) => void
 }) {
-  const [page, setPage] = useState(1)
-  const paginated = paginateItems(docs, page)
+  const config = useMemo<TableQueryConfig<DocMeta>>(
+    () => ({
+      searchText: (doc) => [doc.title, doc.path, doc.role, doc.project],
+      filters: [
+        {
+          id: "role",
+          label: "Role",
+          value: (doc) => doc.role ?? "document",
+        },
+        {
+          id: "status",
+          label: "Status",
+          value: (doc) => doc.status ?? null,
+          valueLabel: statusLabel,
+        },
+      ],
+      sorts: [
+        {
+          id: "updated",
+          label: "Updated newest",
+          kind: "date",
+          value: (doc) => doc.updated ?? null,
+          initialDirection: "desc",
+        },
+        {
+          id: "document",
+          label: "Document",
+          kind: "natural",
+          value: (doc) => doc.title,
+        },
+      ],
+      defaultSort: "updated",
+      defaultDirection: "desc",
+      tieBreaker: (a, b) => a.path.localeCompare(b.path),
+    }),
+    []
+  )
+  const query = useTableQuery(docs, config, { syncToHash: true })
 
   if (!docs.length) {
     return <EmptyPanel icon={FileTextIcon} title={emptyTitle} description="No matching documents were indexed." />
   }
 
   return (
-    <Card>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Document</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.items.map((doc) => (
-              <TableRow key={doc.path}>
-                <TableCell>
-                  <Button
-                    className="h-auto justify-start px-0 text-left"
-                    variant="link"
-                    onClick={() => onOpenDoc(doc.path)}
-                  >
-                    {doc.title}
-                  </Button>
-                  <div className="mono-path">{doc.path}</div>
-                </TableCell>
-                <TableCell>{doc.role ?? "document"}</TableCell>
-                <TableCell>
-                  {doc.status ? <StatusBadge status={doc.status} /> : <span className="text-muted-foreground">None</span>}
-                </TableCell>
-                <TableCell>{formatDate(doc.updated)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-      <CardFooter>
-        <TablePaginationFooter
-          page={paginated.page}
-          pageCount={paginated.pageCount}
-          total={paginated.total}
-          onPageChange={setPage}
-        />
-      </CardFooter>
-    </Card>
+    <>
+      <TableToolbar
+        config={config}
+        items={docs}
+        noun="documents"
+        query={query}
+        searchPlaceholder="Search documents..."
+      />
+      <Card>
+        <CardContent>
+          {query.result.filteredTotal === 0 ? (
+            <QueryEmpty onReset={query.reset} />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <SortableHead label="Document" sortId="document" query={query} />
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <SortableHead label="Updated" sortId="updated" query={query} />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {query.paginated.items.map((doc) => (
+                  <TableRow key={doc.path}>
+                    <TableCell>
+                      <Button
+                        className="h-auto justify-start px-0 text-left"
+                        variant="link"
+                        onClick={() => onOpenDoc(doc.path)}
+                      >
+                        {doc.title}
+                      </Button>
+                      <div className="mono-path">{doc.path}</div>
+                    </TableCell>
+                    <TableCell>{doc.role ?? "document"}</TableCell>
+                    <TableCell>
+                      {doc.status ? <StatusBadge status={doc.status} /> : <span className="text-muted-foreground">None</span>}
+                    </TableCell>
+                    <TableCell>{formatDate(doc.updated)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+        <CardFooter>
+          <TablePaginationFooter
+            page={query.paginated.page}
+            pageCount={query.paginated.pageCount}
+            total={query.paginated.total}
+            summary={resultSummaryLabel({
+              filteredTotal: query.result.filteredTotal,
+              noun: "documents",
+              page: query.paginated.page,
+              pageSize: DEFAULT_PAGE_SIZE,
+              shownCount: query.paginated.items.length,
+              total: query.result.total,
+            })}
+            onPageChange={query.setPage}
+          />
+        </CardFooter>
+      </Card>
+    </>
   )
 }
 

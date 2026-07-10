@@ -8,8 +8,13 @@ export type DocMeta = {
   artifactRole?: string
   workstreamId?: string | null
   taskId?: string | null
+  /** Local task IDs from `depends_on`; emitted by the server for task docs. */
+  dependsOn?: string[]
+  workstreamPath?: string | null
   updated?: string
   snippet?: string
+  size?: number
+  relationships?: Record<string, string[]>
   frontmatter?: Record<string, unknown>
 }
 
@@ -31,6 +36,13 @@ export type ProjectIndex = {
 export type ViewerIndex = {
   repo: string
   generatedAt: string
+  /** Server-owned viewer identity (AD-8B); optional until the server emits it. */
+  viewerIdentity?: {
+    worktree: string
+    repository: string
+    displayLabel: string
+    branch?: string
+  }
   annotationSummary?: {
     storePath: string
     total: number

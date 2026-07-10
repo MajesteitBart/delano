@@ -21,6 +21,7 @@ import {
   HandoverMenu,
   type DispatchInfo,
 } from "@/components/molecules/HandoverMenu"
+import { StatusBadge } from "@/components/atoms/StatusBadge"
 import { AnnotationDrawer } from "@/components/organisms/AnnotationDrawer"
 import { MarkdownArticle } from "@/components/organisms/MarkdownArticle"
 import { Badge } from "@/components/ui/badge"
@@ -30,6 +31,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { messageFromError, requestJson } from "@/lib/api"
 import type { LiveDocEvent } from "@/app/useLiveEvents"
 import { annotationLine, numberOrNull } from "@/lib/domain/annotations"
+import { formatDate } from "@/lib/domain/dates"
 import type { Annotation, DraftAnnotation, ViewerDoc } from "@/lib/domain/types"
 import { changedBlockIds } from "@/lib/markdown/blockDiff"
 import { renderMarkdown } from "@/lib/markdown/renderMarkdown"
@@ -462,10 +464,16 @@ export function DocumentReaderPage({
         )}
         <article className="reader-article pb-20">
           <div className="mb-6 flex items-center justify-between gap-3">
-            <Button variant="ghost" size="sm" onClick={onBack}>
-              <ArrowLeftIcon data-icon="inline-start" />
-              Back
-            </Button>
+            <div className="flex min-w-0 items-center gap-3">
+              <Button variant="ghost" size="sm" onClick={onBack}>
+                <ArrowLeftIcon data-icon="inline-start" />
+                Back
+              </Button>
+              {doc.status && <StatusBadge status={doc.status} />}
+              <span className="hidden truncate text-xs text-muted-foreground sm:inline">
+                Updated {formatDate(doc.updated)}
+              </span>
+            </div>
             <div className="flex items-center gap-2">
               {canEdit && (
                 <Button

@@ -5,22 +5,30 @@ import { useLiveEvents } from "@/app/useLiveEvents"
 import { useViewport } from "@/app/useViewport"
 import { useViewerIndex } from "@/app/useViewerIndex"
 import { useViewerNavigation } from "@/app/useViewerNavigation"
+import { useWorkOverview } from "@/app/useWorkOverview"
 import { AppShell } from "@/components/organisms/AppShell"
 import { Topbar } from "@/components/organisms/Topbar"
 import { TooltipProvider } from "@/components/ui/tooltip"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
+import { activityCounts, flattenActivity } from "@/lib/domain/file-activity"
 import {
-  WORKSPACE_NAV,
+  composeTabTitle,
+  fallbackIdentity,
+  resolveIdentity,
+} from "@/lib/domain/identity"
+import {
+  workspaceViewLabel,
   type ViewerRoute as ViewerRouteState,
 } from "@/lib/domain/navigation"
-import type { ProjectIndex, ViewerDoc, ViewerIndex } from "@/lib/domain/types"
+import type { ProjectIndex, ViewerDoc } from "@/lib/domain/types"
 
 function App() {
   const indexState = useViewerIndex()
   const navigation = useViewerNavigation(indexState.index)
   const docState = useDocument(navigation.activePath)
   const live = useLiveEvents({ onIndexChanged: indexState.refresh })
+  const overview = useWorkOverview()
   const [activityOpen, setActivityOpen] = useState(false)
   const activeProject = useActiveProject(
     indexState.index,
@@ -29,12 +37,25 @@ function App() {
   )
   const isCompact = useViewport("(max-width: 900px)")
   const error = indexState.error || docState.error
-  const topbar = getTopbarState(
-    navigation.route,
-    activeProject,
-    docState.doc,
-    indexState.index
+
+  // Server-owned identity (AD-8B): prefer the index contract, then the
+  // work-overview payload, then the server-supplied repo basename. The shell
+  // never derives identity from routes or URLs.
+  const identity = resolveIdentity(
+    indexState.index?.viewerIdentity,
+    overview.payload?.viewerIdentity,
+    fallbackIdentity(indexState.index?.repo)
   )
+
+  const pageTitle = getPageTitle(navigation.route, activeProject, docState.doc)
+  useEffect(() => {
+    document.title = composeTabTitle(identity, pageTitle)
+  }, [identity, pageTitle])
+
+  const filesCount = useMemo(() => {
+    if (!overview.payload?.gitAvailable) return undefined
+    return activityCounts(flattenActivity(overview.payload, indexState.index)).total
+  }, [overview.payload, indexState.index])
 
   return (
     <TooltipProvider>
@@ -42,6 +63,7 @@ function App() {
         index={indexState.index}
         activeProject={activeProject}
         activePath={navigation.activePath}
+        filesCount={filesCount}
         isCompact={isCompact}
         onOpenDoc={navigation.setActivePath}
         onOpenProjectOverview={navigation.openProjectOverview}
@@ -54,9 +76,8 @@ function App() {
           <Topbar
             index={indexState.index}
             doc={docState.doc}
-            title={topbar.title}
-            status={topbar.status}
-            updated={topbar.updated}
+            identity={identity}
+            updated={docState.doc?.updated ?? indexState.index?.generatedAt}
             showSidebarButton={isCompact}
             onOpenSidebar={openSidebar}
             activity={live.activity}
@@ -83,6 +104,8 @@ function App() {
             onOpenProject={navigation.selectProject}
             onOpenProjectTasks={navigation.openProjectTasks}
             onOpenProjectWorkstreams={navigation.openProjectWorkstreams}
+            onOpenWorkspace={navigation.openWorkspace}
+            overview={overview}
             route={navigation.route}
           />
         </div>
@@ -93,48 +116,17 @@ function App() {
 
 export default App
 
-function getTopbarState(
+/** Browser-tab page context; the identity prefix is added by composeTabTitle. */
+function getPageTitle(
   route: ViewerRouteState,
   project: ProjectIndex | null,
-  doc: ViewerDoc | null,
-  index: ViewerIndex | null
+  doc: ViewerDoc | null
 ) {
-  if (route.kind === "workspace") {
-    const item = WORKSPACE_NAV.find((entry) => entry.view === route.view)
-    return {
-      title: item?.label ?? "Workspace",
-      status: null,
-      updated: index?.generatedAt,
-    }
-  }
-
-  if (route.kind === "project-overview") {
-    return {
-      title: project?.title ?? "Project",
-      status: project?.status,
-      updated: index?.generatedAt,
-    }
-  }
-
+  if (route.kind === "workspace") return workspaceViewLabel(route.view)
+  if (route.kind === "project-overview") return project?.title ?? "Project"
   if (route.kind === "project-workstreams") {
-    return {
-      title: `${project?.title ?? "Project"} workstreams`,
-      status: project?.status,
-      updated: index?.generatedAt,
-    }
+    return `${project?.title ?? "Project"} workstreams`
   }
-
-  if (route.kind === "project-tasks") {
-    return {
-      title: `${project?.title ?? "Project"} tasks`,
-      status: project?.status,
-      updated: index?.generatedAt,
-    }
-  }
-
-  return {
-    title: project?.title ?? doc?.title ?? "Document",
-    status: doc?.status ?? project?.status,
-    updated: doc?.updated ?? index?.generatedAt,
-  }
+  if (route.kind === "project-tasks") return `${project?.title ?? "Project"} tasks`
+  return doc?.title ?? "Document"
 }

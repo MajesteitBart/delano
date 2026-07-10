@@ -2,13 +2,16 @@ import {
   CheckCircle2Icon,
   CodeIcon,
   Clock3Icon,
+  FileClockIcon,
   FileTextIcon,
   FolderIcon,
   FolderOpenIcon,
   HomeIcon,
   ListChecksIcon,
+  ListTodoIcon,
   MessageSquareTextIcon,
   ScaleIcon,
+  SearchCheckIcon,
   ShieldAlertIcon,
   TrendingUpIcon,
   XIcon,
@@ -32,6 +35,10 @@ import { sidebarCounts, selectableProjects } from "@/lib/domain/workspace-model"
 import { cn } from "@/lib/utils"
 
 const WORKSPACE_ICONS: Record<WorkspaceView, LucideIcon> = {
+  "workspace-home": HomeIcon,
+  "workspace-review": SearchCheckIcon,
+  "workspace-plan": ListTodoIcon,
+  "workspace-files": FileClockIcon,
   "workspace-context": FolderOpenIcon,
   "workspace-projects": CodeIcon,
   "workspace-current": ListChecksIcon,
@@ -45,6 +52,7 @@ const WORKSPACE_ICONS: Record<WorkspaceView, LucideIcon> = {
 export function Sidebar({
   activePath,
   activeProject,
+  filesCount,
   index,
   onOpenDoc,
   onOpenProjectOverview,
@@ -56,6 +64,8 @@ export function Sidebar({
 }: {
   activePath: string | null
   activeProject: ProjectIndex | null
+  /** Updated Files record count; only known once Git activity has loaded. */
+  filesCount?: number
   index: ViewerIndex | null
   onOpenDoc: (path: string) => void
   onOpenProjectOverview: () => void
@@ -116,12 +126,18 @@ export function Sidebar({
           <NavSection title="Workspace">
             {WORKSPACE_NAV.map((item) => {
               const Icon = WORKSPACE_ICONS[item.view]
+              const count =
+                item.countKey === "files"
+                  ? filesCount
+                  : item.countKey
+                    ? counts[item.countKey]
+                    : undefined
               return (
                 <NavButton
                   key={item.view}
                   icon={Icon}
                   label={item.label}
-                  count={counts[item.countKey]}
+                  count={count}
                   active={route.kind === "workspace" && route.view === item.view}
                   onClick={() => onOpenWorkspace(item.view)}
                 />

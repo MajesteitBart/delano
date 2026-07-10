@@ -13,19 +13,22 @@ export function TablePaginationFooter({
   onPageChange,
   page,
   pageCount,
+  summary,
   total,
 }: {
   onPageChange: (page: number) => void
   page: number
   pageCount: number
+  /** Optional replacement for the default item count, e.g. filtered totals. */
+  summary?: string
   total: number
 }) {
   const pages = pageWindow(page, pageCount)
 
   return (
     <div className="table-pagination-footer">
-      <div className="table-pagination-count">
-        {total} item{total === 1 ? "" : "s"}
+      <div className="table-pagination-count" role="status">
+        {summary ?? `${total} item${total === 1 ? "" : "s"}`}
       </div>
       {pageCount > 1 && (
         <Pagination className="table-pagination !mx-0 !w-auto !justify-end">

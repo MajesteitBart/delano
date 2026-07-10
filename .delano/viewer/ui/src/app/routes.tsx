@@ -8,7 +8,8 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import type { LiveDocEvent } from "@/app/useLiveEvents"
-import type { ViewerRoute } from "@/lib/domain/navigation"
+import type { WorkOverviewState } from "@/app/useWorkOverview"
+import type { ViewerRoute, WorkspaceView } from "@/lib/domain/navigation"
 import type {
   DocMeta,
   ProjectIndex,
@@ -16,11 +17,15 @@ import type {
   ViewerIndex,
 } from "@/lib/domain/types"
 import { DocumentReaderPage } from "@/pages/DocumentReaderPage"
+import { HomePage } from "@/pages/HomePage"
+import { PlanPage } from "@/pages/PlanPage"
 import {
   ProjectOverviewPage,
   ProjectTasksPage,
   ProjectWorkstreamsPage,
 } from "@/pages/ProjectPages"
+import { ReviewPage } from "@/pages/ReviewPage"
+import { UpdatedFilesPage } from "@/pages/UpdatedFilesPage"
 import { WorkspacePage } from "@/pages/WorkspacePage"
 
 export function ViewerRoute({
@@ -36,8 +41,10 @@ export function ViewerRoute({
   onOpenProject,
   onOpenProjectTasks,
   onOpenProjectWorkstreams,
+  onOpenWorkspace,
   onBackFromDocument,
   onRefreshDocument,
+  overview,
   route,
 }: {
   activeProject: ProjectIndex | null
@@ -52,8 +59,10 @@ export function ViewerRoute({
   onOpenProject: (slug: string) => void
   onOpenProjectTasks: () => void
   onOpenProjectWorkstreams: () => void
+  onOpenWorkspace: (view: WorkspaceView) => void
   onBackFromDocument: () => void
   onRefreshDocument?: () => void
+  overview: WorkOverviewState
   route: ViewerRoute
 }) {
   if (loading) {
@@ -85,6 +94,37 @@ export function ViewerRoute({
   }
 
   if (route.kind === "workspace") {
+    if (route.view === "workspace-home") {
+      return (
+        <HomePage
+          index={index}
+          overview={overview}
+          onOpenDoc={onOpenDoc}
+          onOpenProject={onOpenProject}
+          onOpenWorkspace={onOpenWorkspace}
+        />
+      )
+    }
+    if (route.view === "workspace-review") {
+      return (
+        <ReviewPage
+          index={index}
+          overview={overview}
+          onOpenDoc={onOpenDoc}
+          onOpenProject={onOpenProject}
+        />
+      )
+    }
+    if (route.view === "workspace-plan") {
+      return (
+        <PlanPage index={index} onOpenDoc={onOpenDoc} onOpenProject={onOpenProject} />
+      )
+    }
+    if (route.view === "workspace-files") {
+      return (
+        <UpdatedFilesPage index={index} overview={overview} onOpenDoc={onOpenDoc} />
+      )
+    }
     return (
       <WorkspacePage
         index={index}
