@@ -1,15 +1,18 @@
 import { FileTextIcon, FolderIcon, ListChecksIcon } from "lucide-react"
 import { useState } from "react"
+import type { ColumnDef } from "@tanstack/react-table"
 
 import { HandoverMenu } from "@/components/molecules/HandoverMenu"
-import { TablePaginationFooter } from "@/components/molecules/TablePaginationFooter"
+import {
+  DataTable,
+  DataTableColumnHeader,
+} from "@/components/molecules/DataTable"
 import { StatusBadge } from "@/components/atoms/StatusBadge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -20,19 +23,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { formatDate } from "@/lib/domain/dates"
-import { paginateItems } from "@/lib/domain/pagination"
-import { statusTone } from "@/lib/domain/status"
+import { statusLabel, statusTone } from "@/lib/domain/status"
 import type { DocMeta, ProjectIndex, ViewerIndex } from "@/lib/domain/types"
 import { docsByPath } from "@/lib/domain/workspace-model"
+import { dataTableMeta } from "@/lib/data-table"
 
 export function ProjectOverviewPage({
   index,
@@ -47,8 +42,6 @@ export function ProjectOverviewPage({
   onOpenWorkstreams: () => void
   project: ProjectIndex | null
 }) {
-  const [sourcePage, setSourcePage] = useState(1)
-
   if (!project?.outline) return <ProjectEmpty />
 
   const docs = docsByPath(index)
@@ -62,7 +55,6 @@ export function ProjectOverviewPage({
     .filter((doc): doc is DocMeta => Boolean(doc))
   const taskDocs = projectTaskDocs(project, docs)
   const openTasks = taskDocs.filter((doc) => statusTone(doc.status) !== "done")
-  const sourcePagination = paginateItems(sourceDocs, sourcePage)
 
   return (
     <section className="project-page">
@@ -79,16 +71,8 @@ export function ProjectOverviewPage({
       </div>
       <Card>
         <CardContent>
-          <DocumentTable docs={sourcePagination.items} onOpenDoc={onOpenDoc} />
+          <DocumentTable docs={sourceDocs} onOpenDoc={onOpenDoc} />
         </CardContent>
-        <CardFooter>
-          <TablePaginationFooter
-            page={sourcePagination.page}
-            pageCount={sourcePagination.pageCount}
-            total={sourcePagination.total}
-            onPageChange={setSourcePage}
-          />
-        </CardFooter>
       </Card>
       <div className="project-actions">
         <Button variant="outline" onClick={onOpenWorkstreams}>
@@ -114,9 +98,97 @@ export function ProjectWorkstreamsPage({
   project: ProjectIndex | null
 }) {
   const workstreams = project?.outline?.workstreams ?? []
-  const [page, setPage] = useState(1)
   const [notice, setNotice] = useState<{ message: string; tone: "info" | "error" } | null>(null)
-  const paginated = paginateItems(workstreams, page)
+  const rows = workstreams.map((workstream) => {
+    const taskDocs = (workstream.tasks ?? [])
+      .map((path) => docs.get(path))
+      .filter((doc): doc is DocMeta => Boolean(doc))
+    return {
+      openTasks: taskDocs.filter((doc) => statusTone(doc.status) !== "done")
+        .length,
+      taskCount: taskDocs.length,
+      workstream,
+    }
+  })
+  const columns: ColumnDef<(typeof rows)[number]>[] = [
+    {
+      id: "workstream",
+      accessorFn: (row) => row.workstream.title,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Workstream" />
+      ),
+      cell: ({ row }) => row.original.workstream.title,
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-72 whitespace-normal",
+        headerClassName: "min-w-72",
+      }),
+    },
+    {
+      id: "tasks",
+      accessorFn: (row) => String(row.taskCount),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Tasks" />
+      ),
+      cell: ({ row }) => row.original.taskCount,
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-24",
+        headerClassName: "min-w-24",
+      }),
+    },
+    {
+      id: "openTasks",
+      accessorFn: (row) => String(row.openTasks),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Open tasks" />
+      ),
+      cell: ({ row }) => row.original.openTasks,
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-32",
+        headerClassName: "min-w-32",
+      }),
+    },
+    {
+      id: "contract",
+      accessorFn: (row) => row.workstream.path,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Contract" />
+      ),
+      cell: ({ row }) => (
+        <Button
+          className="h-auto justify-start px-0 text-left"
+          variant="link"
+          onClick={() => onOpenDoc(row.original.workstream.path)}
+        >
+          Open
+        </Button>
+      ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-28",
+        headerClassName: "min-w-28",
+      }),
+    },
+    {
+      id: "agent",
+      header: () => <span className="sr-only">Agent</span>,
+      cell: ({ row }) => (
+        <HandoverMenu
+          sourcePath={row.original.workstream.path}
+          variant="icon"
+          onStatus={(message, tone) => setNotice({ message, tone })}
+        />
+      ),
+      enableColumnFilter: false,
+      enableSorting: false,
+      meta: dataTableMeta({
+        cellClassName: "w-14 text-right",
+        headerClassName: "w-14",
+      }),
+    },
+  ]
 
   return (
     <section className="project-page">
@@ -131,58 +203,12 @@ export function ProjectWorkstreamsPage({
       ) : (
         <Card>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Workstream</TableHead>
-                  <TableHead>Tasks</TableHead>
-                  <TableHead>Open tasks</TableHead>
-                  <TableHead>Contract</TableHead>
-                  <TableHead className="w-10 text-right">Agent</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginated.items.map((workstream) => {
-                  const taskDocs = (workstream.tasks ?? [])
-                    .map((path) => docs.get(path))
-                    .filter((doc): doc is DocMeta => Boolean(doc))
-                  return (
-                    <TableRow key={workstream.path}>
-                      <TableCell>{workstream.title}</TableCell>
-                      <TableCell>{taskDocs.length}</TableCell>
-                      <TableCell>
-                        {taskDocs.filter((doc) => statusTone(doc.status) !== "done").length}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          className="h-auto justify-start px-0 text-left"
-                          variant="link"
-                          onClick={() => onOpenDoc(workstream.path)}
-                        >
-                          Open
-                        </Button>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <HandoverMenu
-                          sourcePath={workstream.path}
-                          variant="icon"
-                          onStatus={(message, tone) => setNotice({ message, tone })}
-                        />
-                      </TableCell>
-                    </TableRow>
-                  )
-                })}
-              </TableBody>
-            </Table>
-          </CardContent>
-          <CardFooter>
-            <TablePaginationFooter
-              page={paginated.page}
-              pageCount={paginated.pageCount}
-              total={paginated.total}
-              onPageChange={setPage}
+            <DataTable
+              columns={columns}
+              data={rows}
+              getRowId={(row) => row.workstream.path}
             />
-          </CardFooter>
+          </CardContent>
         </Card>
       )}
     </section>
@@ -199,9 +225,7 @@ export function ProjectTasksPage({
   project: ProjectIndex | null
 }) {
   const tasks = project ? projectTaskDocs(project, docs) : []
-  const [page, setPage] = useState(1)
   const [notice, setNotice] = useState<{ message: string; tone: "info" | "error" } | null>(null)
-  const paginated = paginateItems(tasks, page)
 
   return (
     <section className="project-page">
@@ -217,19 +241,11 @@ export function ProjectTasksPage({
         <Card>
           <CardContent>
             <DocumentTable
-              docs={paginated.items}
+              docs={tasks}
               onOpenDoc={onOpenDoc}
               onHandoverStatus={(message, tone) => setNotice({ message, tone })}
             />
           </CardContent>
-          <CardFooter>
-            <TablePaginationFooter
-              page={paginated.page}
-              pageCount={paginated.pageCount}
-              total={paginated.total}
-              onPageChange={setPage}
-            />
-          </CardFooter>
         </Card>
       )}
     </section>
@@ -253,46 +269,102 @@ function DocumentTable({
   onHandoverStatus?: (message: string, tone: "info" | "error") => void
 }) {
   const showAgentColumn = Boolean(onHandoverStatus) && docs.some((doc) => doc.role === "task" || doc.role === "workstream")
+  const columns: ColumnDef<DocMeta>[] = [
+    {
+      id: "document",
+      accessorFn: (doc) => `${doc.title} ${doc.path}`,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Document" />
+      ),
+      cell: ({ row }) => (
+        <>
+          <Button
+            className="h-auto justify-start px-0 text-left whitespace-normal"
+            variant="link"
+            onClick={() => onOpenDoc(row.original.path)}
+          >
+            {row.original.title}
+          </Button>
+          <div className="mono-path">{row.original.path}</div>
+        </>
+      ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-80 whitespace-normal",
+        headerClassName: "min-w-80",
+      }),
+    },
+    {
+      id: "role",
+      accessorFn: (doc) => doc.role ?? "document",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Role" />
+      ),
+      cell: ({ row }) => row.original.role ?? "document",
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-28",
+        headerClassName: "min-w-28",
+      }),
+    },
+    {
+      id: "status",
+      accessorFn: (doc) => (doc.status ? statusLabel(doc.status) : "None"),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
+      cell: ({ row }) =>
+        row.original.status ? (
+          <StatusBadge status={row.original.status} />
+        ) : (
+          <span className="text-muted-foreground">None</span>
+        ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-28",
+        headerClassName: "min-w-28",
+      }),
+    },
+    {
+      id: "updated",
+      accessorFn: (doc) => formatDate(doc.updated),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Updated" />
+      ),
+      cell: ({ row }) => formatDate(row.original.updated),
+      filterFn: "includesString",
+      sortingFn: (a, b) =>
+        String(a.original.updated ?? "").localeCompare(
+          String(b.original.updated ?? "")
+        ),
+      meta: dataTableMeta({
+        cellClassName: "min-w-40",
+        headerClassName: "min-w-40",
+      }),
+    },
+  ]
+  if (showAgentColumn) {
+    columns.push({
+      id: "agent",
+      header: () => <span className="sr-only">Agent</span>,
+      cell: ({ row }) =>
+        row.original.role === "task" || row.original.role === "workstream" ? (
+          <HandoverMenu
+            sourcePath={row.original.path}
+            variant="icon"
+            onStatus={onHandoverStatus}
+          />
+        ) : null,
+      enableColumnFilter: false,
+      enableSorting: false,
+      meta: dataTableMeta({
+        cellClassName: "w-14 text-right",
+        headerClassName: "w-14",
+      }),
+    })
+  }
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Document</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead>Updated</TableHead>
-          {showAgentColumn && <TableHead className="w-10 text-right">Agent</TableHead>}
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {docs.map((doc) => (
-          <TableRow key={doc.path}>
-            <TableCell>
-              <Button
-                className="h-auto justify-start px-0 text-left"
-                variant="link"
-                onClick={() => onOpenDoc(doc.path)}
-              >
-                {doc.title}
-              </Button>
-              <div className="mono-path">{doc.path}</div>
-            </TableCell>
-            <TableCell>{doc.role ?? "document"}</TableCell>
-            <TableCell>
-              {doc.status ? <StatusBadge status={doc.status} /> : <span className="text-muted-foreground">None</span>}
-            </TableCell>
-            <TableCell>{formatDate(doc.updated)}</TableCell>
-            {showAgentColumn && (
-              <TableCell className="text-right">
-                {(doc.role === "task" || doc.role === "workstream") && (
-                  <HandoverMenu sourcePath={doc.path} variant="icon" onStatus={onHandoverStatus} />
-                )}
-              </TableCell>
-            )}
-          </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+    <DataTable columns={columns} data={docs} getRowId={(doc) => doc.path} />
   )
 }
 

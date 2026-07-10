@@ -8,15 +8,18 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react"
+import type { ColumnDef } from "@tanstack/react-table"
 
-import { TablePaginationFooter } from "@/components/molecules/TablePaginationFooter"
 import { StatusBadge } from "@/components/atoms/StatusBadge"
+import {
+  DataTable,
+  DataTableColumnHeader,
+} from "@/components/molecules/DataTable"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
-  CardFooter,
 } from "@/components/ui/card"
 import {
   Empty,
@@ -25,21 +28,14 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
 import { messageFromError, requestJson } from "@/lib/api"
 import { annotationLine } from "@/lib/domain/annotations"
 import { formatDate } from "@/lib/domain/dates"
-import { paginateItems } from "@/lib/domain/pagination"
+import { statusLabel } from "@/lib/domain/status"
 import type { Annotation, DocMeta, ViewerIndex } from "@/lib/domain/types"
 import { type WorkspaceView } from "@/lib/domain/navigation"
 import { getWorkspaceModel, type ProjectStat, type WorkspaceTaskItem } from "@/lib/domain/workspace-model"
+import { dataTableMeta } from "@/lib/data-table"
 
 const WORKSPACE_COPY: Record<WorkspaceView, { title: string; description: string }> = {
   "workspace-context": {
@@ -96,18 +92,21 @@ export function WorkspacePage({
   useEffect(() => {
     if (view !== "workspace-annotations") return
     let cancelled = false
-    setAnnotationsLoading(true)
-    setAnnotationsError("")
-    requestJson<{ annotations: Annotation[] }>("/api/annotations")
-      .then((payload) => {
-        if (!cancelled) setAnnotations(payload.annotations ?? [])
-      })
-      .catch((error) => {
-        if (!cancelled) setAnnotationsError(messageFromError(error))
-      })
-      .finally(() => {
-        if (!cancelled) setAnnotationsLoading(false)
-      })
+    queueMicrotask(() => {
+      if (cancelled) return
+      setAnnotationsLoading(true)
+      setAnnotationsError("")
+      requestJson<{ annotations: Annotation[] }>("/api/annotations")
+        .then((payload) => {
+          if (!cancelled) setAnnotations(payload.annotations ?? [])
+        })
+        .catch((error) => {
+          if (!cancelled) setAnnotationsError(messageFromError(error))
+        })
+        .finally(() => {
+          if (!cancelled) setAnnotationsLoading(false)
+        })
+    })
     return () => {
       cancelled = true
     }
@@ -191,7 +190,6 @@ function AnnotationTable({
   loading: boolean
   onOpenDoc: (path: string) => void
 }) {
-  const [page, setPage] = useState(1)
   const docs = useMemo(() => {
     const map = new Map<string, DocMeta>()
     ;(index?.docs ?? []).forEach((doc) => map.set(doc.path, doc))
@@ -209,11 +207,121 @@ function AnnotationTable({
         )),
     [annotations]
   )
-  const paginated = paginateItems(sorted, page)
-
-  useEffect(() => {
-    setPage(1)
-  }, [sorted.length])
+  const rows = sorted.map((annotation) => {
+    const sourceDoc = docs.get(annotation.sourcePath)
+    return {
+      annotation,
+      sourceTitle: sourceDoc?.title ?? annotation.repoPath,
+    }
+  })
+  const columns: ColumnDef<(typeof rows)[number]>[] = [
+    {
+      id: "annotation",
+      accessorFn: (row) =>
+        `${row.annotation.type} ${row.annotation.id} ${row.annotation.comment} ${row.annotation.quote}`,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Annotation" />
+      ),
+      cell: ({ row }) => (
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={annotationTypeVariant(row.original.annotation.type)}>
+              {row.original.annotation.type}
+            </Badge>
+            <span className="font-mono text-xs text-muted-foreground">
+              {row.original.annotation.id.slice(0, 8)}
+            </span>
+          </div>
+          <p className="line-clamp-2 text-sm leading-5">
+            {row.original.annotation.comment}
+          </p>
+          <blockquote className="line-clamp-2 border-l-2 border-border pl-2 font-mono text-xs text-muted-foreground">
+            "{row.original.annotation.quote || "Global comment"}"
+          </blockquote>
+        </div>
+      ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-[26rem] max-w-[32rem] whitespace-normal",
+        headerClassName: "min-w-[26rem]",
+      }),
+    },
+    {
+      id: "source",
+      accessorFn: (row) =>
+        `${row.sourceTitle} ${row.annotation.repoPath} ${annotationLine(row.annotation)}`,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Source" />
+      ),
+      cell: ({ row }) => (
+        <>
+          <Button
+            className="h-auto max-w-80 justify-start px-0 text-left"
+            variant="link"
+            onClick={() => onOpenDoc(row.original.annotation.sourcePath)}
+          >
+            <span className="truncate" title={row.original.sourceTitle}>
+              {row.original.sourceTitle}
+            </span>
+          </Button>
+          <div className="mono-path">{row.original.annotation.repoPath}</div>
+          <div className="mt-1 font-mono text-xs text-muted-foreground">
+            {annotationLine(row.original.annotation)}
+          </div>
+        </>
+      ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-80 whitespace-normal",
+        headerClassName: "min-w-80",
+      }),
+    },
+    {
+      id: "status",
+      accessorFn: (row) => statusLabel(row.annotation.status || "open"),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
+      cell: ({ row }) => (
+        <StatusBadge status={row.original.annotation.status || "open"} />
+      ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-28",
+        headerClassName: "min-w-28",
+      }),
+    },
+    {
+      id: "updated",
+      accessorFn: (row) =>
+        formatDate(row.annotation.updatedAt ?? row.annotation.createdAt),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Updated" />
+      ),
+      cell: ({ row }) =>
+        formatDate(
+          row.original.annotation.updatedAt ??
+            row.original.annotation.createdAt
+        ),
+      filterFn: "includesString",
+      sortingFn: (a, b) =>
+        String(
+          a.original.annotation.updatedAt ??
+            a.original.annotation.createdAt ??
+            ""
+        ).localeCompare(
+          String(
+            b.original.annotation.updatedAt ??
+              b.original.annotation.createdAt ??
+              ""
+          )
+        ),
+      meta: dataTableMeta({
+        cellClassName: "min-w-40",
+        headerClassName: "min-w-40",
+      }),
+    },
+  ]
 
   if (loading) {
     return <EmptyPanel icon={RefreshCwIcon} title="Loading annotations" description="Reading viewer review comments." />
@@ -230,62 +338,12 @@ function AnnotationTable({
   return (
     <Card>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Annotation</TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.items.map((annotation) => {
-              const sourceDoc = docs.get(annotation.sourcePath)
-              const sourceTitle = sourceDoc?.title ?? annotation.repoPath
-              return (
-                <TableRow key={annotation.id}>
-                  <TableCell className="max-w-[420px]">
-                    <div className="flex flex-col gap-2">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant={annotationTypeVariant(annotation.type)}>{annotation.type}</Badge>
-                        <span className="font-mono text-xs text-muted-foreground">{annotation.id.slice(0, 8)}</span>
-                      </div>
-                      <p className="line-clamp-2 text-sm leading-5">{annotation.comment}</p>
-                      <blockquote className="line-clamp-2 border-l-2 border-border pl-2 font-mono text-xs text-muted-foreground">
-                        "{annotation.quote || "Global comment"}"
-                      </blockquote>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      className="h-auto max-w-[320px] justify-start px-0 text-left"
-                      variant="link"
-                      onClick={() => onOpenDoc(annotation.sourcePath)}
-                    >
-                      <span className="truncate">{sourceTitle}</span>
-                    </Button>
-                    <div className="mono-path">{annotation.repoPath}</div>
-                    <div className="mt-1 font-mono text-xs text-muted-foreground">{annotationLine(annotation)}</div>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={annotation.status || "open"} />
-                  </TableCell>
-                  <TableCell>{formatDate(annotation.updatedAt ?? annotation.createdAt)}</TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </CardContent>
-      <CardFooter>
-        <TablePaginationFooter
-          page={paginated.page}
-          pageCount={paginated.pageCount}
-          total={paginated.total}
-          onPageChange={setPage}
+        <DataTable
+          columns={columns}
+          data={rows}
+          getRowId={(row) => row.annotation.id}
         />
-      </CardFooter>
+      </CardContent>
     </Card>
   )
 }
@@ -297,8 +355,90 @@ function ProjectTable({
   items: ProjectStat[]
   onOpenProject: (slug: string) => void
 }) {
-  const [page, setPage] = useState(1)
-  const paginated = paginateItems(items, page)
+  const columns: ColumnDef<ProjectStat>[] = [
+    {
+      id: "project",
+      accessorFn: (item) => item.project.title,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Project" />
+      ),
+      cell: ({ row }) => (
+        <Button
+          className="h-auto justify-start px-0 text-left whitespace-normal"
+          variant="link"
+          onClick={() => onOpenProject(row.original.project.slug)}
+        >
+          {row.original.project.title}
+        </Button>
+      ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-72 whitespace-normal",
+        headerClassName: "min-w-72",
+      }),
+    },
+    {
+      id: "status",
+      accessorFn: (item) => statusLabel(item.project.status),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
+      cell: ({ row }) =>
+        row.original.project.status ? (
+          <StatusBadge status={row.original.project.status} />
+        ) : (
+          "Planned"
+        ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-28",
+        headerClassName: "min-w-28",
+      }),
+    },
+    {
+      id: "workstreams",
+      accessorFn: (item) => String(item.workstreamCount),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Workstreams" />
+      ),
+      cell: ({ row }) => row.original.workstreamCount,
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-32",
+        headerClassName: "min-w-32",
+      }),
+    },
+    {
+      id: "openTasks",
+      accessorFn: (item) => String(item.openTaskCount),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Open tasks" />
+      ),
+      cell: ({ row }) => row.original.openTaskCount,
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-32",
+        headerClassName: "min-w-32",
+      }),
+    },
+    {
+      id: "updated",
+      accessorFn: (item) => formatDate(item.updated),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Updated" />
+      ),
+      cell: ({ row }) => formatDate(row.original.updated),
+      filterFn: "includesString",
+      sortingFn: (a, b) =>
+        String(a.original.updated ?? "").localeCompare(
+          String(b.original.updated ?? "")
+        ),
+      meta: dataTableMeta({
+        cellClassName: "min-w-40",
+        headerClassName: "min-w-40",
+      }),
+    },
+  ]
 
   if (!items.length) {
     return (
@@ -309,47 +449,12 @@ function ProjectTable({
   return (
     <Card>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Workstreams</TableHead>
-              <TableHead>Open tasks</TableHead>
-              <TableHead>Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.items.map((item) => (
-              <TableRow key={item.project.slug}>
-                <TableCell>
-                  <Button
-                    className="h-auto justify-start px-0 text-left"
-                    variant="link"
-                    onClick={() => onOpenProject(item.project.slug)}
-                  >
-                    {item.project.title}
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  {item.project.status ? <StatusBadge status={item.project.status} /> : "Planned"}
-                </TableCell>
-                <TableCell>{item.workstreamCount}</TableCell>
-                <TableCell>{item.openTaskCount}</TableCell>
-                <TableCell>{formatDate(item.updated)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-      <CardFooter>
-        <TablePaginationFooter
-          page={paginated.page}
-          pageCount={paginated.pageCount}
-          total={paginated.total}
-          onPageChange={setPage}
+        <DataTable
+          columns={columns}
+          data={items}
+          getRowId={(item) => item.project.slug}
         />
-      </CardFooter>
+      </CardContent>
     </Card>
   )
 }
@@ -367,8 +472,84 @@ function TaskTable({
   onOpenDoc: (path: string) => void
   onOpenProject: (slug: string) => void
 }) {
-  const [page, setPage] = useState(1)
-  const paginated = paginateItems(items, page)
+  const columns: ColumnDef<WorkspaceTaskItem>[] = [
+    {
+      id: "task",
+      accessorFn: (item) => `${item.doc.taskId ?? ""} ${item.doc.title}`,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Task" />
+      ),
+      cell: ({ row }) => (
+        <Button
+          className="h-auto justify-start px-0 text-left whitespace-normal"
+          variant="link"
+          onClick={() => onOpenDoc(row.original.doc.path)}
+        >
+          {row.original.doc.title}
+        </Button>
+      ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-80 whitespace-normal",
+        headerClassName: "min-w-80",
+      }),
+    },
+    {
+      id: "project",
+      accessorFn: (item) => item.project?.title ?? "None",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Project" />
+      ),
+      cell: ({ row }) =>
+        row.original.project ? (
+          <Button
+            className="h-auto justify-start px-0 text-left whitespace-normal"
+            variant="link"
+            onClick={() => onOpenProject(row.original.project?.slug ?? "")}
+          >
+            {row.original.project.title}
+          </Button>
+        ) : (
+          <span className="text-muted-foreground">None</span>
+        ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-64 whitespace-normal",
+        headerClassName: "min-w-64",
+      }),
+    },
+    {
+      id: "workstream",
+      accessorFn: (item) => item.workstream?.title ?? "None",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Workstream" />
+      ),
+      cell: ({ row }) =>
+        row.original.workstream?.title ?? (
+          <span className="text-muted-foreground">None</span>
+        ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-64 whitespace-normal",
+        headerClassName: "min-w-64",
+      }),
+    },
+    {
+      id: "status",
+      accessorFn: (item) => statusLabel(item.doc.status),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
+      cell: ({ row }) => (
+        <StatusBadge status={row.original.doc.status ?? "planned"} />
+      ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-28",
+        headerClassName: "min-w-28",
+      }),
+    },
+  ]
 
   if (!items.length) {
     return <EmptyPanel icon={ListChecksIcon} title={emptyTitle} description={emptyDescription} />
@@ -377,57 +558,12 @@ function TaskTable({
   return (
     <Card>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Task</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Workstream</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.items.map((item) => (
-              <TableRow key={item.doc.path}>
-                <TableCell>
-                  <Button
-                    className="h-auto justify-start px-0 text-left"
-                    variant="link"
-                    onClick={() => onOpenDoc(item.doc.path)}
-                  >
-                    {item.doc.title}
-                  </Button>
-                </TableCell>
-                <TableCell>
-                  {item.project ? (
-                    <Button
-                      className="h-auto justify-start px-0 text-left"
-                      variant="link"
-                      onClick={() => onOpenProject(item.project?.slug ?? "")}
-                    >
-                      {item.project.title}
-                    </Button>
-                  ) : (
-                    <span className="text-muted-foreground">None</span>
-                  )}
-                </TableCell>
-                <TableCell>{item.workstream?.title ?? <span className="text-muted-foreground">None</span>}</TableCell>
-                <TableCell>
-                  <StatusBadge status={item.doc.status ?? "planned"} />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-      <CardFooter>
-        <TablePaginationFooter
-          page={paginated.page}
-          pageCount={paginated.pageCount}
-          total={paginated.total}
-          onPageChange={setPage}
+        <DataTable
+          columns={columns}
+          data={items}
+          getRowId={(item) => item.doc.path}
         />
-      </CardFooter>
+      </CardContent>
     </Card>
   )
 }
@@ -441,8 +577,80 @@ function DocTable({
   emptyTitle: string
   onOpenDoc: (path: string) => void
 }) {
-  const [page, setPage] = useState(1)
-  const paginated = paginateItems(docs, page)
+  const columns: ColumnDef<DocMeta>[] = [
+    {
+      id: "document",
+      accessorFn: (doc) => `${doc.title} ${doc.path}`,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Document" />
+      ),
+      cell: ({ row }) => (
+        <>
+          <Button
+            className="h-auto justify-start px-0 text-left whitespace-normal"
+            variant="link"
+            onClick={() => onOpenDoc(row.original.path)}
+          >
+            {row.original.title}
+          </Button>
+          <div className="mono-path">{row.original.path}</div>
+        </>
+      ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-80 whitespace-normal",
+        headerClassName: "min-w-80",
+      }),
+    },
+    {
+      id: "role",
+      accessorFn: (doc) => doc.role ?? "document",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Role" />
+      ),
+      cell: ({ row }) => row.original.role ?? "document",
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-28",
+        headerClassName: "min-w-28",
+      }),
+    },
+    {
+      id: "status",
+      accessorFn: (doc) => (doc.status ? statusLabel(doc.status) : "None"),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Status" />
+      ),
+      cell: ({ row }) =>
+        row.original.status ? (
+          <StatusBadge status={row.original.status} />
+        ) : (
+          <span className="text-muted-foreground">None</span>
+        ),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-28",
+        headerClassName: "min-w-28",
+      }),
+    },
+    {
+      id: "updated",
+      accessorFn: (doc) => formatDate(doc.updated),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Updated" />
+      ),
+      cell: ({ row }) => formatDate(row.original.updated),
+      filterFn: "includesString",
+      sortingFn: (a, b) =>
+        String(a.original.updated ?? "").localeCompare(
+          String(b.original.updated ?? "")
+        ),
+      meta: dataTableMeta({
+        cellClassName: "min-w-40",
+        headerClassName: "min-w-40",
+      }),
+    },
+  ]
 
   if (!docs.length) {
     return <EmptyPanel icon={FileTextIcon} title={emptyTitle} description="No matching documents were indexed." />
@@ -451,46 +659,8 @@ function DocTable({
   return (
     <Card>
       <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Document</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Updated</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {paginated.items.map((doc) => (
-              <TableRow key={doc.path}>
-                <TableCell>
-                  <Button
-                    className="h-auto justify-start px-0 text-left"
-                    variant="link"
-                    onClick={() => onOpenDoc(doc.path)}
-                  >
-                    {doc.title}
-                  </Button>
-                  <div className="mono-path">{doc.path}</div>
-                </TableCell>
-                <TableCell>{doc.role ?? "document"}</TableCell>
-                <TableCell>
-                  {doc.status ? <StatusBadge status={doc.status} /> : <span className="text-muted-foreground">None</span>}
-                </TableCell>
-                <TableCell>{formatDate(doc.updated)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <DataTable columns={columns} data={docs} getRowId={(doc) => doc.path} />
       </CardContent>
-      <CardFooter>
-        <TablePaginationFooter
-          page={paginated.page}
-          pageCount={paginated.pageCount}
-          total={paginated.total}
-          onPageChange={setPage}
-        />
-      </CardFooter>
     </Card>
   )
 }

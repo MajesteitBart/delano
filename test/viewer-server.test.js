@@ -114,7 +114,7 @@ function requestRaw(requestUrl, options = {}) {
   });
 }
 
-async function startViewerForRepo(t, repo) {
+async function startViewerForRepo(t, repo, environment = {}) {
   const serverPath = path.join(__dirname, "..", ".delano", "viewer", "server.js");
   const port = await getOpenPort();
   const child = spawn(process.execPath, [serverPath], {
@@ -122,7 +122,8 @@ async function startViewerForRepo(t, repo) {
     env: {
       ...process.env,
       DELANO_VIEWER_ROOT: repo,
-      DELANO_VIEWER_PORT: String(port)
+      DELANO_VIEWER_PORT: String(port),
+      ...environment
     },
     stdio: ["ignore", "pipe", "pipe"]
   });
@@ -136,6 +137,72 @@ async function startViewerForRepo(t, repo) {
   assert.ok(match, output);
   return `http://127.0.0.1:${match[1]}`;
 }
+
+test("viewer launches T3 Code handovers through the t3code CLI", async (t) => {
+  const { repo } = createLiveViewerRepo("delano-viewer-t3code-");
+  const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-t3code-bin-"));
+  const recordPath = path.join(binDir, "invocation.json");
+  const fakeScript = path.join(binDir, "fake-t3code.js");
+  fs.writeFileSync(
+    fakeScript,
+    `const fs = require("node:fs");
+let prompt = "";
+process.stdin.setEncoding("utf8");
+process.stdin.on("data", (chunk) => { prompt += chunk; });
+process.stdin.on("end", () => {
+  fs.writeFileSync(process.env.T3CODE_FAKE_RECORD, JSON.stringify({ args: process.argv.slice(2), prompt }));
+  process.stdout.write(JSON.stringify({ ok: true, data: { thread: { id: "thread-test" }, project: { id: "project-test" }, opened: { kind: "desktop-reveal", exactThread: false, url: "t3code://app/" } } }));
+});
+`,
+    "utf8"
+  );
+  if (process.platform === "win32") {
+    fs.writeFileSync(
+      path.join(binDir, "t3code.cmd"),
+      `@echo off\r\n"${process.execPath}" "%~dp0fake-t3code.js" %*\r\n`,
+      "utf8"
+    );
+  } else {
+    const executable = path.join(binDir, "t3code");
+    fs.writeFileSync(executable, `#!/bin/sh\nexec "${process.execPath}" "${fakeScript}" "$@"\n`, "utf8");
+    fs.chmodSync(executable, 0o755);
+  }
+
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(binDir, { recursive: true, force: true }));
+
+  const baseUrl = await startViewerForRepo(t, repo, {
+    PATH: `${binDir}${path.delimiter}${process.env.PATH || ""}`,
+    T3CODE_FAKE_RECORD: recordPath
+  });
+  const response = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: {
+      sourcePath: "projects/demo/spec.md",
+      agent: "t3code",
+      action: "launch",
+      intent: "start"
+    }
+  });
+
+  assert.equal(response.status, 200, response.raw);
+  assert.equal(response.json.ok, true);
+  assert.equal(response.json.launched, true);
+  assert.equal(response.json.threadId, "thread-test");
+  assert.equal(response.json.projectId, "project-test");
+  assert.equal(response.json.opened.kind, "desktop-reveal");
+  const invocation = JSON.parse(fs.readFileSync(recordPath, "utf8"));
+  assert.deepEqual(invocation.args, [
+    "--json",
+    "handover",
+    "--cwd",
+    repo,
+    "--stdin",
+    "--open",
+    "auto"
+  ]);
+  assert.match(invocation.prompt, /\.project\/projects\/demo\/spec\.md/);
+});
 
 async function getOpenPort() {
   const server = net.createServer();
@@ -693,7 +760,7 @@ test("viewer handover API writes a handover file and returns agent commands", as
   assert.equal(handover.status, 200);
   assert.equal(handover.json.ok, true);
   assert.equal(handover.json.launched, false);
-  assert.equal(handover.json.agent, "codex");
+  assert.equal(handover.json.agent, "chatgpt");
   assert.equal(handover.json.annotationCount, 1);
   assert.match(handover.json.file, /^\.project\/viewer\/handovers\/handover-.*-spec\.md$/);
   assert.ok(handover.json.command.startsWith(`codex '`), handover.json.command);
@@ -709,6 +776,28 @@ test("viewer handover API writes a handover file and returns agent commands", as
   assert.match(handoverText, /Clarify implementation scope\./);
   assert.match(handoverText, /\.project\/projects\/demo\/spec\.md/);
 
+  const codex = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec.md", agent: "codex", ids: [annotationId] }
+  });
+  assert.equal(codex.status, 200);
+  assert.equal(codex.json.agent, "codex");
+  assert.ok(codex.json.command.startsWith(`codex '`), codex.json.command);
+  assert.equal(codex.json.deepLink, null);
+
+  const claudeCode = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec.md", agent: "claude-code", ids: [annotationId] }
+  });
+  assert.equal(claudeCode.status, 200);
+  assert.equal(claudeCode.json.agent, "claude-code");
+  assert.equal(claudeCode.json.annotationCount, 1);
+  assert.ok(claudeCode.json.command.startsWith(`claude '`), claudeCode.json.command);
+  assert.equal(claudeCode.json.copyKind, "command");
+  assert.equal(claudeCode.json.copyValue, claudeCode.json.command);
+  assert.ok(claudeCode.json.deepLink.startsWith("claude://code/new?q="), claudeCode.json.deepLink);
+  assert.ok(claudeCode.json.deepLink.includes(`&folder=${encodeURIComponent(repo)}`), claudeCode.json.deepLink);
+
   const claude = await requestJson(`${baseUrl}/api/handover`, {
     method: "POST",
     body: { sourcePath: "projects/demo/spec.md", agent: "claude", ids: [annotationId] }
@@ -717,7 +806,33 @@ test("viewer handover API writes a handover file and returns agent commands", as
   assert.equal(claude.json.agent, "claude");
   assert.equal(claude.json.annotationCount, 1);
   assert.ok(claude.json.command.startsWith(`claude '`), claude.json.command);
-  assert.equal(claude.json.deepLink, null);
+  assert.equal(claude.json.copyKind, "command");
+  assert.equal(claude.json.copyValue, claude.json.command);
+  assert.ok(claude.json.deepLink.startsWith("claude://claude.ai/new?q="), claude.json.deepLink);
+
+  const cursor = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec.md", agent: "cursor", ids: [annotationId] }
+  });
+  assert.equal(cursor.status, 400);
+
+  const t3code = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec.md", agent: "t3code", ids: [annotationId] }
+  });
+  assert.equal(t3code.status, 200);
+  assert.equal(t3code.json.agent, "t3code");
+  assert.ok(t3code.json.command.startsWith("t3code handover --cwd "), t3code.json.command);
+  assert.match(t3code.json.command, / --prompt '/);
+  assert.equal(t3code.json.copyKind, "command");
+  assert.equal(t3code.json.copyValue, t3code.json.command);
+  assert.equal(t3code.json.deepLink, null);
+
+  const unsupportedAgent = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec.md", agent: "not-an-agent" }
+  });
+  assert.equal(unsupportedAgent.status, 400);
 
   const filtered = await requestJson(`${baseUrl}/api/handover`, {
     method: "POST",

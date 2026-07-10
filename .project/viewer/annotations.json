@@ -40,6 +40,48 @@
         "mtimeMs": 1783413838587.6587,
         "updated": "2026-07-07T08:43:58.588Z"
       }
+    },
+    {
+      "id": "d53af69e-9db5-4b82-b1b2-13829cb397f9",
+      "sourcePath": "projects/delano-viewer-annotations-agent-chat/decisions.md",
+      "repoPath": ".project/projects/delano-viewer-annotations-agent-chat/decisions.md",
+      "type": "question",
+      "quote": "and workstream contracts get handover buttons with two intents. start hands the agent the contract to implement (read AGENTS.md and the owning spec/plan, meet the acceptance criteria, record evidence, update lifecycle via the delano CLI). review asks the agent to verify acceptance criteria and the evidence log against the implementation, carrying captured annotations along as reviewer feedback when they exist.",
+      "comment": "Give me a concrete example of this.",
+      "labels": [
+        "question"
+      ],
+      "anchor": {
+        "blockId": "b12",
+        "kind": "list",
+        "lineStart": 12,
+        "highlightSource": {
+          "startMeta": {
+            "parentTagName": "LI",
+            "parentIndex": 1,
+            "textOffset": 14
+          },
+          "endMeta": {
+            "parentTagName": "LI",
+            "parentIndex": 1,
+            "textOffset": 428
+          },
+          "text": "and workstream contracts get handover buttons with two intents. start hands the agent the contract to implement (read AGENTS.md and the owning spec/plan, meet the acceptance criteria, record evidence, update lifecycle via the delano CLI). review asks the agent to verify acceptance criteria and the evidence log against the implementation, carrying captured annotations along as reviewer feedback when they exist.",
+          "id": "ba4d5225-a4cf-45f3-bbc6-a0dbcdcaf77e"
+        }
+      },
+      "author": {
+        "name": "viewer"
+      },
+      "status": "open",
+      "createdAt": "2026-07-10T09:02:53.115Z",
+      "updatedAt": "2026-07-10T09:02:53.115Z",
+      "baseline": {
+        "hash": "a6cbf9f788cbc8180626c299cff221fb74f5d37287a3a5552ae0e5659990181a",
+        "size": 4246,
+        "mtimeMs": 1783413838584.1147,
+        "updated": "2026-07-07T08:43:58.584Z"
+      }
     }
   ],
   "applyAudit": []

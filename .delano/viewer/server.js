@@ -20,6 +20,13 @@ const MAX_ANNOTATION_QUOTE = 4000;
 const MAX_ANNOTATION_COMMENT = 12000;
 const MAX_LABELS = 12;
 const MAX_HANDOVER_IDS = 200;
+const HANDOVER_AGENTS = new Set([
+  'chatgpt',
+  'codex',
+  'claude-code',
+  'claude',
+  't3code',
+]);
 const WATCH_DEBOUNCE_MS = 250;
 const FALLBACK_RESCAN_MS = 2000;
 const WATCHER_RESTART_MS = 1000;
@@ -971,11 +978,17 @@ function handoverFileName(sourceRel) {
 }
 
 function agentCliName(agent) {
-  return agent === 'claude' ? 'claude' : 'codex';
+  if (agent === 't3code') return 't3code';
+  if (agent === 'claude-code' || agent === 'claude') return 'claude';
+  return 'codex';
 }
 
 function agentDisplayName(agent) {
-  return agent === 'claude' ? 'Claude Code' : 'Codex';
+  if (agent === 't3code') return 'T3 Code';
+  if (agent === 'chatgpt') return 'ChatGPT';
+  if (agent === 'claude-code') return 'Claude Code';
+  if (agent === 'claude') return 'Claude';
+  return 'Codex';
 }
 
 function shellSingleQuote(value) {
@@ -983,10 +996,94 @@ function shellSingleQuote(value) {
 }
 
 function handoverCommand(agent, prompt) {
+  if (agent === 't3code') {
+    return `t3code handover --cwd ${shellSingleQuote(repoRoot)} --prompt ${shellSingleQuote(prompt)}`;
+  }
   return `${agentCliName(agent)} ${shellSingleQuote(prompt)}`;
 }
 
-function launchAgentTerminal(agent, prompt) {
+function handoverDeepLink(agent, prompt) {
+  const encodedPrompt = encodeURIComponent(prompt);
+  const encodedRepo = encodeURIComponent(repoRoot);
+  if (agent === 'chatgpt') {
+    return `codex://new?prompt=${encodedPrompt}&path=${encodedRepo}`;
+  }
+  if (agent === 'claude-code') {
+    return `claude://code/new?q=${encodedPrompt}&folder=${encodedRepo}`;
+  }
+  if (agent === 'claude') {
+    return `claude://claude.ai/new?q=${encodedPrompt}`;
+  }
+  return null;
+}
+
+function launchT3CodeHandover(prompt) {
+  const resolved = resolveCommand('t3code');
+  if (!resolved) {
+    return Promise.resolve({ ok: false, error: 'T3 Code CLI `t3code` was not found on PATH. Copy the command instead.' });
+  }
+
+  return new Promise((resolve) => {
+    const args = [
+      ...resolved.argsPrefix,
+      '--json',
+      'handover',
+      '--cwd',
+      repoRoot,
+      '--stdin',
+      '--open',
+      'auto',
+    ];
+    const child = spawn(resolved.path, args, {
+      cwd: repoRoot,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+    });
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    const finish = (result) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      resolve(result);
+    };
+    const timeout = setTimeout(() => {
+      child.kill();
+      finish({ ok: false, error: 'T3 Code handover timed out after 60 seconds.' });
+    }, 60000);
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('error', (error) => finish({ ok: false, error: `Failed to start T3 Code CLI: ${error.message}` }));
+    child.on('close', (code) => {
+      if (settled) return;
+      let payload = null;
+      try {
+        payload = JSON.parse(code === 0 ? stdout : stderr || stdout);
+      } catch {
+        // The CLI normally returns JSON; keep a bounded diagnostic if it did not.
+      }
+      if (code !== 0 || !payload?.ok) {
+        const message = payload?.error?.message || String(stderr || stdout || `T3 Code CLI exited with code ${code}.`).trim();
+        return finish({ ok: false, error: message.slice(0, 1000) });
+      }
+      return finish({
+        ok: true,
+        threadId: payload.data?.thread?.id || null,
+        projectId: payload.data?.project?.id || null,
+        opened: payload.data?.opened || null,
+      });
+    });
+    child.stdin.end(prompt);
+  });
+}
+
+async function launchAgentTerminal(agent, prompt) {
+  if (agent === 't3code') {
+    return launchT3CodeHandover(prompt);
+  }
   const cliName = agentCliName(agent);
   if (!commandExists(cliName)) {
     return { ok: false, error: `${agentDisplayName(agent)} CLI \`${cliName}\` was not found on PATH. Copy the command instead.` };
@@ -1062,7 +1159,10 @@ async function handleHandover(req, res) {
   } catch (error) {
     return sendError(res, statusCodeForError(error), error.message);
   }
-  const agent = payload.agent === 'claude' ? 'claude' : 'codex';
+  const agent = payload.agent == null ? 'chatgpt' : String(payload.agent);
+  if (!HANDOVER_AGENTS.has(agent)) {
+    return sendError(res, 400, 'Unsupported handover agent.');
+  }
   const action = payload.action === 'launch' ? 'launch' : 'command';
   const intent = payload.intent === 'start' || payload.intent === 'review' ? payload.intent : 'annotations';
   const source = resolveProjectMarkdownPath(String(payload.sourcePath || ''));
@@ -1090,17 +1190,27 @@ async function handleHandover(req, res) {
 
   const prompt = handoverPrompt(intent, source, handoverPath, annotations.length);
   const command = handoverCommand(agent, prompt);
-  // The Codex desktop app registers the codex:// scheme; path must be the
-  // absolute workspace root, so this link is only meaningful on this machine.
-  const deepLink = agent === 'codex'
-    ? `codex://new?prompt=${encodeURIComponent(prompt)}&path=${encodeURIComponent(repoRoot)}`
-    : null;
-  const base = { agent, action, intent, file: handoverPath, prompt, command, deepLink, annotationCount: annotations.length };
+  const copyKind = 'command';
+  const copyValue = command;
+  // Desktop links are machine-local. ChatGPT desktop still registers codex://.
+  const deepLink = handoverDeepLink(agent, prompt);
+  const base = {
+    agent,
+    action,
+    intent,
+    file: handoverPath,
+    prompt,
+    command,
+    copyKind,
+    copyValue,
+    deepLink,
+    annotationCount: annotations.length,
+  };
 
   if (action === 'launch') {
-    const launch = launchAgentTerminal(agent, prompt);
+    const launch = await launchAgentTerminal(agent, prompt);
     if (!launch.ok) return sendJsonStatus(res, 400, { ok: false, error: launch.error, ...base });
-    return sendJson(res, { ok: true, launched: true, ...base });
+    return sendJson(res, { ok: true, launched: true, ...base, ...launch });
   }
   return sendJson(res, { ok: true, launched: false, ...base });
 }

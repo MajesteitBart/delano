@@ -1,28 +1,23 @@
 import {
-  ChevronDownIcon,
   ClipboardIcon,
   CodeIcon,
   DownloadIcon,
   PencilIcon,
   RefreshCwIcon,
-  SquareArrowOutUpRightIcon,
-  TerminalIcon,
   XIcon,
 } from "lucide-react"
 import { useMemo, useState } from "react"
 
+import { AgentSplitButton } from "@/components/molecules/AgentSplitButton"
 import { AnnotationRow } from "@/components/organisms/AnnotationRow"
 import { DocumentMetaFields } from "@/components/organisms/DocumentMetaPanel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
   Empty,
@@ -31,7 +26,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Tooltip,
@@ -39,13 +33,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { messageFromError, requestJson } from "@/lib/api"
+import { useHandoverAgent } from "@/hooks/useHandoverAgent"
 import { quoteInMarkdown } from "@/lib/domain/annotations"
 import { copyText, downloadText } from "@/lib/domain/clipboard"
 import {
-  agentLabel,
   defaultActionFor,
   performHandover,
-  storedAgent,
   type HandoverAction,
   type HandoverAgent,
 } from "@/lib/domain/handover"
@@ -72,7 +65,7 @@ export function AnnotationDrawer({
   onDelete: (id: string) => void
   onRefresh: () => void
 }) {
-  const [agent, setAgent] = useState<HandoverAgent>(storedAgent)
+  const [agent, setAgent] = useHandoverAgent()
   const [handoverBusy, setHandoverBusy] = useState(false)
   const [handoverStatus, setHandoverStatus] = useState("")
   const [handoverError, setHandoverError] = useState("")
@@ -116,7 +109,7 @@ export function AnnotationDrawer({
       setHandoverStatus(result.message)
     } catch (err) {
       setHandoverError(
-        `${messageFromError(err)} Use "Copy command" as a fallback.`
+        `${messageFromError(err)} Use "Copy handover" as a fallback.`
       )
     } finally {
       setHandoverBusy(false)
@@ -249,78 +242,26 @@ export function AnnotationDrawer({
                 {scopeLabel}
               </span>
             </div>
-            <div className="flex items-stretch gap-2">
-              <Button
-                className="min-w-0 flex-1"
-                disabled={!annotations.length || handoverBusy}
-                onClick={() => void primaryHandover()}
-              >
-                {handoverBusy ? (
-                  <Spinner data-icon="inline-start" />
-                ) : (
-                  <SquareArrowOutUpRightIcon data-icon="inline-start" />
-                )}
-                Hand over to {agentLabel(agent)}
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    aria-label="Handover and export options"
-                    disabled={handoverBusy}
-                  >
-                    <ChevronDownIcon />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-64 min-w-64 p-1.5"
-                >
+            <AgentSplitButton
+              agent={agent}
+              busy={handoverBusy}
+              disabled={!annotations.length}
+              fullWidth
+              menuDisabled={handoverBusy}
+              onAgentChange={setAgent}
+              onSend={() => void primaryHandover()}
+              menuFooter={
+                <>
                   <DropdownMenuItem
-                    className="min-h-9 bg-muted/70 px-2 py-2 font-medium whitespace-nowrap"
+                    className="min-h-9 px-2 py-2 whitespace-nowrap"
                     disabled={!annotations.length}
                     onClick={() => void runHandover("command", agent)}
                   >
                     <ClipboardIcon className="text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate">
-                      Copy command
+                      Copy handover
                     </span>
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuLabel className="px-2">
-                      Open in
-                    </DropdownMenuLabel>
-                    <DropdownMenuItem
-                      className="min-h-9 px-2 py-2 whitespace-nowrap"
-                      disabled={!annotations.length}
-                      onClick={() => void runHandover("deeplink", "codex")}
-                    >
-                      <SquareArrowOutUpRightIcon className="text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate">Codex app</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="min-h-9 px-2 py-2 whitespace-nowrap"
-                      disabled={!annotations.length}
-                      onClick={() => void runHandover("launch", "codex")}
-                    >
-                      <TerminalIcon className="text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate">
-                        Codex terminal
-                      </span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      className="min-h-9 px-2 py-2 whitespace-nowrap"
-                      disabled={!annotations.length}
-                      onClick={() => void runHandover("launch", "claude")}
-                    >
-                      <TerminalIcon className="text-muted-foreground" />
-                      <span className="min-w-0 flex-1 truncate">
-                        Claude Code terminal
-                      </span>
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
                     <DropdownMenuLabel className="px-2">
@@ -357,9 +298,9 @@ export function AnnotationDrawer({
                       </span>
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                </>
+              }
+            />
             {handoverStatus && (
               <p
                 className="text-xs leading-5 text-muted-foreground"

@@ -23,6 +23,8 @@ import {
 } from "@/components/molecules/HandoverMenu"
 import { AnnotationDrawer } from "@/components/organisms/AnnotationDrawer"
 import { MarkdownArticle } from "@/components/organisms/MarkdownArticle"
+import { TaskContextPanel } from "@/components/organisms/TaskContextPanel"
+import { WorkstreamTaskList } from "@/components/organisms/WorkstreamTaskList"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Kbd } from "@/components/ui/kbd"
@@ -30,7 +32,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { messageFromError, requestJson } from "@/lib/api"
 import type { LiveDocEvent } from "@/app/useLiveEvents"
 import { annotationLine, numberOrNull } from "@/lib/domain/annotations"
-import type { Annotation, DraftAnnotation, ViewerDoc } from "@/lib/domain/types"
+import { agentLabel } from "@/lib/domain/handover"
+import type {
+  Annotation,
+  DocMeta,
+  DraftAnnotation,
+  ProjectIndex,
+  ViewerDoc,
+} from "@/lib/domain/types"
 import { changedBlockIds } from "@/lib/markdown/blockDiff"
 import { renderMarkdown } from "@/lib/markdown/renderMarkdown"
 import { extractToc } from "@/lib/markdown/toc"
@@ -86,16 +95,22 @@ const INTENT_LABELS: Record<string, string> = {
 
 export function DocumentReaderPage({
   doc,
+  docs,
   liveEvent,
   onBack,
   onOpenActivity,
+  onOpenDoc,
   onRefresh,
+  project,
 }: {
   doc: ViewerDoc
+  docs: Map<string, DocMeta>
   liveEvent?: LiveDocEvent | null
   onBack: () => void
   onOpenActivity?: () => void
+  onOpenDoc: (path: string) => void
   onRefresh?: () => void
+  project: ProjectIndex | null
 }) {
   const [mode, setMode] = useState<"read" | "edit">("read")
   const [externalChangeToken, setExternalChangeToken] = useState(0)
@@ -150,6 +165,11 @@ export function DocumentReaderPage({
 
   const markdown = useMemo(() => renderMarkdown(doc.markdown), [doc.markdown])
   const toc = useMemo(() => extractToc(doc.markdown), [doc.markdown])
+  const acceptanceCriteriaHeading = useMemo(
+    () =>
+      toc.find((item) => /^Acceptance Criteria$/i.test(item.text)) ?? null,
+    [toc]
+  )
 
   // Live updates: external changes to the open file refresh read mode with a
   // changed-region flash, and signal the editor instead of clobbering edits.
@@ -478,6 +498,16 @@ export function DocumentReaderPage({
                   <Kbd className="ml-1">E</Kbd>
                 </Button>
               )}
+              <Button
+                variant={reviewOpen ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setReviewOpen((open) => !open)}
+                aria-pressed={reviewOpen}
+              >
+                <MessageSquareTextIcon data-icon="inline-start" />
+                Review
+                <Badge variant="secondary">{annotations.length}</Badge>
+              </Button>
               {(doc.role === "task" || doc.role === "workstream") && (
                 <HandoverMenu
                   sourcePath={doc.path}
@@ -493,16 +523,6 @@ export function DocumentReaderPage({
                   }}
                 />
               )}
-              <Button
-                variant={reviewOpen ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setReviewOpen((open) => !open)}
-                aria-pressed={reviewOpen}
-              >
-                <MessageSquareTextIcon data-icon="inline-start" />
-                Review
-                <Badge variant="secondary">{annotations.length}</Badge>
-              </Button>
             </div>
           </div>
           {dispatched && (
@@ -514,9 +534,9 @@ export function DocumentReaderPage({
               <span className="min-w-0 flex-1 truncate">
                 Handed over to{" "}
                 <span className="font-medium">
-                  {dispatched.agent === "codex" ? "Codex" : "Claude"}
+                  {agentLabel(dispatched.agent)}
                 </span>{" "}
-                for {INTENT_LABELS[dispatched.intent] ?? dispatched.intent} —
+                for {INTENT_LABELS[dispatched.intent] ?? dispatched.intent};
                 file changes appear live
               </span>
               {onOpenActivity && (
@@ -535,6 +555,18 @@ export function DocumentReaderPage({
               </Button>
             </div>
           )}
+          {doc.role === "task" && (
+            <TaskContextPanel
+              doc={doc}
+              onOpenDoc={onOpenDoc}
+              onOpenAcceptanceCriteria={
+                acceptanceCriteriaHeading
+                  ? () => scrollToHeading(acceptanceCriteriaHeading.line)
+                  : undefined
+              }
+              project={project}
+            />
+          )}
           <MarkdownArticle
             html={markdown}
             annotations={annotations}
@@ -547,6 +579,14 @@ export function DocumentReaderPage({
             onSelectText={handleSelection}
             onHighlightClick={handleHighlightClick}
           />
+          {doc.role === "workstream" && (
+            <WorkstreamTaskList
+              doc={doc}
+              docs={docs}
+              onOpenDoc={onOpenDoc}
+              project={project}
+            />
+          )}
         </article>
       </div>
       <AnnotationDrawer

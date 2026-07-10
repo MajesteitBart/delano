@@ -131,10 +131,13 @@ export function ViewerRoute({
     return (
       <DocumentReaderPage
         doc={doc}
+        docs={docsByPath}
         liveEvent={liveEvent}
         onBack={onBackFromDocument}
         onOpenActivity={onOpenActivity}
+        onOpenDoc={onOpenDoc}
         onRefresh={onRefreshDocument}
+        project={activeProject}
       />
     )
   }
