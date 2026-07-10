@@ -23,6 +23,7 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-agent: var(--agent);
   --color-status-warning: var(--status-warning);
   --color-status-warning-foreground: var(--status-warning-foreground);
   --color-border: var(--border);
@@ -58,6 +59,7 @@
   --accent: oklch(0.955 0.008 85);
   --accent-foreground: oklch(0.24 0.01 80);
   --destructive: oklch(0.57 0.17 32);
+  --agent: oklch(0.66 0.13 50);
   --status-warning: oklch(0.94 0.035 80);
   --status-warning-foreground: oklch(0.35 0.045 65);
   --annotation-highlight: oklch(0.90 0.14 92 / 0.72);
@@ -402,6 +404,99 @@
     @apply border-0;
   }
 
+  .md-editor .ProseMirror {
+    @apply min-h-[280px] outline-none;
+    caret-color: var(--foreground);
+  }
+
+  .md-editor .ProseMirror > :first-child {
+    @apply mt-0;
+  }
+
+  .md-editor .ProseMirror p.is-editor-empty:first-child::before {
+    @apply pointer-events-none float-left h-0 text-muted-foreground;
+    content: attr(data-placeholder);
+  }
+
+  .md-editor .ProseMirror ul[data-type="taskList"] {
+    @apply list-none pl-1;
+  }
+
+  .md-editor .ProseMirror ul[data-type="taskList"] li {
+    @apply flex items-start gap-2;
+  }
+
+  .md-editor .ProseMirror ul[data-type="taskList"] li > label {
+    @apply mt-[5px] flex shrink-0 items-center;
+  }
+
+  .md-editor .ProseMirror ul[data-type="taskList"] li > div {
+    @apply min-w-0 flex-1;
+  }
+
+  .md-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+    @apply size-4 cursor-pointer rounded-sm border-border accent-primary;
+  }
+
+  .md-editor .ProseMirror li[data-checked="true"] > div {
+    @apply text-muted-foreground line-through decoration-border;
+  }
+
+  .md-editor .ProseMirror .selectedCell {
+    @apply relative;
+  }
+
+  .md-editor .ProseMirror .selectedCell::after {
+    @apply pointer-events-none absolute inset-0 content-[''];
+    background: color-mix(in oklch, var(--ring) 12%, transparent);
+  }
+
+  .md-editor .ProseMirror .ProseMirror-gapcursor::after {
+    border-top: 1px solid var(--foreground);
+  }
+
+  .md-editor .ProseMirror ::selection {
+    background: color-mix(in oklch, var(--ring) 22%, transparent);
+  }
+
+  .agent-dot {
+    @apply absolute -right-1 -top-1 size-2 rounded-full;
+    background: var(--agent);
+    animation: agent-dot-pulse 2s cubic-bezier(0.23, 1, 0.32, 1) infinite;
+  }
+
+  .agent-dot.static {
+    @apply relative -right-0 -top-0 size-1.5;
+  }
+
+  .md-block-flash {
+    animation: block-flash 1.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+    border-radius: 6px;
+  }
+
+}
+
+@keyframes agent-dot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--agent) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 5px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes block-flash {
+  0% {
+    background-color: color-mix(in oklch, var(--agent) 16%, transparent);
+    box-shadow: 0 0 0 6px color-mix(in oklch, var(--agent) 16%, transparent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: 0 0 0 6px transparent;
+  }
 }
 
 @media (max-width: 900px) {

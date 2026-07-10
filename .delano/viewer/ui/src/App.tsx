@@ -1,12 +1,15 @@
 import { ViewerRoute } from "@/app/routes"
 import { useActiveProject } from "@/app/useActiveProject"
 import { useDocument } from "@/app/useDocument"
+import { useLiveEvents } from "@/app/useLiveEvents"
 import { useViewport } from "@/app/useViewport"
 import { useViewerIndex } from "@/app/useViewerIndex"
 import { useViewerNavigation } from "@/app/useViewerNavigation"
 import { AppShell } from "@/components/organisms/AppShell"
 import { Topbar } from "@/components/organisms/Topbar"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { useState } from "react"
+
 import {
   WORKSPACE_NAV,
   type ViewerRoute as ViewerRouteState,
@@ -17,6 +20,8 @@ function App() {
   const indexState = useViewerIndex()
   const navigation = useViewerNavigation(indexState.index)
   const docState = useDocument(navigation.activePath)
+  const live = useLiveEvents({ onIndexChanged: indexState.refresh })
+  const [activityOpen, setActivityOpen] = useState(false)
   const activeProject = useActiveProject(
     indexState.index,
     docState.doc,
@@ -54,6 +59,11 @@ function App() {
             updated={topbar.updated}
             showSidebarButton={isCompact}
             onOpenSidebar={openSidebar}
+            activity={live.activity}
+            agentWorking={live.agentWorking}
+            activityOpen={activityOpen}
+            onActivityOpenChange={setActivityOpen}
+            onOpenDoc={navigation.setActivePath}
           />
         )}
       >
@@ -66,6 +76,9 @@ function App() {
             index={indexState.index}
             loading={indexState.loading}
             onBackFromDocument={navigation.backFromDocument}
+            onRefreshDocument={docState.refresh}
+            liveEvent={live.lastDocEvent}
+            onOpenActivity={() => setActivityOpen(true)}
             onOpenDoc={navigation.setActivePath}
             onOpenProject={navigation.selectProject}
             onOpenProjectTasks={navigation.openProjectTasks}

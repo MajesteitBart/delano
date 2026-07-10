@@ -146,6 +146,7 @@ async function getOpenPort() {
 
 function waitForViewer(child) {
   return new Promise((resolve, reject) => {
+    let ready = false;
     const timeout = setTimeout(() => {
       child.kill();
       reject(new Error("Timed out waiting for viewer server startup output."));
@@ -155,10 +156,12 @@ function waitForViewer(child) {
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (chunk) => {
       if (!chunk.includes("Delano guarded viewer:")) return;
+      ready = true;
       clearTimeout(timeout);
       resolve(chunk);
     });
     child.stderr.on("data", (chunk) => {
+      if (ready) return;
       clearTimeout(timeout);
       child.kill();
       reject(new Error(chunk));
@@ -166,6 +169,132 @@ function waitForViewer(child) {
     child.on("error", (error) => {
       clearTimeout(timeout);
       reject(error);
+    });
+  });
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createLiveViewerRepo(prefix) {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const projectDir = path.join(repo, ".project", "projects", "demo");
+  const contextDir = path.join(repo, ".project", "context");
+  fs.mkdirSync(projectDir, { recursive: true });
+  fs.mkdirSync(contextDir, { recursive: true });
+  fs.writeFileSync(path.join(contextDir, "README.md"), "# Context\n", "utf8");
+  const specPath = path.join(projectDir, "spec.md");
+  fs.writeFileSync(specPath, "# Demo\n\nOriginal body.\n", "utf8");
+  return { repo, projectDir, specPath };
+}
+
+function connectSse(requestUrl) {
+  return new Promise((resolve, reject) => {
+    let connected = false;
+    const request = http.get(requestUrl, (response) => {
+      if (response.statusCode !== 200) {
+        response.resume();
+        reject(new Error(`Expected SSE 200 from ${requestUrl}, got ${response.statusCode}`));
+        return;
+      }
+
+      connected = true;
+      response.setEncoding("utf8");
+      let buffer = "";
+      const events = [];
+      const waiters = new Set();
+
+      function rejectWaiters(error) {
+        for (const waiter of waiters) {
+          clearTimeout(waiter.timer);
+          waiter.reject(error);
+        }
+        waiters.clear();
+      }
+
+      function recordEvent(frame) {
+        const lines = frame.split("\n");
+        const eventLine = lines.find((line) => line.startsWith("event:"));
+        if (!eventLine) return;
+        const dataText = lines
+          .filter((line) => line.startsWith("data:"))
+          .map((line) => line.slice("data:".length).trimStart())
+          .join("\n");
+        let data = dataText;
+        try {
+          data = JSON.parse(dataText);
+        } catch {
+          // Retain non-JSON data so the helper remains a raw SSE parser.
+        }
+        const item = { event: eventLine.slice("event:".length).trim(), data };
+        events.push(item);
+        const eventIndex = events.length - 1;
+        for (const waiter of waiters) {
+          if (eventIndex < waiter.after || !waiter.predicate(item)) continue;
+          waiters.delete(waiter);
+          clearTimeout(waiter.timer);
+          waiter.resolve(item);
+        }
+      }
+
+      response.on("data", (chunk) => {
+        buffer += chunk.replace(/\r\n/g, "\n");
+        let boundary = buffer.indexOf("\n\n");
+        while (boundary >= 0) {
+          recordEvent(buffer.slice(0, boundary));
+          buffer = buffer.slice(boundary + 2);
+          boundary = buffer.indexOf("\n\n");
+        }
+      });
+      response.on("error", rejectWaiters);
+      response.on("close", () => rejectWaiters(new Error("SSE connection closed.")));
+
+      resolve({
+        request,
+        response,
+        events,
+        waitFor(predicate, options = {}) {
+          const after = options.after || 0;
+          const existing = events.slice(after).find(predicate);
+          if (existing) return Promise.resolve(existing);
+          return new Promise((resolveEvent, rejectEvent) => {
+            const waiter = {
+              after,
+              predicate,
+              resolve: resolveEvent,
+              reject: rejectEvent,
+              timer: null
+            };
+            waiter.timer = setTimeout(() => {
+              waiters.delete(waiter);
+              rejectEvent(new Error(`Timed out after ${options.timeout || 5000}ms waiting for SSE event.`));
+            }, options.timeout || 5000);
+            waiters.add(waiter);
+          });
+        },
+        close() {
+          response.destroy();
+          request.destroy();
+        }
+      });
+    });
+    request.on("error", (error) => {
+      if (!connected) reject(error);
+    });
+  });
+}
+
+function waitForChildExit(child, timeout = 3000) {
+  if (child.exitCode !== null) return Promise.resolve(child.exitCode);
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error(`Timed out after ${timeout}ms waiting for viewer process to exit.`));
+    }, timeout);
+    child.once("exit", (code) => {
+      clearTimeout(timer);
+      resolve(code);
     });
   });
 }
@@ -654,4 +783,127 @@ test("viewer handover API writes a handover file and returns agent commands", as
   assert.equal(wrongMethod.status, 405);
 
   assert.equal(fs.readFileSync(specPath, "utf8"), original);
+});
+
+test("viewer SSE reports external markdown changes and debounces burst writes", { timeout: 12000 }, async (t) => {
+  const { repo, specPath } = createLiveViewerRepo("delano-viewer-sse-");
+  const baseUrl = await startViewerForRepo(t, repo);
+  const stream = await connectSse(`${baseUrl}/api/events`);
+  t.after(() => stream.close());
+
+  assert.equal(stream.response.headers["content-type"], "text/event-stream");
+  assert.equal(stream.response.headers["cache-control"], "no-cache");
+  assert.equal(stream.response.headers.connection, "keep-alive");
+
+  const modifiedAt = Date.now();
+  fs.writeFileSync(specPath, "# Demo\n\nModified externally with a longer body.\n", "utf8");
+  const modified = await stream.waitFor(
+    (item) => item.event === "doc-changed"
+      && item.data.kind === "modified"
+      && item.data.path === "projects/demo/spec.md",
+    { timeout: 4000 }
+  );
+  const deliveryMs = Date.now() - modifiedAt;
+  assert.ok(deliveryMs < 2000, `Expected SSE delivery within 2s, got ${deliveryMs}ms.`);
+  assert.ok(Number.isFinite(Date.parse(modified.data.at)), modified.data.at);
+
+  await delay(400);
+  const burstStart = stream.events.length;
+  for (let index = 0; index < 20; index += 1) {
+    fs.writeFileSync(specPath, `# Demo\n\nBurst write ${index} ${"x".repeat(index)}\n`, "utf8");
+  }
+  await stream.waitFor(
+    (item) => item.event === "doc-changed"
+      && item.data.kind === "modified"
+      && item.data.path === "projects/demo/spec.md",
+    { after: burstStart, timeout: 4000 }
+  );
+  await delay(750);
+
+  const burstEvents = stream.events.slice(burstStart).filter(
+    (item) => item.event === "doc-changed" && item.data.path === "projects/demo/spec.md"
+  );
+  assert.ok(burstEvents.length >= 1, "Expected the burst to produce a doc-changed event.");
+  assert.ok(burstEvents.length <= 2, `Expected at most 2 burst events, got ${burstEvents.length}.`);
+});
+
+test("viewer activity records created and deleted files newest first and caps history", { timeout: 12000 }, async (t) => {
+  const { repo, projectDir } = createLiveViewerRepo("delano-viewer-activity-");
+  const baseUrl = await startViewerForRepo(t, repo);
+  const stream = await connectSse(`${baseUrl}/api/events`);
+  t.after(() => stream.close());
+
+  const activityPath = path.join(projectDir, "activity.md");
+  const createdStart = stream.events.length;
+  fs.writeFileSync(activityPath, "# Activity\n", "utf8");
+  const created = await stream.waitFor(
+    (item) => item.event === "doc-changed"
+      && item.data.kind === "created"
+      && item.data.path === "projects/demo/activity.md",
+    { after: createdStart, timeout: 4000 }
+  );
+
+  const deletedStart = stream.events.length;
+  fs.unlinkSync(activityPath);
+  const deleted = await stream.waitFor(
+    (item) => item.event === "doc-changed"
+      && item.data.kind === "deleted"
+      && item.data.path === "projects/demo/activity.md",
+    { after: deletedStart, timeout: 4000 }
+  );
+
+  const activity = await readJson(`${baseUrl}/api/activity`);
+  assert.equal(activity.ok, true);
+  const tracked = activity.events.filter((event) => event.path === "projects/demo/activity.md");
+  assert.deepEqual(tracked.map((event) => event.kind), ["deleted", "created"]);
+  assert.ok(Date.parse(tracked[0].at) >= Date.parse(tracked[1].at));
+  assert.equal(created.data.kind, "created");
+  assert.equal(deleted.data.kind, "deleted");
+
+  const stagingDir = path.join(repo, "bulk-activity-staging");
+  fs.mkdirSync(stagingDir);
+  for (let index = 0; index < 205; index += 1) {
+    fs.writeFileSync(path.join(stagingDir, `event-${String(index).padStart(3, "0")}.md`), `# Event ${index}\n`, "utf8");
+  }
+  const bulkStart = stream.events.length;
+  fs.renameSync(stagingDir, path.join(projectDir, "bulk"));
+  await stream.waitFor(
+    (item) => item.event === "index-changed" && item.data.count === 205,
+    { after: bulkStart, timeout: 5000 }
+  );
+  const capped = await readJson(`${baseUrl}/api/activity`);
+  assert.equal(capped.events.length, 200);
+  assert.ok(capped.events.every((event) => event.kind === "created" && event.path.endsWith(".md")));
+});
+
+test("viewer remains responsive after SSE disconnect and exits cleanly", { timeout: 10000 }, async (t) => {
+  const { repo } = createLiveViewerRepo("delano-viewer-sse-close-");
+  const serverPath = path.join(__dirname, "..", ".delano", "viewer", "server.js");
+  const port = await getOpenPort();
+  const child = spawn(process.execPath, [serverPath], {
+    cwd: path.join(__dirname, ".."),
+    env: {
+      ...process.env,
+      DELANO_VIEWER_ROOT: repo,
+      DELANO_VIEWER_PORT: String(port)
+    },
+    stdio: ["ignore", "pipe", "pipe"]
+  });
+  t.after(() => {
+    if (child.exitCode === null) child.kill();
+  });
+
+  const output = await waitForViewer(child);
+  const match = output.match(/http:\/\/127\.0\.0\.1:(\d+)/);
+  assert.ok(match, output);
+  const baseUrl = `http://127.0.0.1:${match[1]}`;
+  const stream = await connectSse(`${baseUrl}/api/events`);
+  stream.close();
+  await delay(100);
+
+  const index = await readJson(`${baseUrl}/api/index`);
+  assert.equal(index.repo, path.basename(repo));
+  child.kill();
+  await waitForChildExit(child, 3000);
+  assert.ok(child.exitCode !== null || child.signalCode !== null);
 });

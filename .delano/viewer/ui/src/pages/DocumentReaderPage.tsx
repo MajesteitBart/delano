@@ -1,21 +1,37 @@
-import { ArrowLeftIcon, MessageSquareTextIcon, XIcon } from "lucide-react"
 import {
+  ActivityIcon,
+  ArrowLeftIcon,
+  MessageSquareTextIcon,
+  PencilIcon,
+  XIcon,
+} from "lucide-react"
+import {
+  lazy,
+  Suspense,
   type SyntheticEvent,
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react"
 
 import { AnnotationPopover } from "@/components/molecules/AnnotationPopover"
-import { HandoverMenu } from "@/components/molecules/HandoverMenu"
+import {
+  HandoverMenu,
+  type DispatchInfo,
+} from "@/components/molecules/HandoverMenu"
 import { AnnotationDrawer } from "@/components/organisms/AnnotationDrawer"
 import { MarkdownArticle } from "@/components/organisms/MarkdownArticle"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Kbd } from "@/components/ui/kbd"
+import { Skeleton } from "@/components/ui/skeleton"
 import { messageFromError, requestJson } from "@/lib/api"
+import type { LiveDocEvent } from "@/app/useLiveEvents"
 import { annotationLine, numberOrNull } from "@/lib/domain/annotations"
 import type { Annotation, DraftAnnotation, ViewerDoc } from "@/lib/domain/types"
+import { changedBlockIds } from "@/lib/markdown/blockDiff"
 import { renderMarkdown } from "@/lib/markdown/renderMarkdown"
 import { extractToc } from "@/lib/markdown/toc"
 import { cn } from "@/lib/utils"
@@ -37,6 +53,18 @@ type PopoverState =
 const POPOVER_HEIGHT = 250
 const VIEWPORT_PADDING = 16
 
+const DocumentEditor = lazy(() => import("@/editor/DocumentEditor"))
+
+function isTypingTarget(target: EventTarget | null) {
+  if (!(target instanceof HTMLElement)) return false
+  return (
+    target.isContentEditable ||
+    target.tagName === "INPUT" ||
+    target.tagName === "TEXTAREA" ||
+    target.tagName === "SELECT"
+  )
+}
+
 function popoverPlacement(rect: DOMRect) {
   const fitsBelow =
     rect.bottom + 10 + POPOVER_HEIGHT + VIEWPORT_PADDING <= window.innerHeight
@@ -50,13 +78,28 @@ function popoverPlacement(rect: DOMRect) {
   }
 }
 
+const INTENT_LABELS: Record<string, string> = {
+  start: "implementation",
+  review: "review",
+  annotations: "annotation feedback",
+}
+
 export function DocumentReaderPage({
   doc,
+  liveEvent,
   onBack,
+  onOpenActivity,
+  onRefresh,
 }: {
   doc: ViewerDoc
+  liveEvent?: LiveDocEvent | null
   onBack: () => void
+  onOpenActivity?: () => void
+  onRefresh?: () => void
 }) {
+  const [mode, setMode] = useState<"read" | "edit">("read")
+  const [externalChangeToken, setExternalChangeToken] = useState(0)
+  const [dispatched, setDispatched] = useState<DispatchInfo | null>(null)
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [popover, setPopover] = useState<PopoverState | null>(null)
@@ -107,6 +150,80 @@ export function DocumentReaderPage({
 
   const markdown = useMemo(() => renderMarkdown(doc.markdown), [doc.markdown])
   const toc = useMemo(() => extractToc(doc.markdown), [doc.markdown])
+
+  // Live updates: external changes to the open file refresh read mode with a
+  // changed-region flash, and signal the editor instead of clobbering edits.
+  const flashPendingRef = useRef(false)
+  const previousHtmlRef = useRef(markdown)
+  const modeRef = useRef(mode)
+  useEffect(() => {
+    modeRef.current = mode
+  }, [mode])
+
+  useEffect(() => {
+    if (!liveEvent || liveEvent.path !== doc.path) return
+    queueMicrotask(() => {
+      if (modeRef.current === "edit") {
+        setExternalChangeToken((token) => token + 1)
+        return
+      }
+      if (liveEvent.kind === "deleted") {
+        setNotice("")
+        setAnnotationError("This file was deleted on disk.")
+        return
+      }
+      flashPendingRef.current = true
+      onRefresh?.()
+    })
+    // Reacting once per SSE event; doc.path guards against stale events.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveEvent?.seq])
+
+  useEffect(() => {
+    const previous = previousHtmlRef.current
+    previousHtmlRef.current = markdown
+    if (!flashPendingRef.current || previous === markdown) return
+    flashPendingRef.current = false
+    const { ids, whole } = changedBlockIds(previous, markdown)
+    const targets = whole
+      ? [document.querySelector(".reader-article .md-body")]
+      : ids.map((id) =>
+          document.querySelector(`.reader-article [data-block-id="${id}"]`)
+        )
+    const applied = targets.filter((node): node is Element => Boolean(node))
+    for (const node of applied) node.classList.add("md-block-flash")
+    const timer = window.setTimeout(() => {
+      for (const node of applied) node.classList.remove("md-block-flash")
+    }, 1500)
+    return () => window.clearTimeout(timer)
+  }, [markdown])
+
+  const [lastEditPath, setLastEditPath] = useState(doc.path)
+  if (lastEditPath !== doc.path) {
+    setLastEditPath(doc.path)
+    setMode("read")
+  }
+
+  const canEdit = Boolean(doc.baseline?.hash)
+
+  useEffect(() => {
+    if (mode !== "read" || !canEdit) return
+    const onKeyDown = (event: KeyboardEvent) => {
+      const editCombo =
+        (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "e"
+      const plainE =
+        event.key.toLowerCase() === "e" &&
+        !event.metaKey &&
+        !event.ctrlKey &&
+        !event.altKey
+      if (!editCombo && !plainE) return
+      if (plainE && (isTypingTarget(event.target) || popover)) return
+      event.preventDefault()
+      setMode("edit")
+    }
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [mode, canEdit, popover])
 
   useEffect(() => {
     const onScroll = () => {
@@ -272,6 +389,47 @@ export function DocumentReaderPage({
       .catch((err) => setAnnotationError(messageFromError(err)))
   }
 
+  if (mode === "edit") {
+    return (
+      <Suspense
+        fallback={
+          <div className="reader-layout">
+            <article className="reader-article pb-20">
+              <div className="mb-6 flex items-center justify-between gap-3">
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-8 w-28" />
+              </div>
+              <Skeleton className="mb-6 h-32 w-full" />
+              <Skeleton className="h-64 w-full" />
+            </article>
+          </div>
+        }
+      >
+        <DocumentEditor
+          doc={doc}
+          externalChangeToken={externalChangeToken}
+          onExit={({ saved }) => {
+            setMode("read")
+            if (saved) onRefresh?.()
+          }}
+          onSaved={() => {
+            setAnnotationError("")
+            setNotice("Saved")
+          }}
+          onStatus={(message, tone) => {
+            if (tone === "error") {
+              setNotice("")
+              setAnnotationError(message)
+            } else {
+              setAnnotationError("")
+              setNotice(message)
+            }
+          }}
+        />
+      </Suspense>
+    )
+  }
+
   return (
     <div
       className={cn(
@@ -309,9 +467,21 @@ export function DocumentReaderPage({
               Back
             </Button>
             <div className="flex items-center gap-2">
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setMode("edit")}
+                >
+                  <PencilIcon data-icon="inline-start" />
+                  Edit
+                  <Kbd className="ml-1">E</Kbd>
+                </Button>
+              )}
               {(doc.role === "task" || doc.role === "workstream") && (
                 <HandoverMenu
                   sourcePath={doc.path}
+                  onDispatched={setDispatched}
                   onStatus={(message, tone) => {
                     if (tone === "error") {
                       setNotice("")
@@ -335,6 +505,36 @@ export function DocumentReaderPage({
               </Button>
             </div>
           </div>
+          {dispatched && (
+            <div
+              className="mb-6 flex items-center gap-2.5 rounded-lg border bg-card px-3.5 py-2 text-sm"
+              role="status"
+            >
+              <span className="agent-dot static shrink-0" />
+              <span className="min-w-0 flex-1 truncate">
+                Handed over to{" "}
+                <span className="font-medium">
+                  {dispatched.agent === "codex" ? "Codex" : "Claude"}
+                </span>{" "}
+                for {INTENT_LABELS[dispatched.intent] ?? dispatched.intent} —
+                file changes appear live
+              </span>
+              {onOpenActivity && (
+                <Button variant="ghost" size="sm" onClick={onOpenActivity}>
+                  <ActivityIcon data-icon="inline-start" />
+                  View activity
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => setDispatched(null)}
+                aria-label="Dismiss handover status"
+              >
+                <XIcon />
+              </Button>
+            </div>
+          )}
           <MarkdownArticle
             html={markdown}
             annotations={annotations}

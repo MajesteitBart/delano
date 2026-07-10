@@ -20,10 +20,26 @@ const MAX_ANNOTATION_QUOTE = 4000;
 const MAX_ANNOTATION_COMMENT = 12000;
 const MAX_LABELS = 12;
 const MAX_HANDOVER_IDS = 200;
+const WATCH_DEBOUNCE_MS = 250;
+const FALLBACK_RESCAN_MS = 2000;
+const WATCHER_RESTART_MS = 1000;
+const SSE_HEARTBEAT_MS = 25000;
+const MAX_ACTIVITY_EVENTS = 200;
 const annotationStoreDir = path.join(projectRoot, 'viewer');
 const annotationStorePath = path.join(annotationStoreDir, 'annotations.json');
 const handoverDir = path.join(annotationStoreDir, 'handovers');
 const startPort = normalizePort(process.env.DELANO_VIEWER_PORT || process.env.PORT, DEFAULT_PORT);
+const activityEvents = [];
+const sseClients = new Set();
+
+let markdownSnapshot = new Map();
+let projectWatcher = null;
+let rescanTimer = null;
+let fallbackRescanTimer = null;
+let watcherRestartTimer = null;
+let watcherErrorLogged = false;
+let liveUpdatesStarted = false;
+let liveUpdatesStopping = false;
 
 class HttpRequestError extends Error {
   constructor(message, statusCode = 400) {
@@ -96,6 +112,185 @@ function walkMarkdown(dir) {
     if (entry.isFile() && entry.name.endsWith('.md')) out.push(full);
   }
   return out.sort((a, b) => a.localeCompare(b));
+}
+
+function markdownPath(file) {
+  return path.relative(projectRoot, file).replace(/\\/g, '/');
+}
+
+function buildMarkdownSnapshot() {
+  const snapshot = new Map();
+  for (const file of walkMarkdown(projectRoot)) {
+    try {
+      const stat = fs.statSync(file);
+      snapshot.set(markdownPath(file), { mtimeMs: stat.mtimeMs, size: stat.size });
+    } catch (error) {
+      if (!error || error.code !== 'ENOENT') throw error;
+    }
+  }
+  return snapshot;
+}
+
+function diffMarkdownSnapshots(previous, next, at) {
+  const events = [];
+  for (const [rel, current] of next) {
+    const prior = previous.get(rel);
+    if (!prior) {
+      events.push({ kind: 'created', path: rel, at });
+    } else if (prior.mtimeMs !== current.mtimeMs || prior.size !== current.size) {
+      events.push({ kind: 'modified', path: rel, at });
+    }
+  }
+  for (const rel of previous.keys()) {
+    if (!next.has(rel)) events.push({ kind: 'deleted', path: rel, at });
+  }
+  return events.sort((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind));
+}
+
+function removeSseClient(client) {
+  if (!sseClients.delete(client)) return;
+  clearInterval(client.heartbeat);
+}
+
+function writeSseEvent(client, event, data) {
+  if (client.response.destroyed || client.response.writableEnded) {
+    removeSseClient(client);
+    return;
+  }
+  try {
+    client.response.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  } catch {
+    removeSseClient(client);
+  }
+}
+
+function publishFileEvents(events, at) {
+  activityEvents.push(...events);
+  if (activityEvents.length > MAX_ACTIVITY_EVENTS) {
+    activityEvents.splice(0, activityEvents.length - MAX_ACTIVITY_EVENTS);
+  }
+
+  for (const client of sseClients) {
+    writeSseEvent(client, 'index-changed', { at, count: events.length });
+    for (const event of events) writeSseEvent(client, 'doc-changed', event);
+  }
+}
+
+function logWatcherError(error) {
+  if (watcherErrorLogged) return;
+  watcherErrorLogged = true;
+  const message = error && error.message ? error.message : String(error);
+  console.error(`Delano viewer watcher error; live updates will retry or use polling: ${message}`);
+}
+
+function rescanMarkdown() {
+  try {
+    const next = buildMarkdownSnapshot();
+    const at = new Date().toISOString();
+    const events = diffMarkdownSnapshots(markdownSnapshot, next, at);
+    markdownSnapshot = next;
+    if (events.length) publishFileEvents(events, at);
+  } catch (error) {
+    logWatcherError(error);
+  }
+}
+
+function scheduleRescan() {
+  if (liveUpdatesStopping) return;
+  clearTimeout(rescanTimer);
+  rescanTimer = setTimeout(() => {
+    rescanTimer = null;
+    rescanMarkdown();
+  }, WATCH_DEBOUNCE_MS);
+  rescanTimer.unref();
+}
+
+function isRecursiveWatchUnsupported(error) {
+  const message = error && error.message ? error.message : '';
+  return error && error.code === 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM'
+    || /recursive.+(unavailable|unsupported|not supported)/i.test(message);
+}
+
+function startFallbackRescan() {
+  if (fallbackRescanTimer || liveUpdatesStopping) return;
+  fallbackRescanTimer = setInterval(rescanMarkdown, FALLBACK_RESCAN_MS);
+  fallbackRescanTimer.unref();
+}
+
+function scheduleWatcherRestart() {
+  if (watcherRestartTimer || fallbackRescanTimer || liveUpdatesStopping) return;
+  watcherRestartTimer = setTimeout(() => {
+    watcherRestartTimer = null;
+    rescanMarkdown();
+    startProjectWatcher();
+  }, WATCHER_RESTART_MS);
+  watcherRestartTimer.unref();
+}
+
+function handleWatcherFailure(watcher, error) {
+  if (projectWatcher !== watcher) return;
+  logWatcherError(error);
+  projectWatcher = null;
+  try {
+    watcher.close();
+  } catch {
+    // The watcher may already be closed after an error.
+  }
+  if (isRecursiveWatchUnsupported(error)) startFallbackRescan();
+  else scheduleWatcherRestart();
+}
+
+function startProjectWatcher() {
+  if (projectWatcher || fallbackRescanTimer || liveUpdatesStopping) return;
+  let watcher;
+  try {
+    watcher = fs.watch(realpathSafe(projectRoot) || projectRoot, { recursive: true }, scheduleRescan);
+  } catch (error) {
+    logWatcherError(error);
+    if (isRecursiveWatchUnsupported(error)) startFallbackRescan();
+    else scheduleWatcherRestart();
+    return;
+  }
+
+  projectWatcher = watcher;
+  watcher.on('error', (error) => handleWatcherFailure(watcher, error));
+  watcher.on('close', () => {
+    if (projectWatcher === watcher) projectWatcher = null;
+    if (!liveUpdatesStopping && !projectWatcher && !fallbackRescanTimer) scheduleWatcherRestart();
+  });
+}
+
+function startLiveUpdates() {
+  if (liveUpdatesStarted) return;
+  liveUpdatesStarted = true;
+  try {
+    markdownSnapshot = buildMarkdownSnapshot();
+  } catch (error) {
+    logWatcherError(error);
+    markdownSnapshot = new Map();
+  }
+  startProjectWatcher();
+  rescanMarkdown();
+}
+
+function stopLiveUpdates() {
+  if (liveUpdatesStopping) return;
+  liveUpdatesStopping = true;
+  clearTimeout(rescanTimer);
+  clearTimeout(watcherRestartTimer);
+  clearInterval(fallbackRescanTimer);
+  rescanTimer = null;
+  watcherRestartTimer = null;
+  fallbackRescanTimer = null;
+  if (projectWatcher) {
+    const watcher = projectWatcher;
+    projectWatcher = null;
+    watcher.close();
+  }
+  for (const client of [...sseClients]) {
+    removeSseClient(client);
+    client.response.destroy();
+  }
 }
 
 function splitFrontmatter(markdown) {
@@ -383,6 +578,31 @@ function sendJson(res, data) {
 function sendJsonStatus(res, status, data) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(data, null, 2));
+}
+
+function handleSse(req, res) {
+  res.writeHead(200, {
+    'content-type': 'text/event-stream',
+    'cache-control': 'no-cache',
+    connection: 'keep-alive',
+  });
+  res.write('retry: 3000\n\n');
+
+  const client = { response: res, heartbeat: null };
+  client.heartbeat = setInterval(() => {
+    if (res.destroyed || res.writableEnded) {
+      removeSseClient(client);
+      return;
+    }
+    res.write(': ping\n\n');
+  }, SSE_HEARTBEAT_MS);
+  client.heartbeat.unref();
+  sseClients.add(client);
+
+  const cleanup = () => removeSseClient(client);
+  req.on('close', cleanup);
+  res.on('close', cleanup);
+  res.on('error', cleanup);
 }
 
 function sendError(res, status, message, details = {}) {
@@ -1139,6 +1359,18 @@ async function handleApplyPreview(req, res, shouldWrite) {
 const server = http.createServer(async (req, res) => {
   try {
     const parsed = parseRequestUrl(req.url);
+    if (parsed.pathname === '/api/events') {
+      if (req.method !== 'GET') {
+        res.writeHead(405); res.end('Use GET'); return;
+      }
+      return handleSse(req, res);
+    }
+    if (parsed.pathname === '/api/activity') {
+      if (req.method !== 'GET') {
+        res.writeHead(405); res.end('Use GET'); return;
+      }
+      return sendJson(res, { ok: true, events: [...activityEvents].reverse() });
+    }
     if (parsed.pathname === '/api/index') return sendJson(res, loadIndex());
     if (parsed.pathname === '/api/doc') {
       const rel = String(parsed.query.path || '');
@@ -1215,10 +1447,20 @@ function listenWithPortFallback(server, firstPort, host = '127.0.0.1') {
     const actualPort = typeof address === 'object' && address ? address.port : port;
     const skipped = actualPort !== firstPort ? ` (${firstPort} was unavailable)` : '';
     console.log(`Delano guarded viewer: http://${host}:${actualPort}${skipped}`);
+    startLiveUpdates();
   };
 
   server.on('listening', onListening);
   listen();
 }
+
+const closeServer = server.close.bind(server);
+server.close = function closeViewerServer(callback) {
+  stopLiveUpdates();
+  return closeServer(callback);
+};
+server.on('close', stopLiveUpdates);
+process.once('SIGINT', () => server.close());
+process.once('SIGTERM', () => server.close());
 
 listenWithPortFallback(server, startPort);

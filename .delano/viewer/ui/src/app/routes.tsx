@@ -7,6 +7,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import type { LiveDocEvent } from "@/app/useLiveEvents"
 import type { ViewerRoute } from "@/lib/domain/navigation"
 import type {
   DocMeta,
@@ -28,12 +29,15 @@ export function ViewerRoute({
   docsByPath,
   error,
   index,
+  liveEvent,
   loading,
+  onOpenActivity,
   onOpenDoc,
   onOpenProject,
   onOpenProjectTasks,
   onOpenProjectWorkstreams,
   onBackFromDocument,
+  onRefreshDocument,
   route,
 }: {
   activeProject: ProjectIndex | null
@@ -41,12 +45,15 @@ export function ViewerRoute({
   docsByPath: Map<string, DocMeta>
   error: string
   index: ViewerIndex | null
+  liveEvent?: LiveDocEvent | null
   loading: boolean
+  onOpenActivity?: () => void
   onOpenDoc: (path: string) => void
   onOpenProject: (slug: string) => void
   onOpenProjectTasks: () => void
   onOpenProjectWorkstreams: () => void
   onBackFromDocument: () => void
+  onRefreshDocument?: () => void
   route: ViewerRoute
 }) {
   if (loading) {
@@ -121,7 +128,15 @@ export function ViewerRoute({
   }
 
   if (route.kind === "document" && doc) {
-    return <DocumentReaderPage doc={doc} onBack={onBackFromDocument} />
+    return (
+      <DocumentReaderPage
+        doc={doc}
+        liveEvent={liveEvent}
+        onBack={onBackFromDocument}
+        onOpenActivity={onOpenActivity}
+        onRefresh={onRefreshDocument}
+      />
+    )
   }
 
   return (

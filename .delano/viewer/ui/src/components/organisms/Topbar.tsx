@@ -1,7 +1,9 @@
-import { CodeIcon, FolderIcon, MenuIcon, PencilIcon, XIcon } from "lucide-react"
+import { CodeIcon, FolderIcon, MenuIcon, XIcon } from "lucide-react"
 import { useState } from "react"
 
+import type { ActivityEvent } from "@/app/useLiveEvents"
 import { StatusBadge } from "@/components/atoms/StatusBadge"
+import { ActivityFeed } from "@/components/molecules/ActivityFeed"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { messageFromError, requestJson } from "@/lib/api"
@@ -10,16 +12,26 @@ import { titleFromSlug } from "@/lib/domain/status"
 import type { ViewerDoc, ViewerIndex } from "@/lib/domain/types"
 
 export function Topbar({
+  activity = [],
+  activityOpen,
+  agentWorking = false,
   doc,
   index,
+  onActivityOpenChange,
+  onOpenDoc,
   onOpenSidebar,
   showSidebarButton = false,
   status,
   title,
   updated,
 }: {
+  activity?: ActivityEvent[]
+  activityOpen?: boolean
+  agentWorking?: boolean
   doc: ViewerDoc | null
   index: ViewerIndex | null
+  onActivityOpenChange?: (open: boolean) => void
+  onOpenDoc?: (path: string) => void
   onOpenSidebar?: () => void
   showSidebarButton?: boolean
   status?: string | null
@@ -64,10 +76,13 @@ export function Topbar({
         <span className="hidden text-xs text-muted-foreground xl:inline">
           Last updated {formatDate(updated ?? doc?.updated ?? index?.generatedAt)}
         </span>
-        <Button variant="outline" size="sm" disabled>
-          <PencilIcon data-icon="inline-start" />
-          Review mode
-        </Button>
+        <ActivityFeed
+          activity={activity}
+          agentWorking={agentWorking}
+          open={activityOpen}
+          onOpenChange={onActivityOpenChange}
+          onOpenDoc={onOpenDoc}
+        />
         <Button variant="outline" size="sm" disabled={!doc} onClick={() => void openTarget("code")}>
           <CodeIcon data-icon="inline-start" />
           Open in IDE

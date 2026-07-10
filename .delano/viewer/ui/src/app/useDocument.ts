@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 
 import { messageFromError, requestJson } from "@/lib/api"
 import type { ViewerDoc } from "@/lib/domain/types"
@@ -6,6 +6,9 @@ import type { ViewerDoc } from "@/lib/domain/types"
 export function useDocument(activePath: string | null) {
   const [doc, setDoc] = useState<ViewerDoc | null>(null)
   const [error, setError] = useState("")
+  const [reloadToken, setReloadToken] = useState(0)
+
+  const refresh = useCallback(() => setReloadToken((token) => token + 1), [])
 
   useEffect(() => {
     if (!activePath) {
@@ -32,7 +35,7 @@ export function useDocument(activePath: string | null) {
     return () => {
       cancelled = true
     }
-  }, [activePath])
+  }, [activePath, reloadToken])
 
-  return { doc, error }
+  return { doc, error, refresh }
 }

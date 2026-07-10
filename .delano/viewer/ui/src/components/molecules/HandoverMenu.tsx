@@ -35,13 +35,22 @@ import {
   type HandoverIntent,
 } from "@/lib/domain/handover"
 
+export type DispatchInfo = {
+  agent: HandoverAgent
+  intent: HandoverIntent
+  message: string
+  at: string
+}
+
 export function HandoverMenu({
   sourcePath,
   variant = "button",
+  onDispatched,
   onStatus,
 }: {
   sourcePath: string
   variant?: "button" | "icon"
+  onDispatched?: (info: DispatchInfo) => void
   onStatus?: (message: string, tone: "info" | "error") => void
 }) {
   const [busy, setBusy] = useState(false)
@@ -60,6 +69,12 @@ export function HandoverMenu({
         intent,
       })
       onStatus?.(result.message, "info")
+      onDispatched?.({
+        agent,
+        intent,
+        message: result.message,
+        at: new Date().toISOString(),
+      })
     } catch (err) {
       onStatus?.(
         `${messageFromError(err)} Use "Copy command" as a fallback.`,
