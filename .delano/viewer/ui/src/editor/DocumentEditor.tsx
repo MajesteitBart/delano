@@ -47,7 +47,7 @@ import {
   slashMenuKeyAction,
   type SlashCommandId,
   type SlashCommandRange,
-} from "./slashCommands"
+} from "./slashCommands.js"
 
 type ConflictState = {
   currentBaseline: Baseline

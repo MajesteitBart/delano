@@ -1,5 +1,3 @@
-import type { Editor } from "@tiptap/core"
-
 export const SLASH_COMMANDS = [
   {
     id: "heading-1",
@@ -46,26 +44,9 @@ export const SLASH_COMMANDS = [
     label: "Horizontal rule",
     keywords: ["horizontal", "rule", "divider", "separator"],
   },
-] as const
+]
 
-export type SlashCommandDefinition = (typeof SLASH_COMMANDS)[number]
-export type SlashCommandId = SlashCommandDefinition["id"]
-export type SlashCommandRange = { from: number; to: number }
-
-export type SlashQueryMatch = {
-  query: string
-  triggerLength: number
-}
-
-export type SlashMenuKeyAction =
-  | { type: "move"; highlightedIndex: number }
-  | { type: "select"; commandId: SlashCommandId }
-  | { type: "dismiss" }
-  | { type: "none" }
-
-export function matchSlashQuery(
-  textBeforeCursor: string
-): SlashQueryMatch | null {
+export function matchSlashQuery(textBeforeCursor) {
   const match = textBeforeCursor.match(/^\/([^/\n]*)$/)
   if (!match) return null
   return {
@@ -74,9 +55,7 @@ export function matchSlashQuery(
   }
 }
 
-export function filterSlashCommands(
-  query: string
-): readonly SlashCommandDefinition[] {
+export function filterSlashCommands(query) {
   const tokens = query.trim().toLocaleLowerCase().split(/\s+/).filter(Boolean)
   if (tokens.length === 0) return SLASH_COMMANDS
 
@@ -88,11 +67,7 @@ export function filterSlashCommands(
   })
 }
 
-export function slashMenuKeyAction(
-  key: string,
-  highlightedIndex: number,
-  commands: readonly SlashCommandDefinition[]
-): SlashMenuKeyAction {
+export function slashMenuKeyAction(key, highlightedIndex, commands) {
   if (key === "Escape") return { type: "dismiss" }
   if (commands.length === 0) return { type: "none" }
 
@@ -119,11 +94,7 @@ export function slashMenuKeyAction(
   return { type: "none" }
 }
 
-export function applySlashCommand(
-  editor: Editor,
-  commandId: SlashCommandId,
-  range: SlashCommandRange
-): boolean {
+export function applySlashCommand(editor, commandId, range) {
   const chain = editor.chain().focus().deleteRange(range)
 
   switch (commandId) {
