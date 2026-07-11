@@ -14,6 +14,14 @@ const metadataSource = readFileSync(
   new URL("./DocumentMetaPanel.tsx", import.meta.url),
   "utf8"
 )
+const taskContextSource = readFileSync(
+  new URL("./TaskContextPanel.tsx", import.meta.url),
+  "utf8"
+)
+const markdownArticleSource = readFileSync(
+  new URL("./MarkdownArticle.tsx", import.meta.url),
+  "utf8"
+)
 
 test("document details live in the reader without duplicating task status", () => {
   assert.match(
@@ -31,6 +39,43 @@ test("document details live in the reader without duplicating task status", () =
   assert.match(metadataSource, /className="lg:col-span-2"/)
   assert.match(metadataSource, /grid-cols-1/)
   assert.doesNotMatch(metadataSource, /overflow-x-auto/)
+})
+
+test("document and task metadata are collapsed by default", () => {
+  assert.match(
+    metadataSource,
+    /<Collapsible key=\{doc\.path\} defaultOpen=\{false\}>/
+  )
+  assert.match(metadataSource, /aria-label="Toggle document details"/)
+  assert.match(
+    taskContextSource,
+    /<Collapsible key=\{doc\.path\} defaultOpen=\{false\}>/
+  )
+  assert.match(taskContextSource, /aria-label="Toggle task context"/)
+})
+
+test("reader action buttons use the default control size", () => {
+  assert.match(
+    readerSource,
+    /<Button variant="ghost" size="default" onClick=\{onBack\}>/
+  )
+  assert.match(
+    readerSource,
+    /<HandoverMenu\s+sourcePath=\{doc\.path\}\s+size="default"/
+  )
+})
+
+test("task title precedes collapsed details without duplicating the markdown heading", () => {
+  const titleIndex = readerSource.indexOf('className="reader-document-title"')
+  const detailsIndex = readerSource.indexOf("<DocumentMetaPanel")
+  assert.ok(titleIndex >= 0)
+  assert.ok(detailsIndex > titleIndex)
+  assert.match(readerSource, /hideFirstHeading=\{Boolean\(taskTitleHeading\)\}/)
+  assert.match(markdownArticleSource, /titleBlock\.hidden = true/)
+  assert.match(
+    markdownArticleSource,
+    /titleBlock\.setAttribute\("aria-hidden", "true"\)/
+  )
 })
 
 test("review drawer is a single annotation surface with existing actions", () => {

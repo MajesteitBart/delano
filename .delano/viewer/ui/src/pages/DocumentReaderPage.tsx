@@ -166,6 +166,13 @@ export function DocumentReaderPage({
 
   const markdown = useMemo(() => renderMarkdown(doc.markdown), [doc.markdown])
   const toc = useMemo(() => extractToc(doc.markdown), [doc.markdown])
+  const taskTitleHeading = useMemo(
+    () =>
+      doc.role === "task"
+        ? (toc.find((item) => item.level === 1) ?? null)
+        : null,
+    [doc.role, toc]
+  )
   const acceptanceCriteriaHeading = useMemo(
     () => toc.find((item) => /^Acceptance Criteria$/i.test(item.text)) ?? null,
     [toc]
@@ -248,7 +255,9 @@ export function DocumentReaderPage({
   useEffect(() => {
     const onScroll = () => {
       const headings = Array.from(
-        document.querySelectorAll<HTMLElement>('[data-block-kind="heading"]')
+        document.querySelectorAll<HTMLElement>(
+          '[data-block-kind="heading"]:not([aria-hidden="true"])'
+        )
       )
       let current: number | null = null
       for (const heading of headings) {
@@ -482,7 +491,7 @@ export function DocumentReaderPage({
         )}
         <article className="reader-article pb-20">
           <div className="mb-6 flex items-center justify-between gap-3">
-            <Button variant="ghost" size="sm" onClick={onBack}>
+            <Button variant="ghost" size="default" onClick={onBack}>
               <ArrowLeftIcon data-icon="inline-start" />
               Back
             </Button>
@@ -490,7 +499,7 @@ export function DocumentReaderPage({
               {canEdit && (
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="default"
                   onClick={() => setMode("edit")}
                 >
                   <PencilIcon data-icon="inline-start" />
@@ -500,7 +509,7 @@ export function DocumentReaderPage({
               )}
               <Button
                 variant={reviewOpen ? "secondary" : "outline"}
-                size="sm"
+                size="default"
                 onClick={() => setReviewOpen((open) => !open)}
                 aria-pressed={reviewOpen}
               >
@@ -511,6 +520,7 @@ export function DocumentReaderPage({
               {(doc.role === "task" || doc.role === "workstream") && (
                 <HandoverMenu
                   sourcePath={doc.path}
+                  size="default"
                   onDispatched={setDispatched}
                   onStatus={(message, tone) => {
                     if (tone === "error") {
@@ -525,6 +535,15 @@ export function DocumentReaderPage({
               )}
             </div>
           </div>
+          {taskTitleHeading && (
+            <h1
+              className="reader-document-title"
+              data-block-kind="heading"
+              data-line-start={taskTitleHeading.line}
+            >
+              {taskTitleHeading.text}
+            </h1>
+          )}
           {dispatched && (
             <div
               className="mb-6 flex items-center gap-2.5 rounded-lg border bg-card px-3.5 py-2 text-sm"
@@ -570,6 +589,7 @@ export function DocumentReaderPage({
           )}
           <MarkdownArticle
             html={markdown}
+            hideFirstHeading={Boolean(taskTitleHeading)}
             annotations={annotations}
             draftSource={
               popover?.mode === "create"

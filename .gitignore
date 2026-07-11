@@ -23,6 +23,11 @@ tmp/
 
 pack-output.json
 
+# Local agent runtime artifacts
+.claude/worktrees/
+.codex-remote-attachments/
+Python/
+
 # Impeccable live local runtime artifacts
 .impeccable/live/annotations/
 .impeccable/live/sessions/

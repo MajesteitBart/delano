@@ -1,5 +1,10 @@
 import Highlighter from "@plannotator/web-highlighter"
-import { type SyntheticEvent, useCallback, useLayoutEffect, useRef } from "react"
+import {
+  type SyntheticEvent,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+} from "react"
 
 import type { Annotation, WebHighlightSource } from "@/lib/domain/types"
 
@@ -9,13 +14,17 @@ function plainHighlightSource(source: WebHighlightSource): WebHighlightSource {
       parentTagName: source.startMeta.parentTagName,
       parentIndex: source.startMeta.parentIndex,
       textOffset: source.startMeta.textOffset,
-      ...(source.startMeta.extra === undefined ? {} : { extra: source.startMeta.extra }),
+      ...(source.startMeta.extra === undefined
+        ? {}
+        : { extra: source.startMeta.extra }),
     },
     endMeta: {
       parentTagName: source.endMeta.parentTagName,
       parentIndex: source.endMeta.parentIndex,
       textOffset: source.endMeta.textOffset,
-      ...(source.endMeta.extra === undefined ? {} : { extra: source.endMeta.extra }),
+      ...(source.endMeta.extra === undefined
+        ? {}
+        : { extra: source.endMeta.extra }),
     },
     text: source.text,
     id: source.id,
@@ -23,19 +32,31 @@ function plainHighlightSource(source: WebHighlightSource): WebHighlightSource {
   }
 }
 
-function highlightFromStore(highlighter: Highlighter, source?: WebHighlightSource | null) {
+function highlightFromStore(
+  highlighter: Highlighter,
+  source?: WebHighlightSource | null
+) {
   if (!source?.startMeta || !source.endMeta || !source.id) return false
   return Boolean(
-    highlighter.fromStore(source.startMeta, source.endMeta, source.text, source.id, source.extra)
+    highlighter.fromStore(
+      source.startMeta,
+      source.endMeta,
+      source.text,
+      source.id,
+      source.extra
+    )
   )
 }
 
 function nodeElement(node: Node) {
-  return node.nodeType === Node.ELEMENT_NODE ? (node as Element) : node.parentElement
+  return node.nodeType === Node.ELEMENT_NODE
+    ? (node as Element)
+    : node.parentElement
 }
 
 export function MarkdownArticle({
   html,
+  hideFirstHeading = false,
   annotations,
   draftSource,
   repaintToken,
@@ -43,6 +64,7 @@ export function MarkdownArticle({
   onHighlightClick,
 }: {
   html: string
+  hideFirstHeading?: boolean
   annotations: Annotation[]
   draftSource?: WebHighlightSource | null
   repaintToken?: unknown
@@ -84,12 +106,24 @@ export function MarkdownArticle({
     // leaves the fragments behind, so anchors drift after a few cycles.
     // Restoring the pristine markup first keeps every anchor resolvable.
     root.innerHTML = html
+    if (hideFirstHeading) {
+      const firstHeading = root.querySelector<HTMLElement>(
+        '[data-block-kind="heading"] h1'
+      )
+      const titleBlock = firstHeading?.closest<HTMLElement>(
+        '[data-block-kind="heading"]'
+      )
+      if (titleBlock) {
+        titleBlock.hidden = true
+        titleBlock.setAttribute("aria-hidden", "true")
+      }
+    }
     annotations.forEach((annotation) => {
       if (annotation.status === "deleted") return
       highlightFromStore(highlighter, annotation.anchor?.highlightSource)
     })
     highlightFromStore(highlighter, draftSource)
-  }, [annotations, draftSource, html, repaintToken])
+  }, [annotations, draftSource, hideFirstHeading, html, repaintToken])
 
   const handleClick = useCallback(
     (event: SyntheticEvent<HTMLElement>) => {
@@ -112,7 +146,11 @@ export function MarkdownArticle({
       const quote = selection?.toString().trim()
       const range = selection?.rangeCount ? selection.getRangeAt(0) : null
       if (!highlighter || !root || !quote || !range) return
-      if (!root.contains(range.startContainer) || !root.contains(range.endContainer)) return
+      if (
+        !root.contains(range.startContainer) ||
+        !root.contains(range.endContainer)
+      )
+        return
       const startElement = nodeElement(range.startContainer)
       if (startElement?.closest("pre, code")) return
       // fromRange mutates the DOM around the range, which can zero out its

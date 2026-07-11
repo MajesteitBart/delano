@@ -98,3 +98,13 @@ Delegate browser testing, GUI smoke checks, and screenshot capture to the Codex 
 - Keep logs privacy-safe: raw prompts are opt-in only, and committed logs must pass `.agents/scripts/check-log-safety.sh`.
 - Do not leak local absolute paths in docs, contracts, or hook output.
 - Keep adapter entrypoint files thin. Agent-specific behavior belongs in `.agents/adapters/<agent>/`; shared behavior belongs here or in `.agents/`.
+
+<!-- OPENWIKI:START -->
+
+## OpenWiki
+
+This repository uses OpenWiki for recurring code documentation. Start with `openwiki/quickstart.md`, then follow its links to architecture, workflows, domain concepts, operations, integrations, testing guidance, and source maps.
+
+The scheduled OpenWiki GitHub Actions workflow refreshes the repository wiki. Do not hand-edit generated OpenWiki pages unless explicitly asked; prefer updating source code/docs and letting OpenWiki regenerate.
+
+<!-- OPENWIKI:END -->

@@ -31,11 +31,13 @@ export type DispatchInfo = {
 
 export function HandoverMenu({
   sourcePath,
+  size = "sm",
   variant = "button",
   onDispatched,
   onStatus,
 }: {
   sourcePath: string
+  size?: "default" | "sm"
   variant?: "button" | "icon"
   onDispatched?: (info: DispatchInfo) => void
   onStatus?: (message: string, tone: "info" | "error") => void
@@ -74,7 +76,7 @@ export function HandoverMenu({
     <AgentSplitButton
       agent={agent}
       busy={busy}
-      size="sm"
+      size={size}
       variant={variant}
       onAgentChange={setAgent}
       onSend={() => void run("start")}

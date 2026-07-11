@@ -321,6 +321,11 @@
     @apply w-full min-w-0 max-w-[760px];
   }
 
+  .reader-document-title {
+    @apply mb-5 text-[25px] font-semibold leading-tight tracking-normal;
+    scroll-margin-top: 96px;
+  }
+
   .md-body {
     @apply text-[15px] leading-7 text-foreground;
   }

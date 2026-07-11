@@ -1,4 +1,12 @@
+import { ChevronDownIcon } from "lucide-react"
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { MetadataField } from "@/components/molecules/MetadataField"
 import { formatDate } from "@/lib/domain/dates"
 import type { ViewerDoc } from "@/lib/domain/types"
@@ -50,12 +58,30 @@ export function DocumentMetaPanel({
 }) {
   return (
     <Card size="sm" className="mb-5 min-w-0 gap-0 overflow-hidden py-0">
-      <CardHeader className="border-b py-3">
-        <CardTitle>Document details</CardTitle>
-      </CardHeader>
-      <CardContent className="min-w-0 py-3">
-        <DocumentMetaFields doc={doc} showStatus={showStatus} />
-      </CardContent>
+      <Collapsible key={doc.path} defaultOpen={false}>
+        <CardHeader className="grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b py-3">
+          <div className="min-w-0">
+            <CardTitle>Document details</CardTitle>
+            <div className="truncate text-xs text-muted-foreground">
+              Path, status, title, and baseline
+            </div>
+          </div>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Toggle document details"
+            >
+              <ChevronDownIcon className="transition-transform duration-200 group-data-[state=open]:rotate-180" />
+            </Button>
+          </CollapsibleTrigger>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardContent className="min-w-0 py-3">
+            <DocumentMetaFields doc={doc} showStatus={showStatus} />
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   )
 }

@@ -1,4 +1,5 @@
 import {
+  ChevronDownIcon,
   ChevronRightIcon,
   GitBranchIcon,
   ListChecksIcon,
@@ -6,11 +7,13 @@ import {
 
 import { StatusBadge } from "@/components/atoms/StatusBadge"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card"
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
 import { statusLabel } from "@/lib/domain/status"
 import type { ProjectIndex, ViewerDoc } from "@/lib/domain/types"
 import { cn } from "@/lib/utils"
@@ -40,93 +43,114 @@ export function TaskContextPanel({
   const details = taskDetails(doc)
 
   return (
-    <Card
-      size="sm"
-      className="mb-5 gap-0 py-0"
-      aria-label="Task context"
-    >
-      <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b py-3">
-        <div className="min-w-0">
-          <div className="mb-0.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-            Parent workstream
+    <Card size="sm" className="mb-5 gap-0 py-0" aria-label="Task context">
+      <Collapsible key={doc.path} defaultOpen={false}>
+        <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b py-3">
+          <div className="min-w-0">
+            <div className="text-sm font-medium">Task context</div>
+            <div className="truncate text-xs text-muted-foreground">
+              Parent workstream and task metadata
+            </div>
           </div>
-          {workstream ? (
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="font-mono">
+              {scalar(doc.taskId) || scalar(doc.frontmatter?.id) || "Task"}
+            </Badge>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="Toggle task context"
+              >
+                <ChevronDownIcon className="transition-transform duration-200 group-data-[state=open]:rotate-180" />
+              </Button>
+            </CollapsibleTrigger>
+          </div>
+        </CardHeader>
+        <CollapsibleContent>
+          <CardHeader className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b py-3">
+            <div className="min-w-0">
+              <div className="mb-0.5 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                Parent workstream
+              </div>
+              {workstream ? (
+                <button
+                  type="button"
+                  className="group flex max-w-full items-center gap-1 text-left text-sm font-medium hover:underline"
+                  onClick={() => onOpenDoc(workstream.path)}
+                >
+                  <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                  <span className="truncate">
+                    {workstream.id ? `${workstream.id} · ` : ""}
+                    {workstream.title}
+                  </span>
+                  <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                </button>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  {workstreamId
+                    ? `${workstreamId} · Contract not indexed`
+                    : "Unassigned"}
+                </div>
+              )}
+            </div>
+          </CardHeader>
+
+          <CardContent className="grid grid-cols-2 gap-x-5 gap-y-3 py-3 sm:grid-cols-4">
+            <ContextValue label="Status">
+              <StatusBadge status={doc.status ?? "planned"} />
+            </ContextValue>
+            <ContextValue label="Priority">
+              {priority ? statusLabel(priority) : "Not set"}
+            </ContextValue>
+            <ContextValue label="Estimate">
+              {estimate || "Not set"}
+            </ContextValue>
             <button
               type="button"
-              className="group flex max-w-full items-center gap-1 text-left text-sm font-medium hover:underline"
-              onClick={() => onOpenDoc(workstream.path)}
+              className={cn(
+                "min-w-0 text-left",
+                onOpenAcceptanceCriteria &&
+                  "group cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              )}
+              onClick={onOpenAcceptanceCriteria}
+              disabled={!onOpenAcceptanceCriteria}
             >
-              <GitBranchIcon className="size-3.5 shrink-0 text-muted-foreground" />
-              <span className="truncate">
-                {workstream.id ? `${workstream.id} · ` : ""}
-                {workstream.title}
+              <span className="mb-1 flex items-center gap-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
+                <ListChecksIcon className="size-3.5" />
+                Acceptance criteria
               </span>
-              <ChevronRightIcon className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+              <span
+                className={cn(
+                  "block text-sm font-medium",
+                  onOpenAcceptanceCriteria && "group-hover:underline"
+                )}
+              >
+                {progress.total
+                  ? `${progress.done}/${progress.total} complete`
+                  : criteriaIds.length
+                    ? `${criteriaIds.length} linked`
+                    : "None listed"}
+              </span>
+              {criteriaIds.length > 0 && (
+                <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                  {criteriaIds.join(", ")}
+                </span>
+              )}
             </button>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              {workstreamId ? `${workstreamId} · Contract not indexed` : "Unassigned"}
+          </CardContent>
+
+          {details.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 border-t bg-muted/20 px-3 py-2.5">
+              {details.map((detail) => (
+                <Badge key={detail} variant="outline" className="font-normal">
+                  {detail}
+                </Badge>
+              ))}
             </div>
           )}
-        </div>
-        <Badge variant="outline" className="font-mono">
-          {scalar(doc.taskId) || scalar(doc.frontmatter?.id) || "Task"}
-        </Badge>
-      </CardHeader>
-
-      <CardContent className="grid grid-cols-2 gap-x-5 gap-y-3 py-3 sm:grid-cols-4">
-        <ContextValue label="Status">
-          <StatusBadge status={doc.status ?? "planned"} />
-        </ContextValue>
-        <ContextValue label="Priority">
-          {priority ? statusLabel(priority) : "Not set"}
-        </ContextValue>
-        <ContextValue label="Estimate">
-          {estimate || "Not set"}
-        </ContextValue>
-        <button
-          type="button"
-          className={cn(
-            "min-w-0 text-left",
-            onOpenAcceptanceCriteria &&
-              "group cursor-pointer rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-          )}
-          onClick={onOpenAcceptanceCriteria}
-          disabled={!onOpenAcceptanceCriteria}
-        >
-          <span className="mb-1 flex items-center gap-1 text-[11px] font-medium tracking-wide text-muted-foreground uppercase">
-            <ListChecksIcon className="size-3.5" />
-            Acceptance criteria
-          </span>
-          <span
-            className={cn(
-              "block text-sm font-medium",
-              onOpenAcceptanceCriteria && "group-hover:underline"
-            )}
-          >
-            {progress.total
-              ? `${progress.done}/${progress.total} complete`
-              : criteriaIds.length
-                ? `${criteriaIds.length} linked`
-                : "None listed"}
-          </span>
-          {criteriaIds.length > 0 && (
-            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-              {criteriaIds.join(", ")}
-            </span>
-          )}
-        </button>
-      </CardContent>
-
-      {details.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 border-t bg-muted/20 px-3 py-2.5">
-          {details.map((detail) => (
-            <Badge key={detail} variant="outline" className="font-normal">
-              {detail}
-            </Badge>
-          ))}
-        </div>
-      )}
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   )
 }
