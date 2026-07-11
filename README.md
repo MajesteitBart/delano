@@ -3,199 +3,108 @@
 </p>
 
 <p align="center">
-  <strong>File-backed delivery contracts for coding agents and operators.</strong>
+  <strong>Your agent says it's done. Prove it.</strong>
 </p>
 
 <p align="center">
-  <a href="#one-command-bootstrap">Install</a>
+  <a href="#quick-start">Install</a>
   &middot;
-  <a href="#delano-cli">CLI</a>
+  <a href="#the-cli">CLI</a>
   &middot;
-  <a href="#local-viewer">Viewer</a>
-  &middot;
-  <a href="docs/delano-brandbook.html">Brand book</a>
+  <a href="#the-viewer">Viewer</a>
   &middot;
   <a href="HANDBOOK.md">Handbook</a>
+  &middot;
+  <a href="docs/README.md">Docs</a>
 </p>
 
-Delano is an agent-agnostic delivery runtime. It keeps planning, execution, validation, and evidence on disk so maintainers, operators, and different coding agents can work from the same operating model without depending on one vendor workflow.
+Delano is a delivery runtime for coding agents. Specs, plans, tasks, and evidence live as files in your repo. Any agent can execute them. Anyone can verify them.
 
-The product posture is a local dossier: warm paper, ledger ink, visible source paths, and quiet status signals. The interface and runtime both treat `.project/` as the source of truth.
+Works with ChatGPT, Codex, Claude Code, Claude, and whatever ships next. No account. No cloud. No lock-in.
 
-## New in v0.3: Annotations and Agent handover
+<p align="center">
+  <img src="marketing/real/annotation-frame.png" alt="The Delano viewer: a spec open in the reading pane, a sentence highlighted, and the annotation popover open" width="820">
+</p>
 
-### Annotate in documents
-Annotate in documents and leave feedback for your team or agents
-![](docs\images\screenshots\plan-annotation.png)
+## Why Delano
 
+Coding agents produce working code in minutes. Then the session ends, and everything that made the work trustworthy disappears with it. The plan lived in a prompt. The decisions lived in scrollback. The proof that tests passed lived in the agent's memory, which is to say: nowhere.
 
-### Handover to coding agents
-Handover plan improvements or tasks to coding agents with a single click
+The hard part was never getting an agent to write code. It's knowing what was agreed, what was built, and what was verified, three weeks later, by someone who wasn't in the chat.
 
-![](docs\images\screenshots\annotation-handover.png)
-
-
-## At a glance
-
-| Surface | Role |
+| Before | After |
 | --- | --- |
-| `HANDBOOK.md` | Canonical operating model |
-| `.project/` | File-backed delivery contracts: specs, plans, workstreams, tasks, decisions, updates, evidence |
-| `.agents/` | Shared runtime: scripts, rules, hooks, skills, adapters |
-| `.delano/` | Guarded local viewer for inspecting, annotating, and reviewing `.project` state |
-| `docs/delano-brandbook.html` | Brand book for the Delano visual language |
+| Plans and decisions live in chat sessions that expire | Specs, plans, tasks, and decisions are files in `.project/` |
+| Every agent session starts without context | Any agent reads the same contracts and continues the work |
+| "Done" is a claim, not a checked state | Tasks close only with acceptance criteria met and evidence recorded |
+| Switching agents means starting over | `delano validate` fails loudly when contracts and reality drift |
+
+## How it works: contracts over tools
+
+Delano's core idea fits in one sentence: files define truth, tools execute against files. Every project follows the same flow, and each step is a markdown file in your repo. You can read it, diff it, review it, and version it like everything else you ship.
+
+```text
+Outcome → Spec → Probe decision → Plan → Workstreams → Tasks → Evidence → Learnings
+```
+
+Two details matter here.
+
+**The probe decision.** Before a spec gets approved, Delano forces one explicit choice: is this approach proven, or does it need a small prototype first? Skipping the probe is allowed. Skipping it silently is not. The decision goes on record either way.
+
+**Evidence.** An agent claiming a task is done counts for nothing. Done means the acceptance criteria are checked and the evidence log shows what ran, what passed, and where the proof lives. An agent that closes a task without evidence fails the gate.
+
+<p align="center">
+  <img src="marketing/real/task-detail-crop.png" alt="A task in the viewer: title first, collapsible detail cards, and checked acceptance criteria" width="720">
+</p>
+
+## Rules and evidence
+
+Most process documents pretend every rule is enforced. Delano tags each one:
+
+- `[enforced]` means a validator checks it. Violations fail `delano validate`.
+- `[policy]` means the handbook requires it and humans verify it, until a validator exists.
+- `[guidance]` means recommended, deviate freely.
+
+That honesty is the point. You always know which guarantees are mechanical and which depend on discipline. Every `[policy]` rule is an open candidate for enforcement, and the list shrinks over time.
+
+## Skills
+
+Delano ships ten skills that cover the delivery lifecycle: discovery, research, prototype, planning, breakdown, execution, quality, sync, closeout, and learning.
+
+A skill is not a prompt trick. It's a contract: trigger context, required inputs, output schema, quality checks, failure behavior, and allowed side effects. The result: a Claude Code session and a Codex session decompose work the same way, because they follow the same file, not the same vibes.
+
+## The viewer
+
+`delano viewer` opens a local, guarded review surface at `127.0.0.1`. It reads your `.project` files and shows specs, plans, workstreams, tasks, and their dependencies as one navigable dossier.
+
+Select any text and annotate it: a comment, a question, a verify request. Then hand the bundle to an agent with one click. The viewer writes a handover file and opens the agent with the exact feedback, scoped to the exact contract. The same button works for dispatch: point at a task, choose start or review, and the agent gets the contract file, the acceptance criteria, and the instruction to record evidence before closing.
+
+<p align="center">
+  <img src="marketing/real/handover-menu.png" alt="The send-to menu in the viewer: ChatGPT, Codex, Claude Code, Claude, or a custom agent, send for review, or copy a handover command" width="380">
+</p>
+
+The viewer never edits canonical files behind your back. Annotations live in their own store (`.project/viewer/annotations.json`), and markdown changes require a diff preview and explicit confirmation. It's a reading room, not a control panel.
+
+It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port. The viewer client is built from `.delano/viewer/ui` with the shadcn CLI and real shadcn/Radix primitives. When changing viewer UI, run `npm --prefix .delano/viewer/ui run build` before `npm run build:assets`.
 
 ## Quick start
 
 ```bash
-npm install -g @bvdm/delano@latest 
+npm install -g @bvdm/delano       # once, anywhere
+delano install --yes              # inside your repo
 delano viewer
 ```
 
-(*Or use `npx @bvdm/delano@latest`*)
-
-The viewer opens a localhost-only guarded review surface for `.project` contracts. Validation checks that the runtime, contracts, package payload, and local gates still line up.
-
-## What Delano is
-
-- `HANDBOOK.md` is the canonical operating model.
-- `.project/` is the delivery source of truth.
-- `.agents/` is the shared runtime: scripts, rules, hooks, skills, and adapters.
-- `.claude/` is a compatibility mirror of `.agents/`, not a second runtime.
-- `.delano/` is an optional UI layer.
-
-The npm package is intentionally thin. It distributes the approved runtime payload, includes the guarded viewer UI, and wraps the existing shell-based PM scripts. It does not replace the handbook, the file contracts, or the underlying bash/Python execution layer.
-
-## Design language
-
-Delano's visual system is intentionally quiet and document-like. The brand mark identifies the source; it does not decorate the interface.
-
-- **Creative north star:** The Local Dossier.
-- **Palette:** warm document ground, paper surface, ledger ink, hairline dividers, restrained slate selection, and forest identity through the logo assets.
-- **Typography:** Inter for product and documentation text, JetBrains Mono for provenance and exact paths. Red Hat Display belongs only inside the supplied wordmark artwork.
-- **Shape:** small 4px to 6px radii, 1px hairlines, open ledger rows instead of stacked cards.
-- **Motion:** brief, functional feedback only.
-
-See [DESIGN.md](DESIGN.md) and the [Delano Brand Book](docs/delano-brandbook.html) for the full system.
-
-## Delano CLI
-
-- Package: `@bvdm/delano`
-- Current package version: `0.3.2`
-- Binary: `delano`
-- Commands: `onboarding`, `install`, `viewer`, `context`, `project`, `workstream`, `task`, `update`, `init`, `import-spec-kit`, `research`, `validate`, `status`, `next`
-- Primary goal: bootstrap a repo safely, expose local delivery state clearly, and keep runtime gates verifiable
-
-## Recent main changes
-
-There have been some major new features added to Delano.
-
-Since `v0.2.11`, Delano has gained first-class context-pack reading, a redesigned guarded viewer, selected-text annotations, and agent handover flows for both review feedback and work dispatch. The release also tightens validation around imported task graphs, invalid task statuses, and Windows/CRLF edge cases.
-
-Thank you for the inspiration, [Plannotator](https://github.com/backnotprop/plannotator).
-
-Read the full user-facing summary in [docs/release-notes.md](docs/release-notes.md).
-
-## One-command bootstrap
-
-To install the approved Delano runtime into the current repository:
+One-shot with npx instead:
 
 ```bash
-npx -y @bvdm/delano@latest --yes
-```
-
-That shorthand is equivalent to:
-
-```bash
-npx -y @bvdm/delano@latest install --yes
-```
-
-To install into a different directory:
-
-```bash
+npx -y @bvdm/delano@latest --yes            # equivalent to install --yes
 npx -y @bvdm/delano@latest --target <repo> --yes
 ```
 
-If you already have the package installed locally, the same flow is:
+Fifteen minutes from a plain idea to a validated project with a spec, a plan, tasks with acceptance criteria, and a gate that keeps everyone honest: start with [Delano in the First 15 Minutes](docs/first-15-minutes.md).
 
-```bash
-delano --yes
-delano --target <repo> --yes
-```
-
-## Global CLI install
-
-If you want `delano` available in every repository you work in, install it globally:
-
-```bash
-npm install -g @bvdm/delano
-```
-
-Typical flow in a repository:
-
-```bash
-cd <repo>
-delano install --yes
-delano viewer
-delano validate
-delano init <slug> "<Project Name>" [owner] [lead]
-delano import-spec-kit <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
-delano research <project-slug> <research-slug> [--title <title>] [--question <question>] [--json]
-```
-
-Command intent:
-
-- `delano install` bootstraps the Delano runtime into the current repository
-- `delano viewer` launches the guarded local review UI for `.project` contracts
-- `delano validate` checks whether the runtime and required assets are in place
-- `delano init` creates a delivery project inside a repository that already has Delano installed
-- `delano import-spec-kit` creates a planned Delano project from the first supported Spec Kit-style markdown fixture and then runs validation
-- `delano research` creates repo-native research intake files inside an existing Delano project and then runs validation
-
-`delano init` usage:
-
-```bash
-delano init <slug> "<Project Name>" [owner] [lead]
-```
-
-Notes:
-
-- use kebab-case for `<slug>`
-- `owner` defaults to `team`
-- `lead` defaults to `owner`
-- this is the right command for an agent to scaffold a new delivery project after `delano install`
-
-`delano import-spec-kit` usage:
-
-```bash
-delano import-spec-kit <slug> <source-md> [--name <project-name>] [--owner <owner>] [--lead <lead>] [--json]
-```
-
-Notes:
-
-- the source markdown must use the initial supported shape documented in `docs/spec-kit/import-contract.md`
-- agents should prefer named options over positional metadata, and `--json` when parsing the result
-- imported artifacts start in planned/ready states and still have to pass Delano validation, probe, and evidence gates
-- the command is additive and refuses to overwrite an existing `.project/projects/<slug>/` folder
-
-`delano research` usage:
-
-```bash
-delano research <project-slug> <research-slug> [--title <title>] [--question <question>] [--owner <owner>] [--json]
-```
-
-Notes:
-
-- use this before mutating `spec.md`, `plan.md`, workstreams, or tasks when intent is unclear
-- research files live under `.project/projects/<project-slug>/research/<research-slug>/`
-- agents should use `--json` when parsing the result
-- research findings must fold forward into canonical Delano artifacts or be explicitly closed as no-action
-
-## How to use Delano after install
-
-For a fast guided path, start with [Delano in the First 15 Minutes](docs/first-15-minutes.md).
-
-Recommended first step:
+Recommended first step after install:
 
 ```bash
 delano onboarding
@@ -203,111 +112,92 @@ delano onboarding
 
 `delano onboarding` searches upward for `AGENTS.md`, asks for explicit approval before it analyzes anything, and prints recommendations using the packaged onboarding skill rubric. It does not edit `AGENTS.md` on its own.
 
-If you bootstrap with one-shot `npx`, keep using `npx` for wrapper commands:
+## The CLI
+
+The CLI is deliberately thin. It installs the runtime, reads state, and wraps the scripts that do the real work. It never phones home.
 
 ```bash
-npx -y @bvdm/delano@latest onboarding --approve-agents-analysis
-npx -y @bvdm/delano@latest viewer
-npx -y @bvdm/delano@latest validate
-npx -y @bvdm/delano@latest status
-npx -y @bvdm/delano@latest status --open --brief
-npx -y @bvdm/delano@latest next -- --all
+delano validate                   # do contracts and reality still agree?
+delano status --open --brief      # what's in flight
+delano next                       # dependency-safe next task
+delano init my-feature "My Feature"
+delano research my-feature open-question
+delano task close my-feature T-001 --evidence "tests pass, see updates/003"
 ```
 
-If the package is installed locally or globally, run these inside the target repository:
+Everything supports `--json`, because half your users are agents parsing the output.
 
-```bash
-delano onboarding
-delano viewer
-delano validate
-delano status
-delano status --open --brief
-delano next -- --all
-delano init <slug> "<Project Name>" [owner] [lead]
-delano import-spec-kit <slug> <source-md> --json
-delano research <project-slug> <research-slug> --title "Research title" --question "Primary question" --json
-```
+- Package: `@bvdm/delano`, binary: `delano`
+- Commands: `onboarding`, `install`, `viewer`, `context`, `project`, `workstream`, `task`, `update`, `init`, `import-spec-kit`, `research`, `validate`, `status`, `next`
 
-The wrapper commands call the existing PM scripts under `.agents/scripts/pm/`. You can also run those scripts directly:
+Command intent:
 
-```bash
-bash .agents/scripts/pm/validate.sh
-bash .agents/scripts/pm/status.sh
-bash .agents/scripts/pm/status.sh --open --brief
-bash .agents/scripts/pm/next.sh --all
-bash .agents/scripts/pm/research.sh <project-slug> <research-slug> --title "Research title" --question "Primary question" --json
-```
+- `delano install` bootstraps the Delano runtime into the current repository
+- `delano viewer` launches the guarded local review UI for `.project` contracts
+- `delano validate` checks whether the runtime, contracts, and required assets still line up
+- `delano init <slug> "<Project Name>" [owner] [lead]` scaffolds a new delivery project (kebab-case slug; `owner` defaults to `team`, `lead` to `owner`)
+- `delano import-spec-kit <slug> <source-md> [--name ...] [--owner ...] [--lead ...] [--json]` creates a planned project from a supported Spec Kit-style markdown fixture (see `docs/spec-kit/import-contract.md`); imported artifacts still pass through validation, probe, and evidence gates, and the command refuses to overwrite an existing project folder
+- `delano research <project-slug> <research-slug> [--title ...] [--question ...] [--json]` opens repo-native research intake under `.project/projects/<slug>/research/` before anyone mutates spec, plan, workstreams, or tasks; findings fold forward into canonical artifacts or close as no-action
 
-## Local viewer
-
-The viewer is packaged with `@bvdm/delano` and serves the selected repository's `.project` files in guarded review mode. It can store annotations in `.project/viewer/annotations.json`, hand annotation bundles over to a coding agent (Codex or Claude Code) through generated handover files, and write canonical markdown only through explicit preview/apply checks. It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port.
-
-It indexes `.project/context`, `.project/templates`, and `.project/projects`, then derives artifact roles, statuses, project outlines, task/workstream relationships, snippets, and rendered markdown for local inspection.
-
-The viewer client is built from `.delano/viewer/ui` with the shadcn CLI and real shadcn/Radix primitives. When changing viewer UI, run `npm --prefix .delano/viewer/ui run build` before `npm run build:assets`.
-
-## Required dependencies
-
-Delano assumes these tools are available:
-
-- `node` 18 or newer
-- `bash`
-- `git`
-- `python3` or compatible `python` / `py`
-
-The CLI does not bundle its own shell or Python runtime.
+The wrapper commands call the PM scripts under `.agents/scripts/pm/`, which you can also run directly (`bash .agents/scripts/pm/validate.sh`, `status.sh`, `next.sh`, `research.sh`).
 
 ## Install behavior
 
 `delano install` is conflict-first by default:
 
-- it computes the full install plan before writing files
-- it aborts if an approved target path already exists
+- it computes the full install plan before writing files, and aborts if an approved target path already exists
 - it reports each conflict as file, directory, or symlink
 - it only overwrites approved allowlist paths when `--force` is used
-- it can narrow updates with `--only`, `--exclude`, `--no-project-context`, and `--no-project-state`
-- it does not touch unrelated files outside the allowlist
-- it does not install or overwrite repo-root Git config files such as `.gitignore` or `.gitattributes`
+- it can narrow updates with `--only`, `--exclude`, `--no-project-state`, and `--interactive` presets
+- it never touches unrelated files or repo-root Git config such as `.gitignore` and `.gitattributes`
 
-The base install payload intentionally excludes top-level adapter entry docs such as `AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, and `PI.md`. Those remain opt-in only.
-The base install payload includes `.delano/`, including the guarded viewer UI.
-The base install payload also includes `.codex/hooks.json`, a Codex `SessionStart` hook config that injects compact open-project context when Codex hooks are enabled. If a target repo already has `.codex/hooks.json`, `delano install` merges the Delano hook into the existing JSON instead of replacing it. Invalid or non-file hook configs are skipped without blocking the rest of the install.
-
-Codex hook activation is intentionally manual:
-
-1. Enable hooks for a session with `codex --enable hooks`, or persist the feature in `~/.codex/config.toml`:
-
-   ```toml
-   [features]
-   hooks = true
-   ```
-
-2. Start Codex in the repository and approve the project trust prompt for the repo-local `.codex/` layer. Codex records trusted projects in `~/.codex/config.toml`, for example:
-
-   ```toml
-   [projects."<repo>"]
-   trust_level = "trusted"
-   ```
-
-3. Approve the Delano `SessionStart` hook when Codex asks whether to trust it.
-
-Older docs and builds may refer to `[features].codex_hooks`; newer Codex builds warn that this key is deprecated in favor of `[features].hooks`.
-
-The installable `.project/context/` pack is seeded from generic templates during packaging; it does not ship Delano's own repo-specific context files into consumer repositories.
-After install, the recommended first step is `delano onboarding`, which requires explicit approval before it reviews `AGENTS.md`.
-
-For an update-safe refresh that avoids repo-owned project state, narrow the plan before forcing overwrites:
+Install categories are `agent-runtime`, `codex-hooks`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`. For an update-safe refresh that preserves repo-owned project state:
 
 ```bash
-delano install --interactive
 delano install --only skills,project-templates --force --yes
-delano install --exclude project-context,project-projects,project-registry --force --yes
 delano install --no-project-state --force --yes
 ```
 
-The interactive installer presents presets for updating the runtime while preserving project state, updating only skills and project templates, full install or repair, and custom category selection.
+The base payload includes `.delano/` (the guarded viewer) and `.codex/hooks.json`, a Codex `SessionStart` hook that injects compact open-project context when Codex hooks are enabled. Existing hook configs are merged, not replaced. Codex hook activation stays manual: enable `[features] hooks = true` in `~/.codex/config.toml` (or `codex --enable hooks`), trust the repo's `.codex/` layer, and approve the hook when Codex asks. Top-level adapter entry docs (`AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, `PI.md`) are intentionally excluded and remain opt-in.
 
-Install categories are `agent-runtime`, `codex-hooks`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`. The `--no-project-state` shortcut excludes `.project/context`, `.project/projects`, and `.project/registry`.
+The installable `.project/context/` pack is seeded from generic templates during packaging; replace it with your repo's reality, and start with `delano onboarding`.
+
+## What's in the repo
+
+| Surface | Role |
+| --- | --- |
+| `HANDBOOK.md` | Canonical operating model |
+| `.project/` | File-backed delivery contracts: specs, plans, workstreams, tasks, decisions, updates, evidence |
+| `.agents/` | Shared runtime: scripts, rules, hooks, skills, adapters |
+| `.claude/` | Compatibility mirror of `.agents/`, not a second runtime |
+| `.delano/` | Guarded local viewer for inspecting, annotating, and reviewing `.project` state |
+| `docs/delano-brandbook.html` | Brand book for the Delano visual language |
+
+Requirements: `node` 18 or newer, `bash`, `git`, and `python3` (or compatible `python` / `py`). The CLI does not bundle its own shell or Python runtime.
+
+## Runtime boundaries
+
+This package is deliberately narrow:
+
+- npm is the distribution surface; wrapper commands stay thin
+- `.project` remains repo-owned after install; `.project/projects/` and `.project/registry/` should normally be excluded from forced refreshes
+- `.agents` remains the runtime surface
+- remote GitHub/Linear writes stay outside the default flow; sync tooling is dry-run and repair-plan oriented unless an operator explicitly approves an apply-capable workflow
+- `install-delano.sh` remains available as the legacy bridge installer
+
+## Runtime validation
+
+`delano validate` and `bash .agents/scripts/pm/validate.sh` run local gates for artifact schemas and scope, operating modes, status transitions, dependencies, blockers, acceptance/evidence mapping, privacy-safe output defaults, package manifest drift, sync inspection and repair planning, lease contracts and conflict zones, stream-aware next-task selection, worktree health, delivery metrics, context audit scoring, and closeout learning proposals.
+
+For release readiness:
+
+```bash
+npm --prefix .delano/viewer/ui run build
+npm run build:assets
+npm run check:package-manifest
+bash .agents/scripts/pm/validate.sh
+npm test
+```
 
 ## Optional AGENTS.md / CLAUDE.md snippet
 
@@ -331,43 +221,11 @@ When working in this repository:
 - use `delano viewer` to inspect and annotate `.project/` through the guarded local UI
 ```
 
-## Runtime boundaries
+## Design language
 
-This package is deliberately narrow:
-
-- npm is the distribution surface
-- `.project` remains repo-owned after install
-- `.project/context/` installs as generic starter context that the target repo must replace with its own reality
-- `.project/projects/` and `.project/registry/` are repo-owned state and should normally be excluded from forced refreshes
-- `.agents` remains the runtime surface
-- wrapper commands stay thin
-- `install-delano.sh` remains available as the legacy bridge installer
-- remote GitHub/Linear writes remain outside the default flow; current sync tooling is dry-run and repair-plan oriented unless an operator explicitly approves an apply-capable workflow
-
-## Runtime validation
-
-The v0.2 runtime upgrade expanded `delano validate` and `bash .agents/scripts/pm/validate.sh` with local gates for:
-
-- artifact schemas, artifact scope, operating modes, status transitions, dependencies, blockers, and acceptance/evidence mapping
-- privacy-safe prompt/log defaults and path-output safety
-- package manifest and install payload drift
-- local/GitHub/Linear sync inspection, drift reporting, and apply-gated repair planning
-- lease contracts, conflict zones, stream-aware next-task selection, handoff summaries, and worktree health
-- delivery metrics, project metrics summaries, context audit scoring, skill-output eval fixtures, and closeout learning proposals
-
-For release readiness, run:
-
-```bash
-npm --prefix .delano/viewer/ui run build
-npm run build:assets
-npm run check:package-manifest
-bash .agents/scripts/pm/validate.sh
-npm test
-```
+Delano's visual system is a local dossier: warm paper, ledger ink, hairline dividers, visible source paths, and quiet status signals. Inter for product text, JetBrains Mono for provenance and exact paths. See [DESIGN.md](DESIGN.md) and the [Delano Brand Book](docs/delano-brandbook.html).
 
 ## Local development
-
-From this repository:
 
 ```bash
 npm --prefix .delano/viewer/ui run build
@@ -376,31 +234,28 @@ node bin/delano.js --help
 node bin/delano.js --yes --target ./tmp/cli-install-smoke
 ```
 
+The marketing landing page lives under [`marketing/`](marketing/README.md).
+
 ## Publishing
 
-Publishing is handled by the GitHub Actions workflow `.github/workflows/publish-npm.yml`.
+Publishing is handled by the GitHub Actions workflow `.github/workflows/publish-npm.yml` using npm trusted publishing (publisher: GitHub Actions, repository `MajesteitBart/delano`, workflow `publish-npm.yml`). Push a matching version tag such as `v0.3.2`, or run the workflow manually from `main`; a `dry_run` input runs the same checks without publishing. The workflow rebuilds the payload, checks manifest drift, runs tests, verifies the version is unpublished, and publishes with OIDC provenance. `repository.url` in `package.json` must stay `https://github.com/MajesteitBart/delano` for provenance validation.
 
-Before the first Actions publish, configure npm trusted publishing for `@bvdm/delano` with:
+## Release notes
 
-- Publisher: GitHub Actions
-- Organization or user: `MajesteitBart`
-- Repository: `delano`
-- Workflow filename: `publish-npm.yml`
+Since `v0.2.11`, Delano has gained first-class context-pack reading, a redesigned guarded viewer, selected-text annotations, and agent handover flows for both review feedback and work dispatch, plus tighter validation around imported task graphs, invalid task statuses, and Windows/CRLF edge cases. Read the full summary in [docs/release-notes.md](docs/release-notes.md).
 
-The package metadata must keep `repository.url` set to `https://github.com/MajesteitBart/delano`; npm validates that value against the GitHub Actions provenance bundle.
-
-After trusted publishing is configured, publish by pushing a matching version tag such as `v0.2.4`, or run the `Publish package to npm` workflow manually from `main`. The workflow rebuilds the package payload, checks manifest drift, runs tests, dry-runs the package contents, verifies the version is not already published, and then runs `npm publish --access public` from GitHub Actions using OIDC. A manual `dry_run` input is available to run the same checks without publishing.
-
-If npm publish fails after the package checks pass, verify that the npm trusted publisher settings match the repository and workflow filename exactly, and that the workflow has `id-token: write`.
+Thank you for the inspiration, [Plannotator](https://github.com/backnotprop/plannotator).
 
 ## Read next
 
-- `docs/README.md` for the user documentation index
-- `docs/user-guide.md` for the practical user flow
-- `docs/cli-reference.md` for the CLI command reference
-- `docs/viewer-guide.md` for the guarded viewer workflow
-- `docs/agent-operator-guide.md` for instructing agents
-- `docs/spec-kit-and-research.md` for Spec Kit-style import and research intake
-- `HANDBOOK.md` for the full operating model
-- `.agents/scripts/README.md` for the runtime script inventory
-- `AGENTS.md` for adapter-neutral instructions
+- [`docs/README.md`](docs/README.md) for the user documentation index
+- [`docs/user-guide.md`](docs/user-guide.md) for the practical user flow
+- [`docs/cli-reference.md`](docs/cli-reference.md) for the CLI command reference
+- [`docs/viewer-guide.md`](docs/viewer-guide.md) for the guarded viewer workflow
+- [`docs/agent-operator-guide.md`](docs/agent-operator-guide.md) for instructing agents
+- [`docs/spec-kit-and-research.md`](docs/spec-kit-and-research.md) for Spec Kit-style import and research intake
+- [`HANDBOOK.md`](HANDBOOK.md) for the full operating model
+- [`.agents/scripts/README.md`](.agents/scripts/README.md) for the runtime script inventory
+- [`AGENTS.md`](AGENTS.md) for adapter-neutral instructions
+
+Delano is open source, local-first, and agent-agnostic. The files are yours. The truth is in them.
