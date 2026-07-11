@@ -1,0 +1,228 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" role="img" aria-label="The Delano viewer showing a project outline with a spec open">
+  <rect width="1440" height="900" fill="#ffffff"/>
+
+  <!-- ======== SIDEBAR ======== -->
+  <rect width="300" height="900" fill="#faf9f8"/>
+  <line x1="300" y1="0" x2="300" y2="900" stroke="#e8e7e6"/>
+
+  <!-- wordmark -->
+  <g transform="translate(26,26)">
+    <path d="M10,22 C4,16 4,6 10,2 C13,8 13,16 10,22 Z" fill="#3f6b52"/>
+    <path d="M10,22 C16,19 21,13 20,6 C14,8 10,14 10,22 Z" fill="#57855f"/>
+    <path d="M10,22 C4,20 -1,15 0,8 C6,10 9,15 10,22 Z" fill="#2f5744"/>
+    <text x="30" y="19" font-size="19" font-weight="500" fill="#141312">delano</text>
+  </g>
+
+  <!-- workspace group -->
+  <text x="28" y="82" font-size="10.5" letter-spacing="1.4" fill="#9a9a91">WORKSPACE</text>
+  <g font-size="14" fill="#0b2330">
+    <g transform="translate(28,100)">
+      <rect x="0" y="3" width="13" height="10" rx="2" fill="none" stroke="#6e6d6a" stroke-width="1.3"/>
+      <text x="24" y="12">Context pack</text>
+      <rect x="216" y="-1" width="28" height="19" rx="9.5" fill="#f3f3f3"/>
+      <text x="230" y="12.5" text-anchor="middle" font-size="12" fill="#575653">12</text>
+    </g>
+    <g transform="translate(28,131)">
+      <path d="M4,3 L0,8 L4,13 M9,3 L13,8 L9,13" fill="none" stroke="#6e6d6a" stroke-width="1.3" stroke-linecap="round"/>
+      <text x="24" y="12">Projects</text>
+      <rect x="216" y="-1" width="24" height="19" rx="9.5" fill="#f3f3f3"/>
+      <text x="228" y="12.5" text-anchor="middle" font-size="12" fill="#575653">3</text>
+    </g>
+    <g transform="translate(28,162)">
+      <path d="M1,4 h5 M1,8 h5 M1,12 h5 M9,4 h4 M9,8 h4 M9,12 h4" stroke="#6e6d6a" stroke-width="1.3" stroke-linecap="round"/>
+      <text x="24" y="12">Open work</text>
+      <rect x="216" y="-1" width="24" height="19" rx="9.5" fill="#f3f3f3"/>
+      <text x="228" y="12.5" text-anchor="middle" font-size="12" fill="#575653">9</text>
+    </g>
+    <g transform="translate(28,193)">
+      <path d="M0,12 L5,6 L8,9 L13,2" fill="none" stroke="#6e6d6a" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="24" y="12">Progress</text>
+      <rect x="216" y="-1" width="28" height="19" rx="9.5" fill="#f3f3f3"/>
+      <text x="230" y="12.5" text-anchor="middle" font-size="12" fill="#575653">14</text>
+    </g>
+    <g transform="translate(28,224)">
+      <rect x="0" y="2" width="13" height="11" rx="2" fill="none" stroke="#6e6d6a" stroke-width="1.3"/>
+      <path d="M3,6 h7 M3,9 h4" stroke="#6e6d6a" stroke-width="1.2" stroke-linecap="round"/>
+      <text x="24" y="12">Annotations</text>
+      <rect x="216" y="-1" width="24" height="19" rx="9.5" fill="#f3f3f3"/>
+      <text x="228" y="12.5" text-anchor="middle" font-size="12" fill="#575653">1</text>
+    </g>
+    <g transform="translate(28,255)">
+      <circle cx="6.5" cy="8" r="6" fill="none" stroke="#6e6d6a" stroke-width="1.3"/>
+      <path d="M4,8 l2,2 l3.5,-4" fill="none" stroke="#6e6d6a" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="24" y="12">Validation</text>
+      <rect x="216" y="-1" width="30" height="19" rx="9.5" fill="#f3f3f3"/>
+      <text x="231" y="12.5" text-anchor="middle" font-size="12" fill="#575653">58</text>
+    </g>
+    <g transform="translate(28,286)">
+      <path d="M6.5,2 L12,4.5 V9 C12,12 9.5,14 6.5,15 C3.5,14 1,12 1,9 V4.5 Z" fill="none" stroke="#6e6d6a" stroke-width="1.3" stroke-linejoin="round"/>
+      <text x="24" y="12">Warnings</text>
+      <rect x="216" y="-1" width="24" height="19" rx="9.5" fill="#f3f3f3"/>
+      <text x="228" y="12.5" text-anchor="middle" font-size="12" fill="#575653">0</text>
+    </g>
+    <g transform="translate(28,317)">
+      <path d="M2,3 L11,13 M11,3 L2,13" stroke="#6e6d6a" stroke-width="1.3" stroke-linecap="round"/>
+      <text x="24" y="12">Blockers</text>
+      <rect x="216" y="-1" width="24" height="19" rx="9.5" fill="#f3f3f3"/>
+      <text x="228" y="12.5" text-anchor="middle" font-size="12" fill="#575653">0</text>
+    </g>
+  </g>
+
+  <!-- selected project -->
+  <text x="28" y="376" font-size="10.5" letter-spacing="1.4" fill="#9a9a91">SELECTED PROJECT</text>
+  <rect x="24" y="388" width="252" height="40" rx="9" fill="#ffffff" stroke="#dddcd9"/>
+  <rect x="36" y="398" width="20" height="20" rx="5" fill="none" stroke="#6e6d6a" stroke-width="1.3"/>
+  <path d="M46,398 v20 M36,408 h20" stroke="#6e6d6a" stroke-width="1.1"/>
+  <text x="66" y="413" font-size="14" fill="#0b2330">Relay Stage 1: Foundat</text>
+  <path d="M256,405 l5,6 l5,-6" fill="none" stroke="#575653" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <g transform="translate(28,446)">
+    <path d="M1,12 V6 L6.5,1 L12,6 v6 h-4 v-4 h-3 v4 Z" fill="none" stroke="#6e6d6a" stroke-width="1.3" stroke-linejoin="round"/>
+    <text x="24" y="12" font-size="14" fill="#0b2330">Project overview</text>
+  </g>
+
+  <!-- source contracts -->
+  <text x="28" y="502" font-size="10.5" letter-spacing="1.4" fill="#9a9a91">SOURCE CONTRACTS</text>
+  <rect x="20" y="514" width="260" height="36" rx="8" fill="#272420"/>
+  <path d="M34,524 h8 l3,3 v9 h-11 Z M39,524 v4 h4" fill="none" stroke="#faf9f8" stroke-width="1.2" stroke-linejoin="round"/>
+  <text x="54" y="537" font-size="14" fill="#faf9f8">Spec</text>
+  <g font-size="14" fill="#0b2330">
+    <g transform="translate(34,562)">
+      <path d="M0,3 h4 M0,8 h4 M0,13 h4 M7,3 h6 M7,8 h6 M7,13 h6" stroke="#6e6d6a" stroke-width="1.2" stroke-linecap="round"/>
+      <text x="20" y="13">Plan</text>
+    </g>
+    <g transform="translate(34,593)">
+      <path d="M6.5,1 v14 M1,5 h11 M1,5 l-1,4 a3,3 0 0 0 6,0 Z M12,5 l-1,4 a3,3 0 0 0 6,0 Z" fill="none" stroke="#6e6d6a" stroke-width="1.1" stroke-linejoin="round"/>
+      <text x="24" y="13">Decisions</text>
+    </g>
+  </g>
+
+  <!-- workstreams -->
+  <g transform="translate(28,634)">
+    <rect x="0" y="2" width="13" height="10" rx="2" fill="none" stroke="#6e6d6a" stroke-width="1.3"/>
+    <text x="24" y="12" font-size="14" fill="#0b2330">Workstreams</text>
+    <rect x="216" y="-2" width="24" height="19" rx="9.5" fill="#f3f3f3"/>
+    <text x="228" y="11.5" text-anchor="middle" font-size="12" fill="#575653">6</text>
+  </g>
+  <g font-size="13" fill="#0b2330" font-family="Inter, sans-serif">
+    <text x="40" y="676"><tspan font-family="'JetBrains Mono', Consolas, monospace" font-size="11" fill="#9a9a91">WS-A</tspan><tspan dx="10">Architecture and Storage</tspan></text>
+    <text x="40" y="704"><tspan font-family="'JetBrains Mono', Consolas, monospace" font-size="11" fill="#9a9a91">WS-B</tspan><tspan dx="10">Identity and Tenancy</tspan></text>
+    <text x="40" y="732"><tspan font-family="'JetBrains Mono', Consolas, monospace" font-size="11" fill="#9a9a91">WS-C</tspan><tspan dx="10">Messaging Domain</tspan></text>
+    <text x="40" y="760"><tspan font-family="'JetBrains Mono', Consolas, monospace" font-size="11" fill="#9a9a91">WS-D</tspan><tspan dx="10">Realtime and Async</tspan></text>
+  </g>
+  <g transform="translate(28,782)">
+    <circle cx="6.5" cy="7" r="6" fill="none" stroke="#6e6d6a" stroke-width="1.3"/>
+    <path d="M4,7 l2,2 l3.5,-4" fill="none" stroke="#6e6d6a" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="24" y="11.5" font-size="14" fill="#0b2330">Tasks</text>
+    <rect x="216" y="-3" width="28" height="19" rx="9.5" fill="#f3f3f3"/>
+    <text x="230" y="10.5" text-anchor="middle" font-size="12" fill="#575653">14</text>
+  </g>
+  <g font-size="13" fill="#0b2330">
+    <text x="40" y="824"><tspan font-family="'JetBrains Mono', Consolas, monospace" font-size="11" fill="#9a9a91">T-001</tspan><tspan dx="10">Define message envelope</tspan></text>
+    <text x="40" y="852"><tspan font-family="'JetBrains Mono', Consolas, monospace" font-size="11" fill="#9a9a91">T-002</tspan><tspan dx="10">Transactional outbox</tspan></text>
+    <text x="40" y="880"><tspan font-family="'JetBrains Mono', Consolas, monospace" font-size="11" fill="#9a9a91">T-003</tspan><tspan dx="10">Ordered, idempotent sends</tspan></text>
+  </g>
+
+  <!-- ======== TOP BAR ======== -->
+  <line x1="300" y1="64" x2="1440" y2="64" stroke="#e8e7e6"/>
+  <text x="332" y="39" font-size="15" font-weight="500" fill="#141312">Relay Stage 1: Foundation</text>
+  <rect x="530" y="21" width="58" height="24" rx="6" fill="#f3f3f3"/>
+  <text x="559" y="38" text-anchor="middle" font-size="12.5" fill="#575653">Active</text>
+  <text x="1010" y="38" font-size="13" fill="#9a9a91">Last updated 10 jul 2026, 23:51</text>
+  <g font-size="13" fill="#0b2330">
+    <rect x="1216" y="18" width="80" height="30" rx="8" fill="#ffffff" stroke="#dddcd9"/>
+    <path d="M1230,33 h4 l2,-6 l3,12 l2,-6 h4" fill="none" stroke="#0b2330" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="1250" y="38">Activity</text>
+    <rect x="1304" y="18" width="112" height="30" rx="8" fill="#ffffff" stroke="#dddcd9"/>
+    <path d="M1318,30 l-4,3.5 l4,3.5 M1326,30 l4,3.5 l-4,3.5" fill="none" stroke="#0b2330" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="1338" y="38">Open in IDE</text>
+  </g>
+
+  <!-- ======== CONTENTS RAIL ======== -->
+  <text x="348" y="122" font-size="11" letter-spacing="1.6" fill="#9a9a91">CONTENTS</text>
+  <g font-size="13.5" fill="#575653">
+    <text x="348" y="156" fill="#0b2330">Spec: Relay Stage 1: Foundati...</text>
+    <text x="364" y="188">Executive Summary</text>
+    <text x="364" y="220">Problem and Users</text>
+    <text x="364" y="252">Outcome and Success Metr...</text>
+    <text x="364" y="284">User Stories</text>
+    <text x="364" y="316">Acceptance Scenarios</text>
+    <text x="364" y="348">Scope</text>
+    <text x="380" y="380">In Scope</text>
+    <text x="380" y="412">Out of Scope</text>
+    <text x="364" y="444">Functional Requirements</text>
+    <text x="364" y="476">Assumptions</text>
+    <text x="364" y="508">Hypotheses and Unknowns</text>
+    <text x="364" y="540">Probe Findings</text>
+    <text x="364" y="572">Dependencies</text>
+    <text x="364" y="604">Approval Notes</text>
+  </g>
+
+  <!-- ======== MAIN PANE ======== -->
+  <g font-size="14" fill="#0b2330">
+    <path d="M660,110 l-6,5 l6,5" fill="none" stroke="#0b2330" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="672" y="120">Back</text>
+  </g>
+  <g font-size="13" fill="#0b2330">
+    <rect x="1064" y="100" width="66" height="30" rx="8" fill="#ffffff" stroke="#dddcd9"/>
+    <path d="M1078,121 l8,-8 l3,3 l-8,8 l-4,1 Z" fill="none" stroke="#0b2330" stroke-width="1.1" stroke-linejoin="round"/>
+    <text x="1094" y="120">Edit</text>
+    <rect x="1138" y="100" width="94" height="30" rx="8" fill="#ffffff" stroke="#dddcd9"/>
+    <rect x="1150" y="108" width="12" height="14" rx="2" fill="none" stroke="#0b2330" stroke-width="1.1"/>
+    <text x="1170" y="120">Review</text>
+    <rect x="1210" y="107" width="17" height="17" rx="8.5" fill="#f3f3f3"/>
+    <text x="1218.5" y="119.5" text-anchor="middle" font-size="11" fill="#575653">0</text>
+    <rect x="1240" y="100" width="176" height="30" rx="8" fill="#ffffff" stroke="#dddcd9"/>
+    <line x1="1382" y1="100" x2="1382" y2="130" stroke="#e8e7e6"/>
+    <g stroke="#0b2330" stroke-width="1.2" stroke-linecap="round">
+      <path d="M1260,109 v12 M1254,112 l12,6 M1266,112 l-12,6"/>
+    </g>
+    <text x="1276" y="120">Send to ChatGPT</text>
+    <path d="M1394,112 l5,6 l5,-6" fill="none" stroke="#575653" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- document details card -->
+  <rect x="660" y="152" width="756" height="128" rx="10" fill="#ffffff" stroke="#e8e7e6"/>
+  <text x="684" y="184" font-size="15" font-weight="500" fill="#141312">Document details</text>
+  <text x="684" y="204" font-size="12.5" fill="#9a9a91">Path, status, title, and baseline</text>
+  <path d="M1382,180 l6,7 l6,-7" fill="none" stroke="#575653" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="660" y1="216" x2="1416" y2="216" stroke="#e8e7e6"/>
+  <g font-size="10.5" letter-spacing="1.2" fill="#9a9a91">
+    <text x="684" y="240">PATH</text>
+    <text x="960" y="240">STATUS</text>
+    <text x="1084" y="240">UPDATED</text>
+    <text x="1244" y="240">BASELINE</text>
+  </g>
+  <g font-family="'JetBrains Mono', Consolas, monospace" font-size="12" fill="#0b2330">
+    <text x="684" y="260">projects/relay-stage-1/spec.md</text>
+    <text x="960" y="260">active</text>
+    <text x="1084" y="260">10 jul, 23:51</text>
+    <text x="1244" y="260">a828dd7620</text>
+  </g>
+
+  <!-- doc body -->
+  <text x="660" y="336" font-size="30" font-weight="500" fill="#141312">Spec: Relay Stage 1: Foundation</text>
+
+  <text x="660" y="396" font-size="21" font-weight="500" fill="#141312">Executive Summary</text>
+  <g font-size="15" fill="#575653">
+    <text x="660" y="430">Stage 1 establishes the smallest usable Relay: two humans and one external</text>
+    <text x="660" y="458">agent collaborate in one workspace through ordered, durable, permission-</text>
+    <text x="660" y="486">aware messaging. It proves the identity model, accountable agent ownership,</text>
+    <text x="660" y="514">shared authorization, and the transactional outbox before later collaboration</text>
+    <text x="660" y="542">features are added.</text>
+  </g>
+
+  <text x="660" y="606" font-size="21" font-weight="500" fill="#141312">Problem and Users</text>
+  <g font-size="15" fill="#575653">
+    <text x="660" y="640">Agent-heavy software teams currently connect software colleagues through</text>
+    <text x="660" y="668">webhooks, shared tokens, copied context, and cron output. Those patterns</text>
+    <text x="660" y="696">obscure ownership, permissions, identity, and recovery. Stage 1 serves an</text>
+    <text x="660" y="724">internal workspace and invited design-partner operators who need a</text>
+    <text x="660" y="752">trustworthy human/agent conversation core.</text>
+  </g>
+
+  <text x="660" y="816" font-size="21" font-weight="500" fill="#141312">Outcome and Success Metrics</text>
+  <g font-size="15" fill="#575653">
+    <text x="660" y="850">Two browsers and one external agent exchange ordered messages reliably in</text>
+    <text x="660" y="878">one workspace, and every claim of progress leaves a dated, checkable line.</text>
+  </g>
+</svg>

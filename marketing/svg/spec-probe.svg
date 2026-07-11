@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 660" font-family="Inter, -apple-system, 'Segoe UI', sans-serif" role="img" aria-label="A spec.md rendered in the viewer with the probe decision on record">
+  <rect width="880" height="660" fill="#ffffff"/>
+
+  <!-- header row -->
+  <text x="40" y="46" font-size="15" font-weight="500" fill="#141312">Relay Stage 1: Foundation</text>
+  <rect x="238" y="28" width="58" height="24" rx="6" fill="#f3f3f3"/>
+  <text x="267" y="45" text-anchor="middle" font-size="12.5" fill="#575653">Active</text>
+  <text x="840" y="45" text-anchor="end" font-size="13" fill="#9a9a91">spec.md</text>
+  <line x1="0" y1="70" x2="880" y2="70" stroke="#e8e7e6"/>
+
+  <!-- frontmatter: the literal top of the file -->
+  <rect x="40" y="98" width="800" height="204" rx="10" fill="#faf9f8" stroke="#e8e7e6"/>
+  <text x="64" y="126" font-family="'JetBrains Mono', Consolas, monospace" font-size="11.5" fill="#9a9a91">projects/relay-stage-1/spec.md</text>
+  <g font-family="'JetBrains Mono', Consolas, monospace" font-size="13">
+    <text x="64" y="152" fill="#c4c4bc">---</text>
+    <text x="64" y="176" fill="#9a9a91">id:</text>
+    <text x="248" y="176" fill="#0b2330">relay-stage-1-foundation</text>
+    <text x="64" y="200" fill="#9a9a91">status:</text>
+    <text x="248" y="200" fill="#0b2330">approved</text>
+    <text x="64" y="224" fill="#9a9a91">operating_mode:</text>
+    <text x="248" y="224" fill="#0b2330">uncertain-feature</text>
+    <text x="64" y="248" fill="#9a9a91">probe_required:</text>
+    <text x="248" y="248" fill="#0b2330">true</text>
+    <text x="64" y="272" fill="#9a9a91">probe_decision:</text>
+    <text x="248" y="272" fill="#0b2330">run-probe</text>
+    <text x="370" y="272" fill="#c4c4bc"># recorded 2026-07-08</text>
+    <text x="64" y="296" fill="#c4c4bc">---</text>
+  </g>
+
+  <!-- body -->
+  <text x="40" y="352" font-size="21" font-weight="500" fill="#141312">Hypotheses and Unknowns</text>
+  <g font-size="15" fill="#575653">
+    <text x="40" y="386">Ordered delivery under concurrent sends is the one approach we could not</text>
+    <text x="40" y="414">call proven. The probe decision below puts that uncertainty on record</text>
+    <text x="40" y="442">instead of hiding it inside an estimate.</text>
+  </g>
+
+  <text x="40" y="498" font-size="21" font-weight="500" fill="#141312">Probe Findings</text>
+  <g font-size="15" fill="#575653">
+    <text x="66" y="532">Sequence numbers stay unique under 200 concurrent sends.</text>
+    <text x="66" y="562">Retrying a send returns the original result. No duplicates observed.</text>
+    <text x="66" y="592">Probe retired the ordering risk in one day. Spec approved the next.</text>
+  </g>
+  <g fill="#6e6d6a">
+    <circle cx="49" cy="527" r="2.5"/>
+    <circle cx="49" cy="557" r="2.5"/>
+    <circle cx="49" cy="587" r="2.5"/>
+  </g>
+
+  <line x1="40" y1="620" x2="840" y2="620" stroke="#e8e7e6"/>
+  <text x="40" y="646" font-size="13" fill="#9a9a91">Skipping the probe is allowed. Skipping it silently is not.</text>
+</svg>
