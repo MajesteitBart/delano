@@ -1,7 +1,9 @@
 import { statusTone } from "@/lib/domain/status"
 import type { DocMeta, ProjectIndex, ViewerIndex } from "@/lib/domain/types"
 
-export type WorkstreamMeta = NonNullable<NonNullable<ProjectIndex["outline"]>["workstreams"]>[number]
+export type WorkstreamMeta = NonNullable<
+  NonNullable<ProjectIndex["outline"]>["workstreams"]
+>[number]
 
 export type WorkspaceTaskItem = {
   doc: DocMeta
@@ -20,7 +22,9 @@ export type ProjectStat = {
 
 export function selectableProjects(index: ViewerIndex | null) {
   return (index?.projects ?? []).filter(
-    (project) => project.outline && !["context", "project", "templates"].includes(project.slug)
+    (project) =>
+      project.outline &&
+      !["context", "project", "templates"].includes(project.slug)
   )
 }
 
@@ -54,7 +58,9 @@ export function projectPrimaryPath(project?: ProjectIndex | null) {
 export function projectStats(index: ViewerIndex | null): ProjectStat[] {
   const map = docsByPath(index)
   return selectableProjects(index).map((project) => {
-    const projectDocs = (project.docs ?? []).map((path) => map.get(path)).filter(Boolean) as DocMeta[]
+    const projectDocs = (project.docs ?? [])
+      .map((path) => map.get(path))
+      .filter(Boolean) as DocMeta[]
     const tasks = projectDocs.filter((doc) => doc.role === "task")
     const latest = projectDocs
       .map((doc) => doc.updated)
@@ -67,7 +73,8 @@ export function projectStats(index: ViewerIndex | null): ProjectStat[] {
       updated: latest,
       workstreamCount: project.outline?.workstreams?.length ?? 0,
       taskCount: tasks.length,
-      openTaskCount: tasks.filter((doc) => statusTone(doc.status) !== "done").length,
+      openTaskCount: tasks.filter((doc) => statusTone(doc.status) !== "done")
+        .length,
       primaryPath: projectPrimaryPath(project),
     }
   })
@@ -80,7 +87,9 @@ export function workspaceTasks(index: ViewerIndex | null) {
 
   projects.forEach((project) => {
     project.outline?.workstreams?.forEach((workstream) => {
-      ;(workstream.tasks ?? []).forEach((path) => workstreamByTask.set(path, workstream))
+      ;(workstream.tasks ?? []).forEach((path) =>
+        workstreamByTask.set(path, workstream)
+      )
     })
   })
 
@@ -88,7 +97,7 @@ export function workspaceTasks(index: ViewerIndex | null) {
     .filter((doc) => doc.role === "task")
     .map((doc) => ({
       doc,
-      project: doc.project ? projectMap.get(doc.project) ?? null : null,
+      project: doc.project ? (projectMap.get(doc.project) ?? null) : null,
       workstream: workstreamByTask.get(doc.path) ?? null,
     }))
 }
@@ -98,8 +107,9 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
   const tasks = workspaceTasks(index)
   const projects = projectStats(index)
   const context = contextDocs(index)
-  const current = tasks.filter((item) => statusTone(item.doc.status) !== "done")
-  const blockers = tasks.filter((item) => statusTone(item.doc.status) === "blocked")
+  const blockers = tasks.filter(
+    (item) => statusTone(item.doc.status) === "blocked"
+  )
   const warnings = allDocs.filter((doc) => statusTone(doc.status) === "warning")
   const progress = allDocs.filter((doc) => doc.role === "progress")
   const validation = allDocs.filter((doc) => doc.role !== "context")
@@ -108,7 +118,7 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
   return {
     context,
     projects,
-    current,
+    tasks,
     progress,
     annotations,
     validation,
@@ -117,7 +127,7 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
     counts: {
       context: context.length,
       projects: projects.length,
-      open: current.length,
+      tasks: tasks.length,
       progress: progress.length,
       annotations,
       validation: validation.length,

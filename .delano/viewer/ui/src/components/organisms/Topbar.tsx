@@ -5,7 +5,11 @@ import type { ActivityEvent } from "@/app/useLiveEvents"
 import { StatusBadge } from "@/components/atoms/StatusBadge"
 import { ActivityFeed } from "@/components/molecules/ActivityFeed"
 import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { messageFromError, requestJson } from "@/lib/api"
 import { formatDate } from "@/lib/domain/dates"
 import { titleFromSlug } from "@/lib/domain/status"
@@ -44,9 +48,12 @@ export function Topbar({
     if (!doc) return
     setOpenError("")
     try {
-      await requestJson(`/api/open?path=${encodeURIComponent(doc.path)}&target=${target}`, {
-        method: "POST",
-      })
+      await requestJson(
+        `/api/open?path=${encodeURIComponent(doc.path)}&target=${target}`,
+        {
+          method: "POST",
+        }
+      )
     } catch (err) {
       setOpenError(messageFromError(err))
     }
@@ -59,7 +66,12 @@ export function Topbar({
           {showSidebarButton && (
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon-sm" onClick={onOpenSidebar} aria-label="Open navigation">
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={onOpenSidebar}
+                  aria-label="Open navigation"
+                >
                   <MenuIcon />
                 </Button>
               </TooltipTrigger>
@@ -67,14 +79,20 @@ export function Topbar({
             </Tooltip>
           )}
           <h1 className="truncate text-sm font-medium">
-            {title ?? (doc?.project ? titleFromSlug(doc.project) : index?.repo ?? "Delano")}
+            {title ??
+              (doc?.project
+                ? titleFromSlug(doc.project)
+                : (index?.repo ?? "Delano"))}
           </h1>
-          {(status ?? doc?.status) && <StatusBadge status={(status ?? doc?.status) as string} />}
+          {(status ?? doc?.status) && (
+            <StatusBadge status={(status ?? doc?.status) as string} />
+          )}
         </div>
       </div>
       <div className="topbar-actions">
         <span className="hidden text-xs text-muted-foreground xl:inline">
-          Last updated {formatDate(updated ?? doc?.updated ?? index?.generatedAt)}
+          Last updated{" "}
+          {formatDate(updated ?? doc?.updated ?? index?.generatedAt)}
         </span>
         <ActivityFeed
           activity={activity}
@@ -83,11 +101,21 @@ export function Topbar({
           onOpenChange={onActivityOpenChange}
           onOpenDoc={onOpenDoc}
         />
-        <Button variant="outline" size="sm" disabled={!doc} onClick={() => void openTarget("code")}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!doc}
+          onClick={() => void openTarget("code")}
+        >
           <CodeIcon data-icon="inline-start" />
           Open in IDE
         </Button>
-        <Button variant="outline" size="sm" disabled={!doc} onClick={() => void openTarget("explorer")}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={!doc}
+          onClick={() => void openTarget("explorer")}
+        >
           <FolderIcon data-icon="inline-start" />
           Open folder
         </Button>

@@ -41,13 +41,13 @@ function syncMirror(canonicalRoot, mirrorRoot) {
   const canonicalSet = new Set(canonicalFiles);
 
   if (existsSync(mirrorRoot)) {
-    for (const file of listFiles(mirrorRoot)) {
+    for (const file of listFiles(mirrorRoot, "", { excludeWorktrees: true })) {
       if (!canonicalSet.has(file)) {
         rmSync(path.join(mirrorRoot, file), { force: true, recursive: true });
         removed += 1;
       }
     }
-    pruneEmptyDirectories(mirrorRoot, mirrorRoot);
+    pruneEmptyDirectories(mirrorRoot, mirrorRoot, { excludeWorktrees: true });
   }
 
   for (const file of canonicalFiles) {
@@ -108,13 +108,14 @@ function lstatOrNull(filePath) {
   }
 }
 
-function listFiles(root, prefix = "") {
+function listFiles(root, prefix = "", options = {}) {
   const entries = readdirSync(path.join(root, prefix), { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
+    if (!prefix && options.excludeWorktrees && entry.name === "worktrees") continue;
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      files.push(...listFiles(root, relativePath));
+      files.push(...listFiles(root, relativePath, options));
     } else {
       files.push(relativePath);
     }
@@ -122,11 +123,12 @@ function listFiles(root, prefix = "") {
   return files.sort();
 }
 
-function pruneEmptyDirectories(root, stopRoot) {
+function pruneEmptyDirectories(root, stopRoot, options = {}) {
   const entries = readdirSync(root, { withFileTypes: true });
   for (const entry of entries) {
+    if (root === stopRoot && options.excludeWorktrees && entry.name === "worktrees") continue;
     if (entry.isDirectory()) {
-      pruneEmptyDirectories(path.join(root, entry.name), stopRoot);
+      pruneEmptyDirectories(path.join(root, entry.name), stopRoot, options);
     }
   }
   if (root !== stopRoot && readdirSync(root).length === 0) {
@@ -143,6 +145,8 @@ function runSelfTest() {
 
     mkdirSync(path.join(canonical, "foo"), { recursive: true });
     mkdirSync(mirror, { recursive: true });
+    mkdirSync(path.join(mirror, "worktrees", "locked-checkout"), { recursive: true });
+    writeFileSync(path.join(mirror, "worktrees", "locked-checkout", ".git"), "registered worktree\n");
     writeFileSync(path.join(canonical, "foo", "bar.md"), "canonical nested\n");
     writeFileSync(path.join(canonical, "dir-to-file.md"), "canonical file\n");
     writeFileSync(path.join(canonical, "exec.sh"), "#!/usr/bin/env bash\n");
@@ -157,7 +161,7 @@ function runSelfTest() {
 
     syncMirror(canonical, mirror);
 
-    const files = listFiles(mirror);
+    const files = listFiles(mirror, "", { excludeWorktrees: true });
     const expected = ["dir-to-file.md", "exec.sh", "foo/bar.md"];
     const errors = [];
     if (JSON.stringify(files) !== JSON.stringify(expected)) {
@@ -168,6 +172,9 @@ function runSelfTest() {
     }
     if (readFileSync(path.join(mirror, "dir-to-file.md"), "utf8") !== "canonical file\n") {
       errors.push("file target was not copied through stale directory repair");
+    }
+    if (!existsSync(path.join(mirror, "worktrees", "locked-checkout", ".git"))) {
+      errors.push("registered .claude/worktrees content was removed");
     }
     if (process.platform !== "win32" && (lstatSync(path.join(mirror, "exec.sh")).mode & 0o111) === 0) {
       errors.push("executable bit was not repaired on a content-matching file");

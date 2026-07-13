@@ -34,6 +34,14 @@ function createWrapperCommand(scriptName, options = {}) {
         );
       }
 
+      if (scriptName === "validate") {
+        lines.push(
+          "",
+          "Validation options:",
+          "  --allow-worktree-state  Permit uncommitted .project changes in a linked worktree."
+        );
+      }
+
       return lines.join("\n");
     }
   };

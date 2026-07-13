@@ -23,7 +23,12 @@ export type ProjectIndex = {
     plan?: string | null
     decisions?: string[]
     progress?: string[]
-    workstreams?: Array<{ path: string; id?: string; title: string; tasks?: string[] }>
+    workstreams?: Array<{
+      path: string
+      id?: string
+      title: string
+      tasks?: string[]
+    }>
     unassignedTasks?: string[]
   }
 }
@@ -31,6 +36,9 @@ export type ProjectIndex = {
 export type ViewerIndex = {
   repo: string
   generatedAt: string
+  context?: ViewerContext
+  schemaOptions?: Record<string, Record<string, string[]>> | null
+  schemaOptionsError?: string | null
   annotationSummary?: {
     storePath: string
     total: number
@@ -45,10 +53,63 @@ export type ViewerIndex = {
     }>
   }
   contextPack?: {
-    files?: Array<{ path: string; title: string; profile?: string; required?: boolean }>
+    files?: Array<{
+      path: string
+      title: string
+      profile?: string
+      required?: boolean
+    }>
   }
   projects?: ProjectIndex[]
   docs?: DocMeta[]
+}
+
+export type ProjectState = {
+  status: "clean" | "diverged" | "dirty" | "unavailable"
+  available: boolean
+  diverged?: boolean
+  dirty?: boolean
+  dirtyFiles?: string[]
+  reason?: string | null
+}
+
+export type ViewerWorktree = {
+  id: string
+  path: string
+  branch?: string | null
+  detached?: boolean
+  head?: string | null
+  role?: string
+  primary?: boolean
+  available?: boolean
+  projectAvailable?: boolean
+  unavailableReason?: string | null
+  projectState: ProjectState
+}
+
+export type ViewerRepository = {
+  id: string
+  name: string
+  primaryPath: string
+  lastSeen?: string
+  available: boolean
+  error?: string | null
+  worktrees: ViewerWorktree[]
+}
+
+export type ViewerContext = {
+  generation: number
+  switching?: boolean
+  repository: Pick<ViewerRepository, "id" | "name" | "primaryPath">
+  worktree: ViewerWorktree
+  projectRoot: string
+  writable: boolean
+  writeDisabledReason?: string | null
+}
+
+export type ViewerContextInventory = {
+  repositories: ViewerRepository[]
+  active: ViewerContext
 }
 
 export type Baseline = {

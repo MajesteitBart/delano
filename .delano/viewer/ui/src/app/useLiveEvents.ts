@@ -16,8 +16,10 @@ const AGENT_WORKING_WINDOW_MS = 5000
 // Single SSE subscription for the whole app: keeps the activity feed, the
 // agent-working pulse, and per-document refresh signals on one connection.
 export function useLiveEvents({
+  generation,
   onIndexChanged,
 }: {
+  generation?: number
   onIndexChanged?: () => void
 } = {}) {
   const [activity, setActivity] = useState<ActivityEvent[]>([])
@@ -32,6 +34,13 @@ export function useLiveEvents({
 
   useEffect(() => {
     let cancelled = false
+    queueMicrotask(() => {
+      if (cancelled) return
+      setActivity([])
+      setLastDocEvent(null)
+      setAgentWorking(false)
+    })
+    seqRef.current = 0
     void requestJson<{ events?: ActivityEvent[] }>("/api/activity")
       .then((payload) => {
         if (!cancelled) setActivity(payload.events ?? [])
@@ -79,7 +88,7 @@ export function useLiveEvents({
       source.close()
       if (workingTimerRef.current) window.clearTimeout(workingTimerRef.current)
     }
-  }, [])
+  }, [generation])
 
   return { activity, agentWorking, lastDocEvent }
 }

@@ -20,7 +20,10 @@ function App() {
   const indexState = useViewerIndex()
   const navigation = useViewerNavigation(indexState.index)
   const docState = useDocument(navigation.activePath)
-  const live = useLiveEvents({ onIndexChanged: indexState.refresh })
+  const live = useLiveEvents({
+    generation: indexState.index?.context?.generation,
+    onIndexChanged: indexState.refresh,
+  })
   const [activityOpen, setActivityOpen] = useState(false)
   const activeProject = useActiveProject(
     indexState.index,
@@ -40,6 +43,10 @@ function App() {
     <TooltipProvider>
       <AppShell
         index={indexState.index}
+        contextError={indexState.contextError}
+        inventory={indexState.inventory}
+        switchingContext={indexState.switching}
+        onSwitchContext={indexState.switchContext}
         activeProject={activeProject}
         activePath={navigation.activePath}
         isCompact={isCompact}

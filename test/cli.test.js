@@ -27,6 +27,20 @@ const {
 } = require("../src/cli/lib/context-reader");
 const { parseViewerArgs } = require("../src/cli/commands/viewer");
 const { findDelanoRoot, normalizeBashScriptPath } = require("../src/cli/lib/runtime");
+const {
+  deriveRepositoryId,
+  parseWorktreePorcelain,
+  resolveRepository
+} = require("../src/cli/lib/git-repository");
+const {
+  REGISTRY_VERSION,
+  readRegistry,
+  registerRepository
+} = require("../src/cli/lib/repository-registry");
+const {
+  classifyRepositoryWorktrees,
+  classifyWorktreeState
+} = require("../src/cli/lib/worktree-state");
 
 function createTempDelanoRepo() {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), "delano-cli-state-"));
@@ -46,11 +60,22 @@ function createTempDelanoRepo() {
   return repo;
 }
 
-function runDelano(cwd, args) {
+function runDelano(cwd, args, options = {}) {
   return execFileSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), ...args], {
     cwd,
-    encoding: "utf8"
+    encoding: "utf8",
+    env: options.env || process.env
   });
+}
+
+function createTempGitDelanoRepo() {
+  const repo = createTempDelanoRepo();
+  execFileSync("git", ["init"], { cwd: repo, stdio: "ignore" });
+  execFileSync("git", ["config", "user.email", "delano@example.invalid"], { cwd: repo });
+  execFileSync("git", ["config", "user.name", "Delano Tests"], { cwd: repo });
+  execFileSync("git", ["add", "."], { cwd: repo });
+  execFileSync("git", ["commit", "-m", "fixture"], { cwd: repo, stdio: "ignore" });
+  return repo;
 }
 
 function createTempContextRepo(files = {}) {
@@ -76,13 +101,15 @@ test("CLI exposes the package command surface", () => {
     "next",
     "onboarding",
     "project",
+    "repos",
     "research",
     "status",
     "task",
     "update",
     "validate",
     "viewer",
-    "workstream"
+    "workstream",
+    "worktrees"
   ]);
 });
 
@@ -91,6 +118,8 @@ test("general help mentions the install and wrapper commands", () => {
   assert.match(helpText, /\bonboarding\b/);
   assert.match(helpText, /\binstall\b/);
   assert.match(helpText, /\bcontext\b/);
+  assert.match(helpText, /\brepos\b/);
+  assert.match(helpText, /\bworktrees\b/);
   assert.match(helpText, /\bimport-spec-kit\b/);
   assert.match(helpText, /\bresearch\b/);
   assert.match(helpText, /\bproject\b/);
@@ -102,6 +131,240 @@ test("general help mentions the install and wrapper commands", () => {
   assert.match(helpText, /\bviewer\b/);
   assert.match(helpText, /npx -y @bvdm\/delano@latest --yes/);
   assert.match(helpText, /delano context read --profile implementation/);
+});
+
+test("worktree porcelain parsing preserves paths and reports canonical metadata", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "delano-worktree-parse-"));
+  const primary = path.join(tmp, "primary repo");
+  const linked = path.join(tmp, "linked repo");
+  fs.mkdirSync(path.join(primary, ".project"), { recursive: true });
+  fs.mkdirSync(linked, { recursive: true });
+  const output = [
+    `worktree ${primary}`,
+    "HEAD 1111111111111111111111111111111111111111",
+    "branch refs/heads/main",
+    "",
+    `worktree ${linked}`,
+    "HEAD 2222222222222222222222222222222222222222",
+    "detached",
+    "locked test fixture",
+    "",
+    `worktree ${path.join(tmp, "stale")}`,
+    "HEAD 3333333333333333333333333333333333333333",
+    "branch refs/heads/stale",
+    "prunable gitdir file points to non-existent location",
+    ""
+  ].join("\0");
+
+  const worktrees = parseWorktreePorcelain(output);
+  assert.equal(worktrees.length, 3);
+  assert.equal(worktrees[0].role, "primary");
+  assert.equal(worktrees[0].branch, "main");
+  assert.equal(worktrees[0].projectAvailable, true);
+  assert.equal(worktrees[1].role, "linked");
+  assert.equal(worktrees[1].detached, true);
+  assert.equal(worktrees[1].locked, "test fixture");
+  assert.equal(worktrees[2].available, false);
+  assert.match(worktrees[2].unavailableReason, /non-existent/);
+  assert.notEqual(worktrees[0].id, worktrees[1].id);
+});
+
+test("repository registry is versioned, prunes stale entries, and rejects invalid input", () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "delano-registry-"));
+  const registryPath = path.join(tmp, "repositories.json");
+  const livePath = path.join(tmp, "live");
+  fs.mkdirSync(livePath);
+  fs.writeFileSync(registryPath, JSON.stringify({
+    version: REGISTRY_VERSION,
+    repositories: [
+      { id: "live", primaryPath: livePath, displayName: "Live", lastSeen: "2026-01-01T00:00:00.000Z" },
+      { id: "stale", primaryPath: path.join(tmp, "missing"), displayName: "Stale", lastSeen: "2026-01-01T00:00:00.000Z" }
+    ]
+  }));
+
+  const registry = readRegistry({ registryPath });
+  assert.deepEqual(registry.repositories.map((entry) => entry.id), ["live"]);
+  assert.deepEqual(JSON.parse(fs.readFileSync(registryPath, "utf8")).repositories.map((entry) => entry.id), ["live"]);
+
+  fs.writeFileSync(registryPath, JSON.stringify({ version: 99, repositories: [] }));
+  assert.throws(() => readRegistry({ registryPath }), /Unsupported repository registry version/);
+  fs.writeFileSync(registryPath, "not json");
+  assert.throws(() => readRegistry({ registryPath }), /Could not read repository registry/);
+});
+
+test("primary and linked worktrees resolve to one registry identity", () => {
+  const repo = createTempGitDelanoRepo();
+  const linked = path.join(path.dirname(repo), `${path.basename(repo)} linked worktree`);
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "delano-home-"));
+  execFileSync("git", ["worktree", "add", "-b", "linked-fixture", linked], { cwd: repo, stdio: "ignore" });
+
+  const primary = resolveRepository(repo);
+  const fromLinked = resolveRepository(linked);
+  assert.equal(primary.id, fromLinked.id);
+  assert.equal(primary.primaryPath, fromLinked.primaryPath);
+  assert.equal(deriveRepositoryId(primary.commonDir), primary.id);
+  assert.equal(primary.worktrees.length, 2);
+  assert.equal(primary.worktrees[1].branch, "linked-fixture");
+
+  registerRepository(repo, { env: { DELANO_HOME: home }, now: () => "2026-01-01T00:00:00.000Z" });
+  registerRepository(linked, { env: { DELANO_HOME: home }, now: () => "2026-01-02T00:00:00.000Z" });
+  const registry = readRegistry({ env: { DELANO_HOME: home } });
+  assert.equal(registry.repositories.length, 1);
+  assert.equal(registry.repositories[0].lastSeen, "2026-01-02T00:00:00.000Z");
+  assert.equal(registry.repositories[0].primaryPath, primary.primaryPath);
+});
+
+test("repos and worktrees CLI surfaces register on success, forget exactly one repo, and skip failures", () => {
+  const repo = createTempGitDelanoRepo();
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "delano-cli-home-"));
+  const env = { ...process.env, DELANO_HOME: home };
+
+  const failed = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "context", "read", "../unsafe.md"], {
+    cwd: repo,
+    encoding: "utf8",
+    env
+  });
+  assert.notEqual(failed.status, 0);
+  assert.equal(fs.existsSync(path.join(home, "repositories.json")), false);
+
+  runDelano(repo, ["context", "list", "--json"], { env });
+  const repos = JSON.parse(runDelano(repo, ["repos", "--json"], { env }));
+  assert.equal(repos.version, REGISTRY_VERSION);
+  assert.equal(repos.repositories.length, 1);
+  assert.deepEqual(Object.keys(repos.repositories[0]).sort(), ["displayName", "id", "lastSeen", "primaryPath"]);
+
+  const worktrees = JSON.parse(runDelano(repo, ["worktrees", "--json"], { env }));
+  assert.equal(worktrees.repository.id, repos.repositories[0].id);
+  assert.equal(worktrees.worktrees[0].role, "primary");
+  assert.equal(worktrees.worktrees[0].projectAvailable, true);
+
+  const forgotten = JSON.parse(runDelano(repo, ["repos", "--forget", repo, "--json"], { env }));
+  assert.equal(forgotten.forgotten.id, repos.repositories[0].id);
+  assert.equal(JSON.parse(runDelano(repo, ["repos", "--json"], { env })).repositories.length, 0);
+
+  const missing = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "repos", "--forget", repo], {
+    cwd: repo,
+    encoding: "utf8",
+    env
+  });
+  assert.notEqual(missing.status, 0);
+  assert.match(missing.stderr, /No registered repository matches/);
+});
+
+test("worktree project state distinguishes clean, diverged, dirty, detached, missing, and Git failures", () => {
+  const repo = createTempGitDelanoRepo();
+  const linked = path.join(path.dirname(repo), `${path.basename(repo)} state-linked`);
+  execFileSync("git", ["worktree", "add", "-b", "state-fixture", linked], { cwd: repo, stdio: "ignore" });
+
+  let repository = resolveRepository(linked);
+  let states = classifyRepositoryWorktrees(repository);
+  assert.equal(states[0].projectState.status, "clean");
+  assert.equal(states[1].projectState.status, "clean");
+
+  fs.writeFileSync(path.join(linked, ".project", "committed-state.md"), "committed\n");
+  execFileSync("git", ["add", ".project/committed-state.md"], { cwd: linked });
+  execFileSync("git", ["commit", "-m", "diverge project state"], { cwd: linked, stdio: "ignore" });
+  execFileSync("git", ["checkout", "--detach"], { cwd: linked, stdio: "ignore" });
+  repository = resolveRepository(linked);
+  states = classifyRepositoryWorktrees(repository);
+  assert.equal(states[1].detached, true);
+  assert.equal(states[1].projectState.status, "diverged");
+  assert.equal(states[1].projectState.diverged, true);
+
+  fs.writeFileSync(path.join(linked, ".project", "untracked-state.md"), "dirty\n");
+  repository = resolveRepository(linked);
+  states = classifyRepositoryWorktrees(repository);
+  assert.equal(states[1].projectState.status, "dirty");
+  assert.equal(states[1].projectState.diverged, true);
+  assert.deepEqual(states[1].projectState.dirtyFiles, [".project/untracked-state.md"]);
+
+  fs.renameSync(path.join(linked, ".project"), path.join(linked, ".project-away"));
+  repository = resolveRepository(linked);
+  states = classifyRepositoryWorktrees(repository);
+  assert.equal(states[1].projectState.status, "unavailable");
+  assert.match(states[1].projectState.reason, /\.project is missing/);
+  fs.renameSync(path.join(linked, ".project-away"), path.join(linked, ".project"));
+
+  const broken = { ...repository.worktrees[1], head: "not-a-git-object" };
+  const brokenState = classifyWorktreeState(repository, broken);
+  assert.equal(brokenState.status, "unavailable");
+  assert.match(brokenState.reason, /ambiguous argument|bad revision|unknown revision/i);
+});
+
+test("coordination state migrates once and is shared across linked worktrees", async () => {
+  const repo = createTempGitDelanoRepo();
+  const helperSource = path.join(process.cwd(), ".agents", "scripts", "lib", "coordination-state.mjs");
+  const managerSource = path.join(process.cwd(), ".agents", "scripts", "lease-manager.mjs");
+  const helperTarget = path.join(repo, ".agents", "scripts", "lib", "coordination-state.mjs");
+  const managerTarget = path.join(repo, ".agents", "scripts", "lease-manager.mjs");
+  fs.mkdirSync(path.dirname(helperTarget), { recursive: true });
+  fs.copyFileSync(helperSource, helperTarget);
+  fs.copyFileSync(managerSource, managerTarget);
+  execFileSync("git", ["add", ".agents/scripts"], { cwd: repo });
+  execFileSync("git", ["commit", "-m", "coordination fixture"], { cwd: repo, stdio: "ignore" });
+
+  const linked = path.join(path.dirname(repo), `${path.basename(repo)} coordination-linked`);
+  execFileSync("git", ["worktree", "add", "-b", "coordination-fixture", linked], { cwd: repo, stdio: "ignore" });
+  const legacy = path.join(linked, ".agents", "leases", "active-leases.json");
+  const unknown = path.join(linked, ".project", "coordination-unknown.json");
+  fs.mkdirSync(path.dirname(legacy), { recursive: true });
+  fs.writeFileSync(legacy, '{"schema_version":1,"leases":[]}\n');
+  fs.writeFileSync(unknown, "leave me\n");
+
+  const moduleUrl = new URL(`file:///${helperSource.replace(/\\/g, "/")}?test=${Date.now()}`);
+  const { resolveCoordinationStatePath } = await import(moduleUrl.href);
+  const notices = [];
+  const fromLinked = resolveCoordinationStatePath(linked, { notice: (message) => notices.push(message) });
+  const fromPrimary = resolveCoordinationStatePath(repo, { notice: (message) => notices.push(message) });
+  assert.equal(fromLinked, fromPrimary);
+  assert.match(fromLinked.replace(/\\/g, "/"), /\.git\/delano\/leases\/active-leases\.json$/);
+  assert.equal(fs.existsSync(legacy), false);
+  assert.equal(fs.existsSync(unknown), true);
+  assert.equal(notices.length, 1);
+
+  const acquire = spawnSync(process.execPath, [managerTarget.replace(repo, linked), "acquire", "--owner", "linked", "--project", "fixture", "--task", "T-001", "--zone", "src/**", "--json"], {
+    cwd: linked,
+    encoding: "utf8"
+  });
+  assert.equal(acquire.status, 0, acquire.stderr || acquire.stdout);
+  const inspect = spawnSync(process.execPath, [managerTarget, "list", "--json"], { cwd: repo, encoding: "utf8" });
+  assert.equal(inspect.status, 0, inspect.stderr || inspect.stdout);
+  assert.equal(JSON.parse(inspect.stdout).leases.length, 1);
+  assert.equal(fs.existsSync(path.join(linked, ".project", "leases")), false);
+
+  fs.mkdirSync(path.dirname(legacy), { recursive: true });
+  fs.writeFileSync(legacy, '{"schema_version":1,"leases":[{"different":true}]}\n');
+  const sharedBefore = fs.readFileSync(fromLinked, "utf8");
+  assert.throws(() => resolveCoordinationStatePath(linked), /both files were preserved/);
+  assert.equal(fs.existsSync(legacy), true);
+  assert.equal(fs.readFileSync(fromLinked, "utf8"), sharedBefore);
+});
+
+test("validate guards dirty linked-worktree project state and supports explicit override", () => {
+  const repo = createTempGitDelanoRepo();
+  for (const directory of ["context", "registry"]) fs.mkdirSync(path.join(repo, ".project", directory), { recursive: true });
+  fs.writeFileSync(path.join(repo, ".project", "registry", "linear-map.json"), "{}\n");
+  for (const directory of ["rules", "hooks", "logs", "skills"]) fs.mkdirSync(path.join(repo, ".agents", directory), { recursive: true });
+  const requiredSkills = ["discovery", "research", "prototype", "planning", "breakdown", "sync", "execution", "quality", "closeout", "learning"];
+  for (const skill of requiredSkills) {
+    const skillDir = path.join(repo, ".agents", "skills", `${skill}-skill`);
+    fs.mkdirSync(skillDir, { recursive: true });
+    fs.writeFileSync(path.join(skillDir, "SKILL.md"), `# ${skill}\n`);
+  }
+  fs.copyFileSync(path.join(process.cwd(), ".agents", "scripts", "pm", "validate.sh"), path.join(repo, ".agents", "scripts", "pm", "validate.sh"));
+  execFileSync("git", ["add", "."], { cwd: repo });
+  execFileSync("git", ["commit", "-m", "validation fixture"], { cwd: repo, stdio: "ignore" });
+
+  const linked = path.join(path.dirname(repo), `${path.basename(repo)} validation-linked`);
+  execFileSync("git", ["worktree", "add", "-b", "validation-fixture", linked], { cwd: repo, stdio: "ignore" });
+  fs.writeFileSync(path.join(linked, ".project", "dirty.md"), "dirty\n");
+  const denied = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate"], { cwd: linked, encoding: "utf8" });
+  assert.notEqual(denied.status, 0);
+  assert.match(denied.stdout + denied.stderr, /Linked worktree has uncommitted \.project changes/);
+
+  const allowed = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate", "--allow-worktree-state"], { cwd: linked, encoding: "utf8" });
+  assert.match(allowed.stdout, /allowed by --allow-worktree-state/);
+  assert.doesNotMatch(allowed.stdout + allowed.stderr, /commit\/stash them or rerun/);
 });
 
 test("state creation commands render project artifacts from templates", () => {

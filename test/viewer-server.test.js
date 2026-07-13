@@ -6,6 +6,7 @@ const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 const { spawn, spawnSync } = require("node:child_process");
+const { registerRepository } = require("../src/cli/lib/repository-registry");
 
 function listen(server, port = 0) {
   return new Promise((resolve, reject) => {
@@ -138,6 +139,106 @@ async function startViewerForRepo(t, repo, environment = {}) {
   return `http://127.0.0.1:${match[1]}`;
 }
 
+test("viewer switches only across registered Git contexts and isolates root-scoped state", { timeout: 20000 }, async (t) => {
+  const first = createGitViewerRepo("delano-viewer-context-a-", "Repository A primary.");
+  const second = createGitViewerRepo("delano-viewer-context-b-", "Repository B primary.", { schemas: false });
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "delano-viewer-home-"));
+  const linked = path.join(path.dirname(first.repo), `${path.basename(first.repo)} linked`);
+  const added = spawnSync("git", ["worktree", "add", "-b", "viewer-linked", linked], { cwd: first.repo, encoding: "utf8" });
+  assert.equal(added.status, 0, added.stderr || added.stdout);
+  fs.writeFileSync(path.join(linked, ".project", "projects", "demo", "spec.md"), "# Demo\n\nRepository A linked.\n", "utf8");
+  spawnSync("git", ["add", ".project/projects/demo/spec.md"], { cwd: linked });
+  const linkedCommit = spawnSync("git", ["commit", "-m", "diverge linked project"], { cwd: linked, encoding: "utf8" });
+  assert.equal(linkedCommit.status, 0, linkedCommit.stderr || linkedCommit.stdout);
+
+  t.after(() => fs.rmSync(first.repo, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(second.repo, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(linked, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+
+  const registryOptions = { env: { DELANO_HOME: home } };
+  const firstRegistration = registerRepository(first.repo, registryOptions);
+  const secondRegistration = registerRepository(second.repo, registryOptions);
+  const baseUrl = await startViewerForRepo(t, first.repo, { DELANO_HOME: home });
+
+  const inventory = await readJson(`${baseUrl}/api/context`);
+  assert.equal(inventory.repositories.length, 2);
+  assert.equal(inventory.active.repository.id, firstRegistration.entry.id);
+  assert.equal(inventory.active.worktree.role, "primary");
+  assert.equal(inventory.active.writable, true);
+  const firstInventory = inventory.repositories.find((repository) => repository.id === firstRegistration.entry.id);
+  assert.equal(firstInventory.worktrees.length, 2);
+  assert.equal(firstInventory.worktrees[1].projectState.status, "diverged");
+
+  const initialIndex = await readJson(`${baseUrl}/api/index`);
+  const taskSchema = JSON.parse(fs.readFileSync(path.join(__dirname, "..", ".agents", "schemas", "artifacts", "task.schema.json"), "utf8"));
+  assert.deepEqual(initialIndex.schemaOptions.task.status, taskSchema.properties.status.enum);
+  assert.equal(initialIndex.schemaOptionsError, null);
+  assert.match((await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`)).markdown, /Repository A primary/);
+
+  const annotation = await requestJson(`${baseUrl}/api/annotations`, {
+    method: "POST",
+    body: {
+      sourcePath: "projects/demo/spec.md",
+      quote: "Repository A primary.",
+      comment: "Root A only",
+      anchor: { start: 8, end: 29 }
+    }
+  });
+  assert.equal(annotation.status, 201, annotation.raw);
+  const oldStream = await connectSse(`${baseUrl}/api/events`);
+  const oldStreamClosed = new Promise((resolve) => {
+    const timeout = setTimeout(() => resolve(false), 5000);
+    oldStream.response.once("close", () => {
+      clearTimeout(timeout);
+      resolve(true);
+    });
+  });
+
+  const arbitrary = await requestJson(`${baseUrl}/api/context`, {
+    method: "POST",
+    body: { repositoryId: firstRegistration.entry.id, worktreeId: "not-registered" }
+  });
+  assert.equal(arbitrary.status, 409);
+
+  const secondRepository = inventory.repositories.find((repository) => repository.id === secondRegistration.entry.id);
+  const switchedSecond = await requestJson(`${baseUrl}/api/context`, {
+    method: "POST",
+    body: { repositoryId: secondRepository.id, worktreeId: secondRepository.worktrees[0].id }
+  });
+  assert.equal(switchedSecond.status, 200, switchedSecond.raw);
+  assert.equal(switchedSecond.json.context.repository.id, secondRegistration.entry.id);
+  assert.ok(switchedSecond.json.context.generation > initialIndex.context.generation);
+  assert.equal(await oldStreamClosed, true);
+  assert.match((await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`)).markdown, /Repository B primary/);
+  assert.equal((await readJson(`${baseUrl}/api/annotations`)).annotations.length, 0);
+  const secondIndex = await readJson(`${baseUrl}/api/index`);
+  assert.equal(secondIndex.schemaOptions, null);
+  assert.match(secondIndex.schemaOptionsError, /Artifact schema directory is missing/);
+
+  const refreshedInventory = await readJson(`${baseUrl}/api/context`);
+  const refreshedFirst = refreshedInventory.repositories.find((repository) => repository.id === firstRegistration.entry.id);
+  const switchedLinked = await requestJson(`${baseUrl}/api/context`, {
+    method: "POST",
+    body: { repositoryId: refreshedFirst.id, worktreeId: refreshedFirst.worktrees[1].id }
+  });
+  assert.equal(switchedLinked.status, 200, switchedLinked.raw);
+  assert.equal(switchedLinked.json.context.writable, false);
+  assert.equal(switchedLinked.json.context.worktree.role, "linked");
+  assert.equal(switchedLinked.json.context.worktree.projectState.diverged, true);
+  assert.match((await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`)).markdown, /Repository A linked/);
+
+  for (const [endpoint, body] of [
+    ["/api/annotations", { sourcePath: "projects/demo/spec.md", quote: "Repository A linked.", comment: "blocked", anchor: { start: 8, end: 28 } }],
+    ["/api/apply", { sourcePath: "projects/demo/spec.md", replacementMarkdown: "# blocked", expectedHash: "unused", confirm: true }],
+    ["/api/handover", { sourcePath: "projects/demo/spec.md", intent: "start", agent: "codex" }]
+  ]) {
+    const rejected = await requestJson(`${baseUrl}${endpoint}`, { method: "POST", body });
+    assert.equal(rejected.status, 403, `${endpoint}: ${rejected.raw}`);
+    assert.match(rejected.json.error, /writes are disabled.*linked worktree/i);
+  }
+});
+
 test("viewer launches T3 Code handovers through the t3code CLI", async (t) => {
   const { repo } = createLiveViewerRepo("delano-viewer-t3code-");
   const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-t3code-bin-"));
@@ -254,6 +355,26 @@ function createLiveViewerRepo(prefix) {
   const specPath = path.join(projectDir, "spec.md");
   fs.writeFileSync(specPath, "# Demo\n\nOriginal body.\n", "utf8");
   return { repo, projectDir, specPath };
+}
+
+function createGitViewerRepo(prefix, body, options = {}) {
+  const fixture = createLiveViewerRepo(prefix);
+  fs.writeFileSync(fixture.specPath, `# Demo\n\n${body}\n`, "utf8");
+  if (options.schemas !== false) {
+    const schemaDir = path.join(fixture.repo, ".agents", "schemas", "artifacts");
+    fs.mkdirSync(schemaDir, { recursive: true });
+    fs.copyFileSync(
+      path.join(__dirname, "..", ".agents", "schemas", "artifacts", "task.schema.json"),
+      path.join(schemaDir, "task.schema.json")
+    );
+  }
+  spawnSync("git", ["init"], { cwd: fixture.repo, stdio: "ignore" });
+  spawnSync("git", ["config", "user.email", "viewer@example.invalid"], { cwd: fixture.repo });
+  spawnSync("git", ["config", "user.name", "Viewer Tests"], { cwd: fixture.repo });
+  spawnSync("git", ["add", "."], { cwd: fixture.repo });
+  const committed = spawnSync("git", ["commit", "-m", "viewer fixture"], { cwd: fixture.repo, encoding: "utf8" });
+  assert.equal(committed.status, 0, committed.stderr || committed.stdout);
+  return fixture;
 }
 
 function connectSse(requestUrl) {

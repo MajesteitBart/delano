@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import {
   defaultRoute,
+  NAVIGATION_STORAGE_KEY,
+  NAVIGATION_STORAGE_VERSION,
   pickInitialProjectSlug,
+  restoreStoredNavigation,
   type ViewerRoute,
   type WorkspaceView,
 } from "@/lib/domain/navigation"
@@ -15,20 +18,60 @@ export function useViewerNavigation(index: ViewerIndex | null) {
   const [route, setRoute] = useState<ViewerRoute>(defaultRoute)
   const [documentReturnRoute, setDocumentReturnRoute] =
     useState<ViewerRoute | null>(null)
+  const initializedGeneration = useRef<number | null | undefined>(undefined)
+  const [storageReady, setStorageReady] = useState(false)
+
+  const contextGeneration = index?.context?.generation
 
   useEffect(() => {
-    if (!index || activeProjectSlug) return
+    if (!index) return
+    const generation = index.context?.generation ?? null
+    if (initializedGeneration.current === generation) return
+    const firstInitialization = initializedGeneration.current === undefined
+    initializedGeneration.current = generation
     let cancelled = false
     queueMicrotask(() => {
       if (cancelled) return
-      setActiveProjectSlug(pickInitialProjectSlug(index))
+      let restored: ReturnType<typeof restoreStoredNavigation> = null
+      if (firstInitialization) {
+        try {
+          restored = restoreStoredNavigation(
+            JSON.parse(localStorage.getItem(NAVIGATION_STORAGE_KEY) ?? "null"),
+            index
+          )
+        } catch {
+          // Invalid storage falls back to the current context's defaults.
+        }
+      }
+      setActiveProjectSlug(
+        restored?.projectSlug ?? pickInitialProjectSlug(index)
+      )
       setDocumentReturnRoute(null)
-      setRoute(defaultRoute())
+      setRoute(restored?.route ?? defaultRoute())
+      setStorageReady(true)
     })
     return () => {
       cancelled = true
     }
-  }, [activeProjectSlug, index])
+  }, [contextGeneration, index])
+
+  useEffect(() => {
+    if (!storageReady || !index?.context) return
+    try {
+      localStorage.setItem(
+        NAVIGATION_STORAGE_KEY,
+        JSON.stringify({
+          version: NAVIGATION_STORAGE_VERSION,
+          repositoryId: index.context.repository.id,
+          worktreeId: index.context.worktree.id,
+          projectSlug: activeProjectSlug,
+          route,
+        })
+      )
+    } catch {
+      // Navigation remains usable when browser storage is unavailable.
+    }
+  }, [activeProjectSlug, index?.context, route, storageReady])
 
   const docsByPath = useMemo(() => {
     const map = new Map<string, DocMeta>()

@@ -17,10 +17,7 @@ import {
 } from "@/components/molecules/DataTable"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import {
   Empty,
   EmptyDescription,
@@ -34,21 +31,29 @@ import { formatDate } from "@/lib/domain/dates"
 import { statusLabel } from "@/lib/domain/status"
 import type { Annotation, DocMeta, ViewerIndex } from "@/lib/domain/types"
 import { type WorkspaceView } from "@/lib/domain/navigation"
-import { getWorkspaceModel, type ProjectStat, type WorkspaceTaskItem } from "@/lib/domain/workspace-model"
-import { dataTableMeta } from "@/lib/data-table"
+import {
+  getWorkspaceModel,
+  type ProjectStat,
+  type WorkspaceTaskItem,
+} from "@/lib/domain/workspace-model"
+import { dataTableMeta, optionMembershipFilter } from "@/lib/data-table"
 
-const WORKSPACE_COPY: Record<WorkspaceView, { title: string; description: string }> = {
+const WORKSPACE_COPY: Record<
+  WorkspaceView,
+  { title: string; description: string }
+> = {
   "workspace-context": {
     title: "Context pack",
-    description: "Repository context files agents should read before implementation work.",
+    description:
+      "Repository context files agents should read before implementation work.",
   },
   "workspace-projects": {
     title: "Projects",
     description: "Delivery contracts currently present in this workspace.",
   },
-  "workspace-current": {
-    title: "Open work",
-    description: "Tasks that are not marked complete.",
+  "workspace-tasks": {
+    title: "Tasks",
+    description: "Every indexed task across all canonical statuses.",
   },
   "workspace-progress": {
     title: "Progress",
@@ -56,7 +61,8 @@ const WORKSPACE_COPY: Record<WorkspaceView, { title: string; description: string
   },
   "workspace-annotations": {
     title: "Annotations",
-    description: "Review comments captured across every indexed project document.",
+    description:
+      "Review comments captured across every indexed project document.",
   },
   "workspace-validation": {
     title: "Validation",
@@ -116,22 +122,35 @@ export function WorkspacePage({
     <section className="workspace-page">
       <PageHeader title={copy.title} description={copy.description} />
       {view === "workspace-context" && (
-        <DocTable docs={workspace.context} emptyTitle="No context files" onOpenDoc={onOpenDoc} />
+        <DocTable
+          docs={workspace.context}
+          emptyTitle="No context files"
+          onOpenDoc={onOpenDoc}
+        />
       )}
       {view === "workspace-projects" && (
-        <ProjectTable items={workspace.projects} onOpenProject={onOpenProject} />
+        <ProjectTable
+          items={workspace.projects}
+          onOpenProject={onOpenProject}
+        />
       )}
-      {view === "workspace-current" && (
+      {view === "workspace-tasks" && (
         <TaskTable
-          items={workspace.current}
-          emptyTitle="No open work"
-          emptyDescription="Every indexed task is currently complete."
+          items={workspace.tasks}
+          emptyTitle="No tasks"
+          emptyDescription="No indexed task contracts are available."
+          statusOptions={index?.schemaOptions?.task?.status ?? []}
+          statusOptionsError={index?.schemaOptionsError}
           onOpenDoc={onOpenDoc}
           onOpenProject={onOpenProject}
         />
       )}
       {view === "workspace-progress" && (
-        <DocTable docs={workspace.progress} emptyTitle="No progress logs" onOpenDoc={onOpenDoc} />
+        <DocTable
+          docs={workspace.progress}
+          emptyTitle="No progress logs"
+          onOpenDoc={onOpenDoc}
+        />
       )}
       {view === "workspace-annotations" && (
         <AnnotationTable
@@ -143,10 +162,18 @@ export function WorkspacePage({
         />
       )}
       {view === "workspace-validation" && (
-        <DocTable docs={workspace.validation} emptyTitle="No validation documents" onOpenDoc={onOpenDoc} />
+        <DocTable
+          docs={workspace.validation}
+          emptyTitle="No validation documents"
+          onOpenDoc={onOpenDoc}
+        />
       )}
       {view === "workspace-warnings" && (
-        <DocTable docs={workspace.warnings} emptyTitle="No warnings" onOpenDoc={onOpenDoc} />
+        <DocTable
+          docs={workspace.warnings}
+          emptyTitle="No warnings"
+          onOpenDoc={onOpenDoc}
+        />
       )}
       {view === "workspace-blockers" && (
         <TaskTable
@@ -155,13 +182,21 @@ export function WorkspacePage({
           emptyDescription="No indexed task is currently blocked."
           onOpenDoc={onOpenDoc}
           onOpenProject={onOpenProject}
+          statusOptions={index?.schemaOptions?.task?.status ?? []}
+          statusOptionsError={index?.schemaOptionsError}
         />
       )}
     </section>
   )
 }
 
-function PageHeader({ title, description }: { title: string; description: string }) {
+function PageHeader({
+  title,
+  description,
+}: {
+  title: string
+  description: string
+}) {
   return (
     <div className="page-heading">
       <div className="eyebrow">Workspace</div>
@@ -171,7 +206,9 @@ function PageHeader({ title, description }: { title: string; description: string
   )
 }
 
-function annotationTypeVariant(type: string): "default" | "secondary" | "outline" {
+function annotationTypeVariant(
+  type: string
+): "default" | "secondary" | "outline" {
   if (type === "verify") return "default"
   if (type === "question") return "outline"
   return "secondary"
@@ -200,11 +237,14 @@ function AnnotationTable({
       annotations
         .filter((annotation) => annotation.status !== "deleted")
         .slice()
-        .sort((a, b) => (
-          String(b.updatedAt ?? b.createdAt ?? "").localeCompare(String(a.updatedAt ?? a.createdAt ?? "")) ||
-          String(a.sourcePath).localeCompare(String(b.sourcePath)) ||
-          Number(a.anchor?.lineStart ?? 0) - Number(b.anchor?.lineStart ?? 0)
-        )),
+        .sort(
+          (a, b) =>
+            String(b.updatedAt ?? b.createdAt ?? "").localeCompare(
+              String(a.updatedAt ?? a.createdAt ?? "")
+            ) ||
+            String(a.sourcePath).localeCompare(String(b.sourcePath)) ||
+            Number(a.anchor?.lineStart ?? 0) - Number(b.anchor?.lineStart ?? 0)
+        ),
     [annotations]
   )
   const rows = sorted.map((annotation) => {
@@ -225,7 +265,9 @@ function AnnotationTable({
       cell: ({ row }) => (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant={annotationTypeVariant(row.original.annotation.type)}>
+            <Badge
+              variant={annotationTypeVariant(row.original.annotation.type)}
+            >
               {row.original.annotation.type}
             </Badge>
             <span className="font-mono text-xs text-muted-foreground">
@@ -300,8 +342,7 @@ function AnnotationTable({
       ),
       cell: ({ row }) =>
         formatDate(
-          row.original.annotation.updatedAt ??
-            row.original.annotation.createdAt
+          row.original.annotation.updatedAt ?? row.original.annotation.createdAt
         ),
       filterFn: "includesString",
       sortingFn: (a, b) =>
@@ -324,15 +365,33 @@ function AnnotationTable({
   ]
 
   if (loading) {
-    return <EmptyPanel icon={RefreshCwIcon} title="Loading annotations" description="Reading viewer review comments." />
+    return (
+      <EmptyPanel
+        icon={RefreshCwIcon}
+        title="Loading annotations"
+        description="Reading viewer review comments."
+      />
+    )
   }
 
   if (error) {
-    return <EmptyPanel icon={AlertTriangleIcon} title="Annotations unavailable" description={error} />
+    return (
+      <EmptyPanel
+        icon={AlertTriangleIcon}
+        title="Annotations unavailable"
+        description={error}
+      />
+    )
   }
 
   if (!sorted.length) {
-    return <EmptyPanel icon={MessageSquareTextIcon} title="No annotations" description="No viewer comments have been captured yet." />
+    return (
+      <EmptyPanel
+        icon={MessageSquareTextIcon}
+        title="No annotations"
+        description="No viewer comments have been captured yet."
+      />
+    )
   }
 
   return (
@@ -442,7 +501,11 @@ function ProjectTable({
 
   if (!items.length) {
     return (
-      <EmptyPanel icon={FolderIcon} title="No projects" description="No project contracts were indexed." />
+      <EmptyPanel
+        icon={FolderIcon}
+        title="No projects"
+        description="No project contracts were indexed."
+      />
     )
   }
 
@@ -465,12 +528,16 @@ function TaskTable({
   items,
   onOpenDoc,
   onOpenProject,
+  statusOptions,
+  statusOptionsError,
 }: {
   emptyDescription: string
   emptyTitle: string
   items: WorkspaceTaskItem[]
   onOpenDoc: (path: string) => void
   onOpenProject: (slug: string) => void
+  statusOptions: string[]
+  statusOptionsError?: string | null
 }) {
   const columns: ColumnDef<WorkspaceTaskItem>[] = [
     {
@@ -536,23 +603,78 @@ function TaskTable({
     },
     {
       id: "status",
-      accessorFn: (item) => statusLabel(item.doc.status),
+      accessorFn: (item) => item.doc.status ?? "planned",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Status" />
       ),
       cell: ({ row }) => (
         <StatusBadge status={row.original.doc.status ?? "planned"} />
       ),
+      filterFn: optionMembershipFilter,
+      meta: dataTableMeta({
+        cellClassName: "min-w-28",
+        filter: {
+          kind: "options",
+          options: statusOptions.map((value) => ({
+            label: statusLabel(value),
+            value,
+          })),
+          unavailableReason: statusOptionsError,
+        },
+        headerClassName: "min-w-28",
+      }),
+    },
+    {
+      id: "priority",
+      accessorFn: (item) => frontmatterText(item.doc, "priority") || "None",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Priority" />
+      ),
+      cell: ({ row }) =>
+        frontmatterText(row.original.doc, "priority") || "None",
       filterFn: "includesString",
       meta: dataTableMeta({
         cellClassName: "min-w-28",
         headerClassName: "min-w-28",
       }),
     },
+    {
+      id: "estimate",
+      accessorFn: (item) => frontmatterText(item.doc, "estimate") || "None",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Estimate" />
+      ),
+      cell: ({ row }) =>
+        frontmatterText(row.original.doc, "estimate") || "None",
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-28",
+        headerClassName: "min-w-28",
+      }),
+    },
+    {
+      id: "updated",
+      accessorFn: (item) => item.doc.updated ?? "",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Updated" />
+      ),
+      cell: ({ row }) => formatDate(row.original.doc.updated),
+      filterFn: "includesString",
+      meta: dataTableMeta({
+        cellClassName: "min-w-40",
+        headerClassName: "min-w-40",
+      }),
+    },
   ]
 
   if (!items.length) {
-    return <EmptyPanel icon={ListChecksIcon} title={emptyTitle} description={emptyDescription} />
+    return (
+      <EmptyPanel
+        icon={ListChecksIcon}
+        title={emptyTitle}
+        description={emptyDescription}
+      />
+    )
   }
 
   return (
@@ -566,6 +688,13 @@ function TaskTable({
       </CardContent>
     </Card>
   )
+}
+
+function frontmatterText(doc: DocMeta, key: string) {
+  const value = doc.frontmatter?.[key]
+  return typeof value === "string" || typeof value === "number"
+    ? String(value)
+    : ""
 }
 
 function DocTable({
@@ -653,7 +782,13 @@ function DocTable({
   ]
 
   if (!docs.length) {
-    return <EmptyPanel icon={FileTextIcon} title={emptyTitle} description="No matching documents were indexed." />
+    return (
+      <EmptyPanel
+        icon={FileTextIcon}
+        title={emptyTitle}
+        description="No matching documents were indexed."
+      />
+    )
   }
 
   return (

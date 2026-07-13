@@ -12,7 +12,9 @@ function resolveSource(specifier, parentFile) {
     return withSourceExtension(path.join(srcRoot, specifier.slice(2)))
   }
   if (specifier.startsWith(".")) {
-    return withSourceExtension(path.resolve(path.dirname(parentFile), specifier))
+    return withSourceExtension(
+      path.resolve(path.dirname(parentFile), specifier)
+    )
   }
   return require.resolve(specifier, { paths: [root] })
 }
@@ -20,12 +22,16 @@ function resolveSource(specifier, parentFile) {
 function withSourceExtension(filePath) {
   for (const extension of ["", ".ts", ".tsx", ".js", ".jsx"]) {
     const candidate = `${filePath}${extension}`
-    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile()) return candidate
+    if (fs.existsSync(candidate) && fs.statSync(candidate).isFile())
+      return candidate
   }
   throw new Error(`Cannot resolve source module: ${filePath}`)
 }
 
-function loadSourceModule(specifier, parentFile = path.join(srcRoot, "index.ts")) {
+function loadSourceModule(
+  specifier,
+  parentFile = path.join(srcRoot, "index.ts")
+) {
   const filePath = resolveSource(specifier, parentFile)
   if (!filePath.startsWith(srcRoot)) return require(filePath)
   if (moduleCache.has(filePath)) return moduleCache.get(filePath).exports
@@ -42,19 +48,106 @@ function loadSourceModule(specifier, parentFile = path.join(srcRoot, "index.ts")
   })
   const module = { exports: {} }
   moduleCache.set(filePath, module)
-  const localRequire = (nextSpecifier) => loadSourceModule(nextSpecifier, filePath)
-  const execute = new Function("exports", "require", "module", "__filename", "__dirname", outputText)
-  execute(module.exports, localRequire, module, filePath, path.dirname(filePath))
+  const localRequire = (nextSpecifier) =>
+    loadSourceModule(nextSpecifier, filePath)
+  const execute = new Function(
+    "exports",
+    "require",
+    "module",
+    "__filename",
+    "__dirname",
+    outputText
+  )
+  execute(
+    module.exports,
+    localRequire,
+    module,
+    filePath,
+    path.dirname(filePath)
+  )
   return module.exports
 }
 
 const annotations = loadSourceModule("@/lib/domain/annotations")
+const context = loadSourceModule("@/lib/domain/context")
+const dataTable = loadSourceModule("@/lib/data-table")
 const navigation = loadSourceModule("@/lib/domain/navigation")
 const pagination = loadSourceModule("@/lib/domain/pagination")
 const status = loadSourceModule("@/lib/domain/status")
 const workspaceModel = loadSourceModule("@/lib/domain/workspace-model")
 const markdown = loadSourceModule("@/lib/markdown/renderMarkdown")
 const toc = loadSourceModule("@/lib/markdown/toc")
+
+const worktrees = [
+  {
+    id: "linked",
+    path: "/repo-linked",
+    branch: "feature/z",
+    primary: false,
+    projectState: { status: "diverged", available: true },
+  },
+  {
+    id: "primary",
+    path: "/repo",
+    branch: "main",
+    primary: true,
+    projectState: { status: "clean", available: true },
+  },
+  {
+    id: "missing",
+    path: "/missing",
+    detached: true,
+    primary: false,
+    projectAvailable: false,
+    projectState: {
+      status: "unavailable",
+      available: false,
+      reason: ".project is missing",
+    },
+  },
+]
+assert.deepEqual(
+  context.sortedWorktrees(worktrees).map((item) => item.id),
+  ["primary", "missing", "linked"]
+)
+assert.equal(context.worktreeRole(worktrees[0]), "Linked")
+assert.equal(context.worktreeRole(worktrees[1]), "Primary")
+assert.equal(context.worktreeSelectable(worktrees[2]), false)
+assert.equal(context.preferredWorktree(worktrees).id, "primary")
+assert.equal(context.preferredWorktree([worktrees[2]]), null)
+assert.equal(context.worktreeStatusLabel(worktrees[0]), "Diverged")
+assert.equal(
+  context.worktreeStatusLabel({
+    ...worktrees[0],
+    projectState: { status: "dirty", available: true },
+  }),
+  "Dirty"
+)
+assert.equal(
+  context.worktreeUnavailableReason(worktrees[2]),
+  ".project is missing"
+)
+assert.deepEqual(
+  context
+    .sortedRepositories([
+      {
+        id: "b",
+        name: "Zulu",
+        primaryPath: "/z",
+        available: true,
+        worktrees: [],
+      },
+      {
+        id: "a",
+        name: "Alpha",
+        primaryPath: "/a",
+        available: true,
+        worktrees: [],
+      },
+    ])
+    .map((item) => item.id),
+  ["a", "b"]
+)
 
 assert.equal(status.statusLabel("in-progress"), "In Progress")
 assert.equal(status.statusLabel(null), "Planned")
@@ -63,7 +156,74 @@ assert.equal(status.statusTone("warning"), "warning")
 assert.equal(status.statusTone("complete"), "done")
 assert.equal(status.titleFromSlug("viewer-annotations"), "Viewer Annotations")
 
-assert.equal(navigation.stripProjectRoot(".project/context/project-overview.md"), "context/project-overview.md")
+const filterRow = { getValue: () => "in-progress" }
+assert.equal(
+  dataTable.optionMembershipFilter(filterRow, "status", ["planned"]),
+  false
+)
+assert.equal(
+  dataTable.optionMembershipFilter(filterRow, "status", [
+    "planned",
+    "in-progress",
+  ]),
+  true
+)
+assert.equal(dataTable.optionMembershipFilter(filterRow, "status", []), true)
+assert.equal(
+  dataTable.optionMembershipFilter(filterRow, "status", undefined),
+  true
+)
+assert.notEqual(status.statusLabel("in-progress"), "in-progress")
+
+const navigationIndex = {
+  context: {
+    repository: { id: "repo" },
+    worktree: { id: "worktree" },
+  },
+  projects: [{ slug: "demo", outline: { spec: "projects/demo/spec.md" } }],
+  docs: [
+    { path: "projects/demo/tasks/T-001.md", role: "task" },
+    { path: "projects/demo/updates/update.md", role: "progress" },
+  ],
+}
+assert.deepEqual(
+  navigation.restoreStoredNavigation(
+    { version: 1, projectSlug: "demo", route: "workspace-current" },
+    navigationIndex
+  ).route,
+  { kind: "workspace", view: "workspace-tasks" }
+)
+assert.deepEqual(
+  navigation.restoreStoredNavigation(
+    {
+      version: 2,
+      projectSlug: "demo",
+      route: {
+        kind: "document",
+        path: "projects/demo/updates/update.md",
+      },
+    },
+    navigationIndex
+  ).route,
+  { kind: "workspace", view: "workspace-progress" }
+)
+assert.equal(
+  navigation.restoreStoredNavigation(
+    {
+      version: 2,
+      repositoryId: "another",
+      projectSlug: "demo",
+      route: { kind: "workspace", view: "workspace-tasks" },
+    },
+    navigationIndex
+  ),
+  null
+)
+
+assert.equal(
+  navigation.stripProjectRoot(".project/context/project-overview.md"),
+  "context/project-overview.md"
+)
 assert.equal(
   navigation.pickInitialPath({
     contextPack: { files: [{ path: ".project/context/project-overview.md" }] },
@@ -93,7 +253,10 @@ assert.equal(
   "target-spec.md"
 )
 
-assert.equal(annotations.annotationLine({ anchor: { lineStart: 12 } }), "line 12")
+assert.equal(
+  annotations.annotationLine({ anchor: { lineStart: 12 } }),
+  "line 12"
+)
 assert.equal(annotations.annotationLine({ anchor: {} }), "document")
 assert.equal(annotations.numberOrNull("42"), 42)
 assert.equal(annotations.numberOrNull("not-a-number"), null)
@@ -112,7 +275,11 @@ assert.equal(
   workspaceModel.projectPrimaryPath({
     slug: "demo",
     title: "Demo",
-    outline: { spec: null, plan: "plan.md", workstreams: [{ path: "ws.md", title: "WS" }] },
+    outline: {
+      spec: null,
+      plan: "plan.md",
+      workstreams: [{ path: "ws.md", title: "WS" }],
+    },
   }),
   "plan.md"
 )
@@ -120,24 +287,75 @@ assert.deepEqual(
   workspaceModel.sidebarCounts({
     repo: "demo",
     generatedAt: "2026-06-30T00:00:00Z",
-    annotationSummary: { total: 2, open: 2, storePath: ".project/viewer/annotations.json" },
+    annotationSummary: {
+      total: 2,
+      open: 2,
+      storePath: ".project/viewer/annotations.json",
+    },
     contextPack: { files: [{ path: "context/a.md", title: "A" }] },
-    projects: [{ slug: "demo", title: "Demo", outline: { spec: "a.md" }, docs: ["a.md", "b.md", "c.md"] }],
+    projects: [
+      {
+        slug: "demo",
+        title: "Demo",
+        outline: { spec: "a.md" },
+        docs: ["a.md", "b.md", "c.md", "d.md", "e.md", "f.md", "g.md"],
+      },
+    ],
     docs: [
       { path: "context/a.md", title: "Context", role: "context" },
-      { path: "a.md", title: "A", status: "warning", role: "task", project: "demo" },
-      { path: "b.md", title: "B", status: "blocked", role: "task", project: "demo" },
+      {
+        path: "a.md",
+        title: "A",
+        status: "planned",
+        role: "task",
+        project: "demo",
+      },
+      {
+        path: "b.md",
+        title: "B",
+        status: "blocked",
+        role: "task",
+        project: "demo",
+      },
       { path: "c.md", title: "C", status: "complete", role: "progress" },
+      {
+        path: "d.md",
+        title: "D",
+        status: "ready",
+        role: "task",
+        project: "demo",
+      },
+      {
+        path: "e.md",
+        title: "E",
+        status: "in-progress",
+        role: "task",
+        project: "demo",
+      },
+      {
+        path: "f.md",
+        title: "F",
+        status: "done",
+        role: "task",
+        project: "demo",
+      },
+      {
+        path: "g.md",
+        title: "G",
+        status: "deferred",
+        role: "task",
+        project: "demo",
+      },
     ],
   }),
   {
     context: 1,
     projects: 1,
-    open: 2,
+    tasks: 6,
     progress: 1,
     annotations: 2,
-    validation: 3,
-    warnings: 1,
+    validation: 7,
+    warnings: 0,
     blockers: 1,
   }
 )
@@ -173,25 +391,52 @@ const rendered = markdown.renderMarkdown(
 )
 
 assert.match(rendered, /<h1>Heading<\/h1>/)
-assert.match(rendered, /data-block-id="b4" data-line-start="4" data-block-kind="heading"/)
+assert.match(
+  rendered,
+  /data-block-id="b4" data-line-start="4" data-block-kind="heading"/
+)
 assert.match(rendered, /<ol><li>First item<\/li><li>Second item<\/li><\/ol>/)
-assert.match(rendered, /<ul class="task-list"><li data-checked="true"><input type="checkbox" disabled checked aria-label="Completed task" \/><span>Done<\/span><\/li><li data-checked="false"><input type="checkbox" disabled aria-label="Incomplete task" \/><span>Todo<\/span><\/li><\/ul>/)
+assert.match(
+  rendered,
+  /<ul class="task-list"><li data-checked="true"><input type="checkbox" disabled checked aria-label="Completed task" \/><span>Done<\/span><\/li><li data-checked="false"><input type="checkbox" disabled aria-label="Incomplete task" \/><span>Todo<\/span><\/li><\/ul>/
+)
 assert.match(rendered, /<blockquote>Quoted text<\/blockquote>/)
 assert.match(rendered, /data-block-kind="callout"/)
-assert.match(rendered, /<aside class="md-callout" data-callout="note" role="note" aria-label="Note"><div class="md-callout-title">Note<\/div><div class="md-callout-body">Keep provenance visible\.<\/div><\/aside>/)
-assert.match(rendered, /<table><thead><tr><th>Name<\/th><th>Value<\/th><\/tr><\/thead>/)
+assert.match(
+  rendered,
+  /<aside class="md-callout" data-callout="note" role="note" aria-label="Note"><div class="md-callout-title">Note<\/div><div class="md-callout-body">Keep provenance visible\.<\/div><\/aside>/
+)
+assert.match(
+  rendered,
+  /<table><thead><tr><th>Name<\/th><th>Value<\/th><\/tr><\/thead>/
+)
 assert.match(rendered, /<pre><code>&lt;unsafe&gt;<\/code><\/pre>/)
 assert.doesNotMatch(rendered, /md-annotation-mark/)
-assert.match(markdown.renderMarkdown("This is *italic* and _also italic_."), /<em>italic<\/em>/)
-assert.match(markdown.renderMarkdown("`**literal**`"), /<code>\*\*literal\*\*<\/code>/)
+assert.match(
+  markdown.renderMarkdown("This is *italic* and _also italic_."),
+  /<em>italic<\/em>/
+)
+assert.match(
+  markdown.renderMarkdown("`**literal**`"),
+  /<code>\*\*literal\*\*<\/code>/
+)
 assert.doesNotMatch(markdown.renderMarkdown("`**literal**`"), /<strong>/)
 assert.match(
   markdown.renderMarkdown("[safe](https://example.com)"),
   /<a href="https:\/\/example.com" target="_blank" rel="noopener noreferrer">safe<\/a>/
 )
-assert.doesNotMatch(markdown.renderMarkdown("[bad](javascript:alert(1))"), /javascript:/)
-assert.match(markdown.renderMarkdown("```js\nconst value = 1"), /<pre><code>const value = 1<\/code><\/pre>/)
-assert.match(markdown.renderMarkdown("##### Five\n###### Six"), /<h5>Five<\/h5>/)
+assert.doesNotMatch(
+  markdown.renderMarkdown("[bad](javascript:alert(1))"),
+  /javascript:/
+)
+assert.match(
+  markdown.renderMarkdown("```js\nconst value = 1"),
+  /<pre><code>const value = 1<\/code><\/pre>/
+)
+assert.match(
+  markdown.renderMarkdown("##### Five\n###### Six"),
+  /<h5>Five<\/h5>/
+)
 assert.match(markdown.renderMarkdown("##### Five\n###### Six"), /<h6>Six<\/h6>/)
 assert.deepEqual(toc.extractToc("##### Five\n###### Six"), [
   { level: 5, text: "Five", line: 1 },

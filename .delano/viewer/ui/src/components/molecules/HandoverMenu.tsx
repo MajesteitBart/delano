@@ -30,12 +30,14 @@ export type DispatchInfo = {
 }
 
 export function HandoverMenu({
+  disabled = false,
   sourcePath,
   size = "sm",
   variant = "button",
   onDispatched,
   onStatus,
 }: {
+  disabled?: boolean
   sourcePath: string
   size?: "default" | "sm"
   variant?: "button" | "icon"
@@ -76,6 +78,8 @@ export function HandoverMenu({
     <AgentSplitButton
       agent={agent}
       busy={busy}
+      disabled={disabled}
+      menuDisabled={disabled || busy}
       size={size}
       variant={variant}
       onAgentChange={setAgent}
@@ -89,9 +93,7 @@ export function HandoverMenu({
             <ScanSearchIcon className="text-muted-foreground" />
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="min-w-0 flex-1 truncate">
-                  {reviewLabel}
-                </span>
+                <span className="min-w-0 flex-1 truncate">{reviewLabel}</span>
               </TooltipTrigger>
               <TooltipContent side="left">{reviewLabel}</TooltipContent>
             </Tooltip>
@@ -101,9 +103,7 @@ export function HandoverMenu({
             onClick={() => void run("start", "command")}
           >
             <ClipboardIcon className="text-muted-foreground" />
-            <span className="min-w-0 flex-1 truncate">
-              Copy start handover
-            </span>
+            <span className="min-w-0 flex-1 truncate">Copy start handover</span>
           </DropdownMenuItem>
           <DropdownMenuItem
             className="min-h-9 px-2 py-2 whitespace-nowrap"

@@ -12,9 +12,15 @@ export function useDocument(activePath: string | null) {
 
   useEffect(() => {
     if (!activePath) {
-      setDoc(null)
-      setError("")
-      return
+      let cancelled = false
+      queueMicrotask(() => {
+        if (cancelled) return
+        setDoc(null)
+        setError("")
+      })
+      return () => {
+        cancelled = true
+      }
     }
     const pathToLoad = activePath
     let cancelled = false

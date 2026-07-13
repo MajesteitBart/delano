@@ -1,10 +1,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveCoordinationStatePath } from "./lib/coordination-state.mjs";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = resolveRepoRoot(__dirname);
-const statePath = readOption("--state") || path.join(repoRoot, ".agents", "leases", "active-leases.json");
+const statePath = readOption("--state") || resolveCoordinationStatePath(repoRoot);
 const requestedZones = readList("--zone");
 const requestedMode = readOption("--mode") || "shared";
 const state = readState(statePath);

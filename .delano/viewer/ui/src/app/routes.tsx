@@ -113,6 +113,7 @@ export function ViewerRoute({
         docs={docsByPath}
         project={activeProject}
         onOpenDoc={onOpenDoc}
+        writable={index?.context?.writable ?? true}
       />
     )
   }
@@ -123,6 +124,7 @@ export function ViewerRoute({
         docs={docsByPath}
         project={activeProject}
         onOpenDoc={onOpenDoc}
+        writable={index?.context?.writable ?? true}
       />
     )
   }
@@ -138,6 +140,8 @@ export function ViewerRoute({
         onOpenDoc={onOpenDoc}
         onRefresh={onRefreshDocument}
         project={activeProject}
+        writable={index?.context?.writable ?? true}
+        writeDisabledReason={index?.context?.writeDisabledReason}
       />
     )
   }

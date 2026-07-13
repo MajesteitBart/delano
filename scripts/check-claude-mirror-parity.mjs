@@ -38,7 +38,7 @@ function runParityCheck(canonicalRoot, mirrorRoot) {
     process.exit(1);
   }
 
-  const drift = compareTrees(canonicalRoot, mirrorRoot);
+  const drift = compareTrees(canonicalRoot, mirrorRoot, { excludeMirrorWorktrees: true });
 
   if (drift.missing.length > 0 || drift.extra.length > 0 || drift.mismatched.length > 0 || drift.modeDrift.length > 0) {
     console.error("Claude mirror parity check failed:");
@@ -61,9 +61,9 @@ function runParityCheck(canonicalRoot, mirrorRoot) {
   console.log(`Claude mirror parity check passed for ${drift.checked} mirrored file(s).`);
 }
 
-function compareTrees(canonicalRoot, mirrorRoot) {
+function compareTrees(canonicalRoot, mirrorRoot, options = {}) {
   const canonicalFiles = listFiles(canonicalRoot);
-  const mirrorFiles = new Set(listFiles(mirrorRoot));
+  const mirrorFiles = new Set(listFiles(mirrorRoot, "", { excludeWorktrees: options.excludeMirrorWorktrees }));
 
   const missing = [];
   const mismatched = [];
@@ -97,13 +97,14 @@ function compareTrees(canonicalRoot, mirrorRoot) {
   };
 }
 
-function listFiles(root, prefix = "") {
+function listFiles(root, prefix = "", options = {}) {
   const entries = readdirSync(path.join(root, prefix), { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
+    if (!prefix && options.excludeWorktrees && entry.name === "worktrees") continue;
     const relativePath = prefix ? `${prefix}/${entry.name}` : entry.name;
     if (entry.isDirectory()) {
-      files.push(...listFiles(root, relativePath));
+      files.push(...listFiles(root, relativePath, options));
     } else {
       files.push(relativePath);
     }
@@ -120,6 +121,8 @@ function runSelfTest() {
     const mirror = path.join(tempRoot, "mirror");
     mkdirSync(path.join(canonical, "nested"), { recursive: true });
     mkdirSync(path.join(mirror, "nested"), { recursive: true });
+    mkdirSync(path.join(mirror, "worktrees", "locked-checkout"), { recursive: true });
+    writeFileSync(path.join(mirror, "worktrees", "locked-checkout", ".git"), "registered worktree\n");
 
     writeFileSync(path.join(canonical, "same.md"), "same\n");
     writeFileSync(path.join(mirror, "same.md"), "same\n");
@@ -128,7 +131,7 @@ function runSelfTest() {
     writeFileSync(path.join(canonical, "drifted.md"), "new content\n");
     writeFileSync(path.join(mirror, "drifted.md"), "old content\n");
 
-    const drift = compareTrees(canonical, mirror);
+    const drift = compareTrees(canonical, mirror, { excludeMirrorWorktrees: true });
     if (drift.missing.join(",") !== "nested/only-canonical.md") {
       errors.push(`self-test missing detection failed: ${drift.missing.join(",")}`);
     }
@@ -141,7 +144,7 @@ function runSelfTest() {
 
     if (process.platform !== "win32") {
       chmodSync(path.join(canonical, "same.md"), 0o755);
-      const modeCheck = compareTrees(canonical, mirror);
+      const modeCheck = compareTrees(canonical, mirror, { excludeMirrorWorktrees: true });
       if (modeCheck.modeDrift.join(",") !== "same.md") {
         errors.push(`self-test mode drift detection failed: ${modeCheck.modeDrift.join(",")}`);
       }
@@ -152,9 +155,13 @@ function runSelfTest() {
     rmSync(path.join(mirror, "nested", "only-mirror.md"));
     writeFileSync(path.join(mirror, "drifted.md"), "new content\n");
 
-    const clean = compareTrees(canonical, mirror);
+    const clean = compareTrees(canonical, mirror, { excludeMirrorWorktrees: true });
     if (clean.missing.length !== 0 || clean.extra.length !== 0 || clean.mismatched.length !== 0 || clean.modeDrift.length !== 0) {
       errors.push("self-test clean comparison reported drift");
+    }
+    const cleanWithWorktree = compareTrees(canonical, mirror, { excludeMirrorWorktrees: true });
+    if (cleanWithWorktree.extra.length !== 0) {
+      errors.push("registered .claude/worktrees content was treated as mirror drift");
     }
   } finally {
     rmSync(tempRoot, { recursive: true, force: true });

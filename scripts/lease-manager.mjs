@@ -2,14 +2,15 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { resolveCoordinationStatePath } from "../.agents/scripts/lib/coordination-state.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = resolveRepoRoot(__dirname);
 const command = process.argv[2] || "self-test";
-const statePath = readOption("--state") || path.join(repoRoot, ".agents", "leases", "active-leases.json");
 
 try {
+  const statePath = readOption("--state") || resolveCoordinationStatePath(repoRoot);
   const result = run(command, statePath);
   if (process.argv.includes("--json")) console.log(JSON.stringify(result, null, 2));
   else console.log(result.message);

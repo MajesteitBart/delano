@@ -61,11 +61,17 @@ export function ProjectOverviewPage({
       <div className="page-heading">
         <div className="eyebrow">Project</div>
         <h2>{project.title}</h2>
-        <p>Source contracts, task state, and delivery structure for the selected project.</p>
+        <p>
+          Source contracts, task state, and delivery structure for the selected
+          project.
+        </p>
       </div>
       <div className="summary-grid">
         <MetricCard label="Status" value={project.status ?? "planned"} />
-        <MetricCard label="Workstreams" value={String(project.outline.workstreams?.length ?? 0)} />
+        <MetricCard
+          label="Workstreams"
+          value={String(project.outline.workstreams?.length ?? 0)}
+        />
         <MetricCard label="Open tasks" value={String(openTasks.length)} />
         <MetricCard label="Tasks" value={String(taskDocs.length)} />
       </div>
@@ -92,13 +98,18 @@ export function ProjectWorkstreamsPage({
   docs,
   onOpenDoc,
   project,
+  writable = true,
 }: {
   docs: Map<string, DocMeta>
   onOpenDoc: (path: string) => void
   project: ProjectIndex | null
+  writable?: boolean
 }) {
   const workstreams = project?.outline?.workstreams ?? []
-  const [notice, setNotice] = useState<{ message: string; tone: "info" | "error" } | null>(null)
+  const [notice, setNotice] = useState<{
+    message: string
+    tone: "info" | "error"
+  } | null>(null)
   const rows = workstreams.map((workstream) => {
     const taskDocs = (workstream.tasks ?? [])
       .map((path) => docs.get(path))
@@ -176,6 +187,7 @@ export function ProjectWorkstreamsPage({
       header: () => <span className="sr-only">Agent</span>,
       cell: ({ row }) => (
         <HandoverMenu
+          disabled={!writable}
           sourcePath={row.original.workstream.path}
           variant="icon"
           onStatus={(message, tone) => setNotice({ message, tone })}
@@ -199,7 +211,10 @@ export function ProjectWorkstreamsPage({
       </div>
       <HandoverNotice notice={notice} onDismiss={() => setNotice(null)} />
       {!workstreams.length ? (
-        <ProjectEmpty title="No workstreams" description="This project has no workstream contracts." />
+        <ProjectEmpty
+          title="No workstreams"
+          description="This project has no workstream contracts."
+        />
       ) : (
         <Card>
           <CardContent>
@@ -219,13 +234,18 @@ export function ProjectTasksPage({
   docs,
   onOpenDoc,
   project,
+  writable = true,
 }: {
   docs: Map<string, DocMeta>
   onOpenDoc: (path: string) => void
   project: ProjectIndex | null
+  writable?: boolean
 }) {
   const tasks = project ? projectTaskDocs(project, docs) : []
-  const [notice, setNotice] = useState<{ message: string; tone: "info" | "error" } | null>(null)
+  const [notice, setNotice] = useState<{
+    message: string
+    tone: "info" | "error"
+  } | null>(null)
 
   return (
     <section className="project-page">
@@ -236,7 +256,10 @@ export function ProjectTasksPage({
       </div>
       <HandoverNotice notice={notice} onDismiss={() => setNotice(null)} />
       {!tasks.length ? (
-        <ProjectEmpty title="No tasks" description="This project has no indexed task contracts." />
+        <ProjectEmpty
+          title="No tasks"
+          description="This project has no indexed task contracts."
+        />
       ) : (
         <Card>
           <CardContent>
@@ -244,6 +267,7 @@ export function ProjectTasksPage({
               docs={tasks}
               onOpenDoc={onOpenDoc}
               onHandoverStatus={(message, tone) => setNotice({ message, tone })}
+              writable={writable}
             />
           </CardContent>
         </Card>
@@ -254,21 +278,32 @@ export function ProjectTasksPage({
 
 function projectTaskDocs(project: ProjectIndex, docs: Map<string, DocMeta>) {
   const workstreamTasks =
-    project.outline?.workstreams?.flatMap((workstream) => workstream.tasks ?? []) ?? []
-  const paths = [...workstreamTasks, ...(project.outline?.unassignedTasks ?? [])]
-  return paths.map((path) => docs.get(path)).filter((doc): doc is DocMeta => Boolean(doc))
+    project.outline?.workstreams?.flatMap(
+      (workstream) => workstream.tasks ?? []
+    ) ?? []
+  const paths = [
+    ...workstreamTasks,
+    ...(project.outline?.unassignedTasks ?? []),
+  ]
+  return paths
+    .map((path) => docs.get(path))
+    .filter((doc): doc is DocMeta => Boolean(doc))
 }
 
 function DocumentTable({
   docs,
   onOpenDoc,
   onHandoverStatus,
+  writable = true,
 }: {
   docs: DocMeta[]
   onOpenDoc: (path: string) => void
   onHandoverStatus?: (message: string, tone: "info" | "error") => void
+  writable?: boolean
 }) {
-  const showAgentColumn = Boolean(onHandoverStatus) && docs.some((doc) => doc.role === "task" || doc.role === "workstream")
+  const showAgentColumn =
+    Boolean(onHandoverStatus) &&
+    docs.some((doc) => doc.role === "task" || doc.role === "workstream")
   const columns: ColumnDef<DocMeta>[] = [
     {
       id: "document",
@@ -350,6 +385,7 @@ function DocumentTable({
       cell: ({ row }) =>
         row.original.role === "task" || row.original.role === "workstream" ? (
           <HandoverMenu
+            disabled={!writable}
             sourcePath={row.original.path}
             variant="icon"
             onStatus={onHandoverStatus}
@@ -379,12 +415,19 @@ function HandoverNotice({
   return (
     <p
       className={
-        notice.tone === "error" ? "text-sm text-destructive" : "text-sm text-muted-foreground"
+        notice.tone === "error"
+          ? "text-sm text-destructive"
+          : "text-sm text-muted-foreground"
       }
       role="status"
     >
       {notice.message}{" "}
-      <Button variant="ghost" size="xs" onClick={onDismiss} aria-label="Dismiss handover status">
+      <Button
+        variant="ghost"
+        size="xs"
+        onClick={onDismiss}
+        aria-label="Dismiss handover status"
+      >
         Dismiss
       </Button>
     </p>

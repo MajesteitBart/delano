@@ -9,8 +9,9 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawn, spawnSync } = require('node:child_process');
 
-const repoRoot = path.resolve(process.env.DELANO_VIEWER_ROOT || path.resolve(__dirname, '..', '..'));
-const projectRoot = path.join(repoRoot, '.project');
+const launchRoot = path.resolve(process.env.DELANO_VIEWER_ROOT || path.resolve(__dirname, '..', '..'));
+let repoRoot = launchRoot;
+let projectRoot = path.join(repoRoot, '.project');
 const publicRoot = path.join(__dirname, 'public');
 const DEFAULT_PORT = 3977;
 const MAX_PORT = 65535;
@@ -32,9 +33,9 @@ const FALLBACK_RESCAN_MS = 2000;
 const WATCHER_RESTART_MS = 1000;
 const SSE_HEARTBEAT_MS = 25000;
 const MAX_ACTIVITY_EVENTS = 200;
-const annotationStoreDir = path.join(projectRoot, 'viewer');
-const annotationStorePath = path.join(annotationStoreDir, 'annotations.json');
-const handoverDir = path.join(annotationStoreDir, 'handovers');
+let annotationStoreDir = path.join(projectRoot, 'viewer');
+let annotationStorePath = path.join(annotationStoreDir, 'annotations.json');
+let handoverDir = path.join(annotationStoreDir, 'handovers');
 const startPort = normalizePort(process.env.DELANO_VIEWER_PORT || process.env.PORT, DEFAULT_PORT);
 const activityEvents = [];
 const sseClients = new Set();
@@ -47,6 +48,9 @@ let watcherRestartTimer = null;
 let watcherErrorLogged = false;
 let liveUpdatesStarted = false;
 let liveUpdatesStopping = false;
+let contextGeneration = 1;
+let contextSwitching = false;
+let activeContext = null;
 
 class HttpRequestError extends Error {
   constructor(message, statusCode = 400) {
@@ -57,11 +61,74 @@ class HttpRequestError extends Error {
 }
 
 let contextReader = null;
+let repositoryDomain = null;
 try {
   contextReader = require(path.resolve(__dirname, '..', '..', 'src', 'cli', 'lib', 'context-reader'));
 } catch {
   contextReader = null;
 }
+try {
+  repositoryDomain = {
+    git: require(path.resolve(__dirname, '..', '..', 'src', 'cli', 'lib', 'git-repository')),
+    registry: require(path.resolve(__dirname, '..', '..', 'src', 'cli', 'lib', 'repository-registry')),
+    state: require(path.resolve(__dirname, '..', '..', 'src', 'cli', 'lib', 'worktree-state')),
+  };
+} catch {
+  repositoryDomain = null;
+}
+
+function legacyRepositoryContext(root) {
+  const canonical = path.resolve(root);
+  const id = sha256(`legacy-repository:${canonical}`);
+  const worktreeId = sha256(`legacy-worktree:${canonical}`);
+  return {
+    repository: { id, primaryPath: canonical, displayName: path.basename(canonical), worktrees: [] },
+    worktree: {
+      id: worktreeId,
+      path: canonical,
+      head: null,
+      branch: null,
+      detached: false,
+      role: 'primary',
+      primary: true,
+      available: true,
+      projectAvailable: fs.existsSync(path.join(canonical, '.project')),
+      projectState: {
+        status: fs.existsSync(path.join(canonical, '.project')) ? 'clean' : 'unavailable',
+        available: fs.existsSync(path.join(canonical, '.project')),
+        diverged: false,
+        dirty: false,
+        dirtyFiles: [],
+        reason: fs.existsSync(path.join(canonical, '.project')) ? null : '.project is missing',
+      },
+    },
+    legacy: true,
+  };
+}
+
+function resolveLaunchContext() {
+  if (!repositoryDomain) return legacyRepositoryContext(launchRoot);
+  try {
+    const registered = repositoryDomain.registry.registerRepository(launchRoot);
+    const repository = registered.repository;
+    const worktrees = repositoryDomain.state.classifyRepositoryWorktrees(repository);
+    const worktree = worktrees.find((candidate) => candidate.primary);
+    return { repository: { ...repository, worktrees }, worktree, legacy: false };
+  } catch {
+    return legacyRepositoryContext(launchRoot);
+  }
+}
+
+function setActiveRoot(context) {
+  repoRoot = path.resolve(context.worktree.path);
+  projectRoot = path.join(repoRoot, '.project');
+  annotationStoreDir = path.join(projectRoot, 'viewer');
+  annotationStorePath = path.join(annotationStoreDir, 'annotations.json');
+  handoverDir = path.join(annotationStoreDir, 'handovers');
+  activeContext = context;
+}
+
+setActiveRoot(resolveLaunchContext());
 
 function normalizePort(value, fallback) {
   const parsed = Number(value || fallback);
@@ -190,7 +257,8 @@ function logWatcherError(error) {
   console.error(`Delano viewer watcher error; live updates will retry or use polling: ${message}`);
 }
 
-function rescanMarkdown() {
+function rescanMarkdown(generation = contextGeneration) {
+  if (generation !== contextGeneration) return;
   try {
     const next = buildMarkdownSnapshot();
     const at = new Date().toISOString();
@@ -202,12 +270,12 @@ function rescanMarkdown() {
   }
 }
 
-function scheduleRescan() {
-  if (liveUpdatesStopping) return;
+function scheduleRescan(generation = contextGeneration) {
+  if (liveUpdatesStopping || generation !== contextGeneration) return;
   clearTimeout(rescanTimer);
   rescanTimer = setTimeout(() => {
     rescanTimer = null;
-    rescanMarkdown();
+    rescanMarkdown(generation);
   }, WATCH_DEBOUNCE_MS);
   rescanTimer.unref();
 }
@@ -220,15 +288,18 @@ function isRecursiveWatchUnsupported(error) {
 
 function startFallbackRescan() {
   if (fallbackRescanTimer || liveUpdatesStopping) return;
-  fallbackRescanTimer = setInterval(rescanMarkdown, FALLBACK_RESCAN_MS);
+  const generation = contextGeneration;
+  fallbackRescanTimer = setInterval(() => rescanMarkdown(generation), FALLBACK_RESCAN_MS);
   fallbackRescanTimer.unref();
 }
 
 function scheduleWatcherRestart() {
   if (watcherRestartTimer || fallbackRescanTimer || liveUpdatesStopping) return;
+  const generation = contextGeneration;
   watcherRestartTimer = setTimeout(() => {
+    if (generation !== contextGeneration) return;
     watcherRestartTimer = null;
-    rescanMarkdown();
+    rescanMarkdown(generation);
     startProjectWatcher();
   }, WATCHER_RESTART_MS);
   watcherRestartTimer.unref();
@@ -250,8 +321,9 @@ function handleWatcherFailure(watcher, error) {
 function startProjectWatcher() {
   if (projectWatcher || fallbackRescanTimer || liveUpdatesStopping) return;
   let watcher;
+  const generation = contextGeneration;
   try {
-    watcher = fs.watch(realpathSafe(projectRoot) || projectRoot, { recursive: true }, scheduleRescan);
+    watcher = fs.watch(realpathSafe(projectRoot) || projectRoot, { recursive: true }, () => scheduleRescan(generation));
   } catch (error) {
     logWatcherError(error);
     if (isRecursiveWatchUnsupported(error)) startFallbackRescan();
@@ -262,6 +334,7 @@ function startProjectWatcher() {
   projectWatcher = watcher;
   watcher.on('error', (error) => handleWatcherFailure(watcher, error));
   watcher.on('close', () => {
+    if (generation !== contextGeneration) return;
     if (projectWatcher === watcher) projectWatcher = null;
     if (!liveUpdatesStopping && !projectWatcher && !fallbackRescanTimer) scheduleWatcherRestart();
   });
@@ -525,6 +598,188 @@ function loadContextPack() {
   }
 }
 
+function loadSchemaOptions() {
+  const schemaRoot = path.join(repoRoot, '.agents', 'schemas', 'artifacts');
+  try {
+    if (!fs.existsSync(schemaRoot)) {
+      throw new Error(`Artifact schema directory is missing: ${path.join('.agents', 'schemas', 'artifacts')}`);
+    }
+    const options = {};
+    for (const entry of fs.readdirSync(schemaRoot, { withFileTypes: true }).filter((item) => item.isFile() && item.name.endsWith('.schema.json')).sort((a, b) => a.name.localeCompare(b.name))) {
+      const artifact = entry.name.replace(/\.schema\.json$/, '');
+      const schemaPath = path.join(schemaRoot, entry.name);
+      let schema;
+      try {
+        schema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+      } catch (error) {
+        throw new Error(`Artifact schema is malformed: ${entry.name} (${error.message})`);
+      }
+      const fields = {};
+      for (const [field, definition] of Object.entries(schema.properties || {})) {
+        if (Array.isArray(definition.enum)) fields[field] = [...definition.enum];
+      }
+      options[artifact] = fields;
+    }
+    return { options, error: null };
+  } catch (error) {
+    return { options: null, error: error.message };
+  }
+}
+
+function visibleContext() {
+  const repository = activeContext.repository;
+  const worktree = activeContext.worktree;
+  return {
+    generation: contextGeneration,
+    switching: contextSwitching,
+    repository: {
+      id: repository.id,
+      name: repository.displayName,
+      primaryPath: repository.primaryPath,
+    },
+    worktree: {
+      id: worktree.id,
+      path: worktree.path,
+      branch: worktree.branch,
+      detached: worktree.detached,
+      head: worktree.head,
+      role: worktree.role,
+      primary: worktree.primary,
+      available: worktree.available,
+      projectAvailable: worktree.projectAvailable,
+      projectState: worktree.projectState,
+    },
+    projectRoot,
+    writable: Boolean(worktree.primary),
+    writeDisabledReason: worktree.primary ? null : 'Canonical writes are disabled while viewing a linked worktree.',
+  };
+}
+
+function contextInventory() {
+  if (!repositoryDomain || activeContext.legacy) {
+    return {
+      repositories: [{
+        id: activeContext.repository.id,
+        name: activeContext.repository.displayName,
+        primaryPath: activeContext.repository.primaryPath,
+        available: true,
+        worktrees: [activeContext.worktree],
+      }],
+      active: visibleContext(),
+    };
+  }
+
+  const registry = repositoryDomain.registry.readRegistry();
+  const repositories = registry.repositories.map((entry) => {
+    try {
+      const repository = repositoryDomain.git.resolveRepository(entry.primaryPath);
+      const worktrees = repositoryDomain.state.classifyRepositoryWorktrees(repository);
+      return {
+        id: repository.id,
+        name: repository.displayName,
+        primaryPath: repository.primaryPath,
+        lastSeen: entry.lastSeen,
+        available: true,
+        error: null,
+        worktrees,
+      };
+    } catch (error) {
+      return {
+        id: entry.id,
+        name: entry.displayName,
+        primaryPath: entry.primaryPath,
+        lastSeen: entry.lastSeen,
+        available: false,
+        error: error.message,
+        worktrees: [],
+      };
+    }
+  });
+  const freshActiveRepository = repositories.find((repository) => repository.id === activeContext.repository.id && repository.available);
+  const freshActiveWorktree = freshActiveRepository?.worktrees.find((worktree) => worktree.id === activeContext.worktree.id);
+  if (freshActiveRepository && freshActiveWorktree) {
+    activeContext = {
+      ...activeContext,
+      repository: { ...activeContext.repository, worktrees: freshActiveRepository.worktrees },
+      worktree: freshActiveWorktree,
+    };
+  }
+  return { repositories, active: visibleContext() };
+}
+
+function resetRootScopedState() {
+  stopLiveUpdates();
+  activityEvents.length = 0;
+  markdownSnapshot = new Map();
+  watcherErrorLogged = false;
+  liveUpdatesStarted = false;
+  liveUpdatesStopping = false;
+  contextGeneration += 1;
+}
+
+function resolveSwitchSelection(repositoryId, worktreeId) {
+  if (!repositoryDomain || activeContext.legacy) {
+    throw new HttpRequestError('Repository switching is unavailable because Git repository services could not be loaded.', 503);
+  }
+  const registry = repositoryDomain.registry.readRegistry();
+  const entry = registry.repositories.find((candidate) => candidate.id === repositoryId);
+  if (!entry) throw new HttpRequestError('Repository selection is stale or unregistered.', 409);
+  let repository;
+  try {
+    repository = repositoryDomain.git.resolveRepository(entry.primaryPath);
+  } catch (error) {
+    throw new HttpRequestError(`Repository is unavailable: ${error.message}`, 409);
+  }
+  if (repository.id !== repositoryId) throw new HttpRequestError('Repository identity changed; refresh the inventory.', 409);
+  const worktrees = repositoryDomain.state.classifyRepositoryWorktrees(repository);
+  const worktree = worktrees.find((candidate) => candidate.id === worktreeId);
+  if (!worktree) throw new HttpRequestError('Worktree selection is stale or does not belong to this repository.', 409);
+  if (!worktree.available || !worktree.projectAvailable || !worktree.projectState.available) {
+    throw new HttpRequestError(`Worktree project state is unavailable: ${worktree.projectState.reason || worktree.unavailableReason || '.project is missing'}`, 409);
+  }
+  const worktreeReal = realpathSafe(worktree.path);
+  const projectReal = realpathSafe(path.join(worktree.path, '.project'));
+  if (!worktreeReal || !projectReal || !isInside(worktreeReal, projectReal)) {
+    throw new HttpRequestError('Selected .project path escapes the Git-reported worktree.', 400);
+  }
+  return { repository: { ...repository, worktrees }, worktree, legacy: false };
+}
+
+async function handleContext(req, res) {
+  if (req.method === 'GET') return sendJson(res, contextInventory());
+  if (req.method !== 'POST') {
+    res.writeHead(405); res.end('Use GET or POST'); return;
+  }
+  if (contextSwitching) throw new HttpRequestError('Viewer context is switching; retry the request.', 503);
+  contextSwitching = true;
+  try {
+    const payload = await readJsonBody(req);
+    const repositoryId = sanitizeString(payload.repositoryId, 128, 'repositoryId', true);
+    const worktreeId = sanitizeString(payload.worktreeId, 128, 'worktreeId', true);
+    const next = resolveSwitchSelection(repositoryId, worktreeId);
+    resetRootScopedState();
+    setActiveRoot(next);
+    startLiveUpdates();
+    return sendJson(res, { ok: true, context: visibleContext(), index: loadIndex() });
+  } finally {
+    contextSwitching = false;
+  }
+}
+
+function ensureRequestContext(req) {
+  if (contextSwitching) throw new HttpRequestError('Viewer context is switching; retry the request.', 503);
+  if (req.delanoGeneration !== undefined && req.delanoGeneration !== contextGeneration) {
+    throw new HttpRequestError('Viewer context changed while the request was running; retry the request.', 409);
+  }
+}
+
+function ensureWritableContext(req) {
+  ensureRequestContext(req);
+  if (!activeContext.worktree.primary) {
+    throw new HttpRequestError('Canonical writes are disabled while viewing a linked worktree.', 403);
+  }
+}
+
 function loadIndex() {
   const docs = walkMarkdown(projectRoot).map((file) => docMeta(file));
   const contextPack = loadContextPack();
@@ -574,7 +829,18 @@ function loadIndex() {
     return String(b.created).localeCompare(String(a.created));
   });
   const projects = [...fixed, ...projectEntries];
-  return { repo: path.basename(repoRoot), generatedAt: new Date().toISOString(), contextPack, annotationSummary: annotationSummaryResult, projects, docs };
+  const schema = loadSchemaOptions();
+  return {
+    repo: path.basename(repoRoot),
+    generatedAt: new Date().toISOString(),
+    context: visibleContext(),
+    schemaOptions: schema.options,
+    schemaOptionsError: schema.error,
+    contextPack,
+    annotationSummary: annotationSummaryResult,
+    projects,
+    docs,
+  };
 }
 
 function sendJson(res, data) {
@@ -1153,12 +1419,14 @@ function handoverPrompt(intent, source, handoverPath, annotationCount) {
 
 async function handleHandover(req, res) {
   if (req.method !== 'POST') return sendError(res, 405, 'Use POST');
+  ensureWritableContext(req);
   let payload;
   try {
     payload = await readJsonBody(req);
   } catch (error) {
     return sendError(res, statusCodeForError(error), error.message);
   }
+  ensureWritableContext(req);
   const agent = payload.agent == null ? 'chatgpt' : String(payload.agent);
   if (!HANDOVER_AGENTS.has(agent)) {
     return sendError(res, 400, 'Unsupported handover agent.');
@@ -1209,6 +1477,7 @@ async function handleHandover(req, res) {
 
   if (action === 'launch') {
     const launch = await launchAgentTerminal(agent, prompt);
+    ensureRequestContext(req);
     if (!launch.ok) return sendJsonStatus(res, 400, { ok: false, error: launch.error, ...base });
     return sendJson(res, { ok: true, launched: true, ...base, ...launch });
   }
@@ -1341,7 +1610,9 @@ async function handleAnnotations(req, res, parsed) {
   }
 
   if (req.method === 'POST') {
+    ensureWritableContext(req);
     const payload = await readJsonBody(req);
+    ensureWritableContext(req);
     let annotation;
     try {
       annotation = normalizeAnnotationInput(payload);
@@ -1354,10 +1625,12 @@ async function handleAnnotations(req, res, parsed) {
   }
 
   if (req.method === 'PATCH') {
+    ensureWritableContext(req);
     const id = sanitizeString(parsed.query.id, 120, 'id', true);
     const index = store.annotations.findIndex((annotation) => annotation.id === id);
     if (index < 0) return sendError(res, 404, 'Annotation not found.');
     const payload = await readJsonBody(req);
+    ensureWritableContext(req);
     let annotation;
     try {
       annotation = normalizeAnnotationInput({ ...store.annotations[index], ...payload }, store.annotations[index]);
@@ -1370,6 +1643,7 @@ async function handleAnnotations(req, res, parsed) {
   }
 
   if (req.method === 'DELETE') {
+    ensureWritableContext(req);
     const ids = String(parsed.query.id || '').split(',').map((id) => id.trim()).filter(Boolean);
     if (!ids.length) return sendError(res, 400, 'Annotation id is required.');
     const before = store.annotations.length;
@@ -1411,12 +1685,15 @@ async function handleAnnotationExport(req, res, parsed) {
 
 async function handleApplyPreview(req, res, shouldWrite) {
   if (req.method !== 'POST') return sendError(res, 405, 'Use POST');
+  if (shouldWrite) ensureWritableContext(req);
   let payload;
   try {
     payload = await readJsonBody(req);
   } catch (error) {
     return sendError(res, statusCodeForError(error), error.message);
   }
+  if (shouldWrite) ensureWritableContext(req);
+  else ensureRequestContext(req);
   const source = resolveProjectMarkdownPath(payload.sourcePath);
   if (!source) return sendError(res, 400, 'sourcePath must point at a known .project markdown document.');
   const replacementMarkdown = String(payload.replacementMarkdown ?? '');
@@ -1468,7 +1745,12 @@ async function handleApplyPreview(req, res, shouldWrite) {
 
 const server = http.createServer(async (req, res) => {
   try {
+    req.delanoGeneration = contextGeneration;
     const parsed = parseRequestUrl(req.url);
+    if (parsed.pathname === '/api/context') return await handleContext(req, res);
+    if (contextSwitching && parsed.pathname.startsWith('/api/')) {
+      throw new HttpRequestError('Viewer context is switching; retry the request.', 503);
+    }
     if (parsed.pathname === '/api/events') {
       if (req.method !== 'GET') {
         res.writeHead(405); res.end('Use GET'); return;

@@ -83,7 +83,7 @@ Select any text and annotate it: a comment, a question, a verify request. Then h
   <img src="marketing/real/handover-menu.png" alt="The send-to menu in the viewer: ChatGPT, Codex, Claude Code, Claude, or a custom agent, send for review, or copy a handover command" width="380">
 </p>
 
-The viewer never edits canonical files behind your back. Annotations live in their own store (`.project/viewer/annotations.json`), and markdown changes require a diff preview and explicit confirmation. It's a reading room, not a control panel.
+The viewer never edits canonical files behind your back. Annotations live in their own store (`.project/viewer/annotations.json`), and markdown changes require a diff preview and explicit confirmation. Searchable repository/worktree controls can inspect registered local repositories and divergent linked `.project` state, while linked worktrees remain read-only. The all-status Tasks view filters with raw options from the canonical task schema. It's a reading room, not a control panel.
 
 It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port. The viewer client is built from `.delano/viewer/ui` with the shadcn CLI and real shadcn/Radix primitives. When changing viewer UI, run `npm --prefix .delano/viewer/ui run build` before `npm run build:assets`.
 
@@ -120,6 +120,8 @@ The CLI is deliberately thin. It installs the runtime, reads state, and wraps th
 delano validate                   # do contracts and reality still agree?
 delano status --open --brief      # what's in flight
 delano next                       # dependency-safe next task
+delano repos                      # machine-local registered repositories
+delano worktrees                  # fresh Git worktree and .project health
 delano init my-feature "My Feature"
 delano research my-feature open-question
 delano task close my-feature T-001 --evidence "tests pass, see updates/003"
@@ -238,7 +240,7 @@ The marketing landing page lives under [`marketing/`](marketing/README.md).
 
 ## Publishing
 
-Publishing is handled by the GitHub Actions workflow `.github/workflows/publish-npm.yml` using npm trusted publishing (publisher: GitHub Actions, repository `MajesteitBart/delano`, workflow `publish-npm.yml`). Push a matching version tag such as `v0.3.2`, or run the workflow manually from `main`; a `dry_run` input runs the same checks without publishing. The workflow rebuilds the payload, checks manifest drift, runs tests, verifies the version is unpublished, and publishes with OIDC provenance. `repository.url` in `package.json` must stay `https://github.com/MajesteitBart/delano` for provenance validation.
+Publishing is handled by the GitHub Actions workflow `.github/workflows/publish-npm.yml` using npm trusted publishing (publisher: GitHub Actions, repository `MajesteitBart/delano`, workflow `publish-npm.yml`). Push a matching version tag such as `v0.3.3`, or run the workflow manually from `main`; a `dry_run` input runs the same checks without publishing. The workflow rebuilds the payload, checks manifest drift, runs tests, verifies the version is unpublished, and publishes with OIDC provenance. `repository.url` in `package.json` must stay `https://github.com/MajesteitBart/delano` for provenance validation.
 
 ## Release notes
 

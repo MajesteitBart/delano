@@ -3,11 +3,12 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
+import { resolveCoordinationStatePath } from "../.agents/scripts/lib/coordination-state.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = resolveRepoRoot(__dirname);
-const statePath = readOption("--state") || path.join(repoRoot, ".agents", "leases", "active-leases.json");
+const statePath = readOption("--state") || resolveCoordinationStatePath(repoRoot);
 const selfTest = process.argv.includes("--self-test") || !existsSync(statePath);
 const errors = [];
 

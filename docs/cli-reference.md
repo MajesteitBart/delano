@@ -51,6 +51,8 @@ Use `delano --help` and `delano <command> --help` for live command help.
 | `delano onboarding` | Review repo-root agent instructions with explicit approval. | Nothing by default |
 | `delano viewer` | Start the guarded local review UI for `.project`. | `.project/viewer/annotations.json`; canonical markdown only through explicit preview/apply |
 | `delano context` | List and read `.project/context` as a safe context pack. | Nothing |
+| `delano repos` | List or forget machine-local repository registrations used by the viewer. | `~/.delano/repositories.json` (or `$DELANO_HOME/repositories.json`) |
+| `delano worktrees` | List fresh Git-reported worktrees and `.project` health for a repository. | Nothing |
 | `delano project` | Create, show, and patch project contracts. | `.project/projects/<slug>/` |
 | `delano workstream` | Add, show, and patch workstream contracts. | `.project/projects/<slug>/workstreams/` |
 | `delano task` | Add, show, and patch task contracts with lifecycle rollups. | `.project/projects/<slug>/tasks/` and parent rollups |
@@ -122,6 +124,29 @@ Profiles are:
 | `all` | Every discovered markdown file in canonical context order. |
 
 `delano context` is read-only. It never edits, creates, summarizes, or rewrites `.project/context` files. Selectors must stay below `.project/context`, must be markdown files, and fail closed for absolute paths, traversal, non-context paths, unreadable files, and symlink escapes. JSON output uses repo-relative paths only and includes ordered file metadata, missing required files, warnings, content for reads, and truncation state.
+
+## Repository Registry And Worktrees
+
+Successful Delano commands quietly register the repository's primary Git worktree. The machine-local registry is stored at `~/.delano/repositories.json`, or `$DELANO_HOME/repositories.json` when `DELANO_HOME` is set. It contains local display names, primary paths, stable IDs derived from the Git common directory, and last-seen timestamps. It never contains project files, task contents, remotes, credentials, or registry telemetry, and it is not copied into installed repositories or npm payloads.
+
+Inspect or remove registrations:
+
+```bash
+delano repos
+delano repos --json
+delano repos --forget <repo-or-worktree-path>
+```
+
+Registry reads prune missing primary paths. Registration is success-only, atomic, and deduplicates linked worktrees under their primary repository. Forgetting removes only the machine-local entry; it does not delete a repository or worktree.
+
+Ask Git for the current worktree inventory:
+
+```bash
+delano worktrees
+delano worktrees --target <repo-or-worktree-path> --json
+```
+
+The result identifies primary, linked, detached, locked, prunable, and unavailable worktrees without scanning unrelated directories. Each entry also reports whether `.project` is present and whether its state is clean, dirty, diverged from the primary worktree, or unavailable. The viewer reads this fresh inventory rather than treating registry paths as authority.
 
 ## Project Lifecycle
 
@@ -287,6 +312,8 @@ Validate before handoff:
 ```bash
 delano validate
 ```
+
+Validation blocks a linked worktree with uncommitted `.project` changes by default. Use `delano validate -- --allow-worktree-state` only for an intentional inspection or repair flow; the override does not make linked viewer contexts writable.
 
 For Delano runtime development, also run:
 

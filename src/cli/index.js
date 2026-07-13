@@ -9,6 +9,13 @@ const { runViewer, getViewerHelp } = require("./commands/viewer");
 const { getContextHelp, runContextCommand } = require("./commands/context");
 const { createWrapperCommand } = require("./commands/wrapper");
 const {
+  getReposHelp,
+  getWorktreesHelp,
+  registerSuccessfulCommand,
+  runRepos,
+  runWorktrees
+} = require("./commands/repositories");
+const {
   getProjectHelp,
   getTaskHelp,
   getUpdateHelp,
@@ -55,6 +62,16 @@ const commands = {
     description: "List and read .project/context as a safe context pack.",
     run: runContextCommand,
     help: getContextHelp
+  },
+  repos: {
+    description: "List or forget machine-local Delano repositories.",
+    run: runRepos,
+    help: getReposHelp
+  },
+  worktrees: {
+    description: "List Git-reported worktrees for a Delano repository.",
+    run: runWorktrees,
+    help: getWorktreesHelp
   },
   project: {
     description: "Create, show, and patch Delano project contracts.",
@@ -143,6 +160,8 @@ function getGeneralHelp() {
     "  install    Install the approved Delano runtime payload",
     "  viewer     Launch the guarded local review UI for .project contracts",
     "  context    List and read .project/context safely",
+    "  repos      List or forget machine-local Delano repositories",
+    "  worktrees  List Git-reported worktrees and project-state availability",
     "  project    Create, show, and patch project contracts",
     "  workstream Add and patch workstream contracts",
     "  task       Add and patch task contracts with scoped lifecycle rollups",
@@ -167,6 +186,8 @@ function getGeneralHelp() {
     "  delano viewer",
     "  delano context list --json",
     "  delano context read --profile implementation",
+    "  delano repos",
+    "  delano worktrees",
     "  delano project create my-project --name \"My Project\" --owner team",
     "  delano workstream add my-project WS-A --name \"API Foundation\" --owner backend-team",
     "  delano task add my-project T-001 --name \"Build endpoint\" --workstream WS-A",
@@ -267,7 +288,9 @@ async function run(argv) {
     return 0;
   }
 
-  return command.run(commandArgs);
+  const exitCode = await command.run(commandArgs);
+  if (exitCode === 0) registerSuccessfulCommand(invocation.commandName, commandArgs);
+  return exitCode;
 }
 
 module.exports = {

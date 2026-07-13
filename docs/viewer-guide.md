@@ -55,6 +55,18 @@ Project folders show a project-oriented outline for specs, plans, decisions, upd
 
 The workspace sidebar also includes an **Annotations** page. It lists viewer comments across all projects, links each row back to its source document, and stays outside the selected-project navigation.
 
+## Repository And Worktree Context
+
+The searchable repository and worktree controls at the top of the sidebar use the machine-local Delano registry plus a fresh `git worktree list --porcelain` inventory. The registry stores local paths and timestamps at `~/.delano/repositories.json` (or `$DELANO_HOME/repositories.json`), so treat it as private machine metadata and do not commit or share it. Use `delano repos --forget <path>` to remove an entry without touching the repository itself.
+
+The topbar always identifies the selected repository and whether its worktree is primary or linked. Open the adjacent details control to inspect the full repository/worktree paths, branch or detached state, HEAD, selected `.project` source, availability, dirty files, and committed divergence from primary. The browser persists only a versioned pair of opaque IDs and restores it after refresh only if the fresh inventory still validates it; stale or missing choices fall back to the server's current context with an explanation rather than silently reading another path.
+
+The selected worktree's own `.project/` directory is the viewer's project-data source. Primary worktrees retain editing, annotations, and handover. Linked worktrees are read-only in the UI, and the server independently rejects annotation, apply, and handover writes. This makes divergent linked contracts inspectable without treating them as canonical.
+
+The workspace **Tasks** page includes all indexed statuses. Its multi-select status values come directly from the canonical task schema exposed by `/api/index`; labels are presentation only, and a missing/malformed schema is shown as an error instead of replaced by viewer constants. **Progress** is one navigation entry that opens the complete update list.
+
+Coordination state is shared across worktrees under the Git common directory at `delano/leases/active-leases.json`. On first use, Delano safely migrates the legacy `.agents/leases/active-leases.json` only when there is no destination collision; conflicting copies are preserved and reported for manual resolution.
+
 ## Guarded Write Boundary
 
 The viewer writes only constrained review artifacts by default. Selected-text annotations are stored in `.project/viewer/annotations.json` and reference `.project` markdown by repo-relative path.
@@ -148,3 +160,5 @@ If the viewer shows no projects:
 - run `delano validate` to catch malformed contracts.
 
 If a task or workstream relationship looks wrong, inspect the task frontmatter in `.project/projects/<slug>/tasks/` and verify `workstream`, `depends_on`, and status fields.
+
+If validation reports uncommitted linked-worktree `.project` state, commit or clean the intended worktree before continuing. `delano validate -- --allow-worktree-state` is an explicit temporary override for inspection and does not weaken the viewer's primary-only write boundary.

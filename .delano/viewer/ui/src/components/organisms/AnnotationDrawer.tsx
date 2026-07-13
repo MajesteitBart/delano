@@ -52,6 +52,8 @@ export function AnnotationDrawer({
   onUpdate,
   onDelete,
   onRefresh,
+  writable = true,
+  writeDisabledReason,
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -62,6 +64,8 @@ export function AnnotationDrawer({
   onUpdate: (id: string, patch: Partial<Annotation>) => void
   onDelete: (id: string) => void
   onRefresh: () => void
+  writable?: boolean
+  writeDisabledReason?: string | null
 }) {
   const [agent, setAgent] = useHandoverAgent()
   const [handoverBusy, setHandoverBusy] = useState(false)
@@ -160,6 +164,12 @@ export function AnnotationDrawer({
             <h2 className="font-heading text-base font-medium text-foreground">
               Review
             </h2>
+            {!writable && (
+              <p className="text-xs text-muted-foreground">
+                {writeDisabledReason ??
+                  "Linked worktree annotations are read-only."}
+              </p>
+            )}
             <p className="truncate font-mono text-xs text-muted-foreground">
               {doc.path}
             </p>
@@ -221,6 +231,7 @@ export function AnnotationDrawer({
                     onToggle={() => onToggleSelected(annotation.id)}
                     onUpdate={(patch) => onUpdate(annotation.id, patch)}
                     onDelete={() => onDelete(annotation.id)}
+                    writable={writable}
                   />
                 ))}
               </div>
@@ -236,9 +247,9 @@ export function AnnotationDrawer({
             <AgentSplitButton
               agent={agent}
               busy={handoverBusy}
-              disabled={!annotations.length}
+              disabled={!annotations.length || !writable}
               fullWidth
-              menuDisabled={handoverBusy}
+              menuDisabled={handoverBusy || !writable}
               onAgentChange={setAgent}
               onSend={() => void primaryHandover()}
               menuFooter={

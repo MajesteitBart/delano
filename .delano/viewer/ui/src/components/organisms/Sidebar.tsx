@@ -17,6 +17,7 @@ import {
 import { type ReactNode, useMemo } from "react"
 
 import { CountBadge } from "@/components/atoms/CountBadge"
+import { ContextSwitcher } from "@/components/molecules/ContextSwitcher"
 import { ProjectSelect } from "@/components/molecules/ProjectSelect"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -27,14 +28,19 @@ import {
   type ViewerRoute,
   type WorkspaceView,
 } from "@/lib/domain/navigation"
-import type { DocMeta, ProjectIndex, ViewerIndex } from "@/lib/domain/types"
+import type {
+  DocMeta,
+  ProjectIndex,
+  ViewerContextInventory,
+  ViewerIndex,
+} from "@/lib/domain/types"
 import { sidebarCounts, selectableProjects } from "@/lib/domain/workspace-model"
 import { cn } from "@/lib/utils"
 
 const WORKSPACE_ICONS: Record<WorkspaceView, LucideIcon> = {
   "workspace-context": FolderOpenIcon,
   "workspace-projects": CodeIcon,
-  "workspace-current": ListChecksIcon,
+  "workspace-tasks": ListChecksIcon,
   "workspace-progress": TrendingUpIcon,
   "workspace-annotations": MessageSquareTextIcon,
   "workspace-validation": CheckCircle2Icon,
@@ -45,25 +51,33 @@ const WORKSPACE_ICONS: Record<WorkspaceView, LucideIcon> = {
 export function Sidebar({
   activePath,
   activeProject,
+  contextError,
   index,
+  inventory,
   onOpenDoc,
   onOpenProjectOverview,
   onOpenProjectTasks,
   onOpenProjectWorkstreams,
   onOpenWorkspace,
   onSelectProject,
+  onSwitchContext,
   route,
+  switchingContext,
 }: {
   activePath: string | null
   activeProject: ProjectIndex | null
+  contextError?: string
   index: ViewerIndex | null
+  inventory: ViewerContextInventory | null
   onOpenDoc: (path: string) => void
   onOpenProjectOverview: () => void
   onOpenProjectTasks: () => void
   onOpenProjectWorkstreams: () => void
   onOpenWorkspace: (view: WorkspaceView) => void
   onSelectProject: (slug: string) => void
+  onSwitchContext: (repositoryId: string, worktreeId: string) => Promise<void>
   route: ViewerRoute
+  switchingContext: boolean
 }) {
   const counts = useMemo(() => sidebarCounts(index), [index])
   const projects = useMemo(() => selectableProjects(index), [index])
@@ -72,7 +86,12 @@ export function Sidebar({
     if (!projectDocs) return []
     return [
       { id: "spec", label: "Spec", icon: FileTextIcon, path: projectDocs.spec },
-      { id: "plan", label: "Plan", icon: ListChecksIcon, path: projectDocs.plan },
+      {
+        id: "plan",
+        label: "Plan",
+        icon: ListChecksIcon,
+        path: projectDocs.plan,
+      },
       ...(projectDocs.decisions ?? []).map((path, index) => ({
         id: `decision-${index}`,
         label: index === 0 ? "Decisions" : `Decisions ${index + 1}`,
@@ -82,27 +101,23 @@ export function Sidebar({
     ].filter((item) => item.path)
   }, [projectDocs])
 
-  const progressItems = useMemo(
-    () =>
-      (projectDocs?.progress ?? []).map((path, index) => ({
-        id: `progress-${index}`,
-        label: index === 0 ? "Progress log" : `Progress ${index + 1}`,
-        path,
-      })),
-    [projectDocs]
-  )
+  const progressCount = projectDocs?.progress?.length ?? 0
 
   const workstreamDocs = useMemo(() => {
     if (!activeProject || !index?.docs) return []
     return index.docs
-      .filter((doc) => doc.project === activeProject.slug && doc.role === "workstream")
+      .filter(
+        (doc) => doc.project === activeProject.slug && doc.role === "workstream"
+      )
       .sort((a, b) => a.path.localeCompare(b.path))
   }, [activeProject, index])
 
   const taskDocs = useMemo(() => {
     if (!activeProject || !index?.docs) return []
     return index.docs
-      .filter((doc) => doc.project === activeProject.slug && doc.role === "task")
+      .filter(
+        (doc) => doc.project === activeProject.slug && doc.role === "task"
+      )
       .sort((a, b) => a.path.localeCompare(b.path))
   }, [activeProject, index])
 
@@ -113,6 +128,13 @@ export function Sidebar({
       </div>
       <ScrollArea className="min-h-0 min-w-0 flex-1">
         <div className="sidebar-scroll-content">
+          <ContextSwitcher
+            error={contextError}
+            inventory={inventory}
+            onSwitch={onSwitchContext}
+            switching={switchingContext}
+          />
+          <Separator />
           <NavSection title="Workspace">
             {WORKSPACE_NAV.map((item) => {
               const Icon = WORKSPACE_ICONS[item.view]
@@ -122,7 +144,9 @@ export function Sidebar({
                   icon={Icon}
                   label={item.label}
                   count={counts[item.countKey]}
-                  active={route.kind === "workspace" && route.view === item.view}
+                  active={
+                    route.kind === "workspace" && route.view === item.view
+                  }
                   onClick={() => onOpenWorkspace(item.view)}
                 />
               )
@@ -164,7 +188,12 @@ export function Sidebar({
                 onClick={onOpenProjectWorkstreams}
               />
               {workstreamDocs.map((doc) => (
-                <SubDocNav key={doc.path} doc={doc} activePath={activePath} onOpen={onOpenDoc} />
+                <SubDocNav
+                  key={doc.path}
+                  doc={doc}
+                  activePath={activePath}
+                  onOpen={onOpenDoc}
+                />
               ))}
               <NavButton
                 icon={CheckCircle2Icon}
@@ -174,22 +203,26 @@ export function Sidebar({
                 onClick={onOpenProjectTasks}
               />
               {taskDocs.map((doc) => (
-                <SubDocNav key={doc.path} doc={doc} activePath={activePath} onOpen={onOpenDoc} />
+                <SubDocNav
+                  key={doc.path}
+                  doc={doc}
+                  activePath={activePath}
+                  onOpen={onOpenDoc}
+                />
               ))}
-              {!!progressItems.length && (
+              {progressCount > 0 && (
                 <>
                   <Separator />
-                  <div className="nav-break">Progress</div>
-                  {progressItems.map((item) => (
-                    <DocNav
-                      key={item.id}
-                      icon={Clock3Icon}
-                      label={item.label}
-                      path={item.path}
-                      activePath={activePath}
-                      onOpen={onOpenDoc}
-                    />
-                  ))}
+                  <NavButton
+                    icon={Clock3Icon}
+                    label="Progress"
+                    count={progressCount}
+                    active={
+                      route.kind === "workspace" &&
+                      route.view === "workspace-progress"
+                    }
+                    onClick={() => onOpenWorkspace("workspace-progress")}
+                  />
                 </>
               )}
             </NavSection>
@@ -200,7 +233,13 @@ export function Sidebar({
   )
 }
 
-function NavSection({ title, children }: { title: string; children: ReactNode }) {
+function NavSection({
+  title,
+  children,
+}: {
+  title: string
+  children: ReactNode
+}) {
   return (
     <section className="nav-section">
       <div className="nav-section-title">{title}</div>

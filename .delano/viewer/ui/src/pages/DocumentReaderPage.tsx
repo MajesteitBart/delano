@@ -103,6 +103,8 @@ export function DocumentReaderPage({
   onOpenDoc,
   onRefresh,
   project,
+  writable = true,
+  writeDisabledReason,
 }: {
   doc: ViewerDoc
   docs: Map<string, DocMeta>
@@ -112,6 +114,8 @@ export function DocumentReaderPage({
   onOpenDoc: (path: string) => void
   onRefresh?: () => void
   project: ProjectIndex | null
+  writable?: boolean
+  writeDisabledReason?: string | null
 }) {
   const [mode, setMode] = useState<"read" | "edit">("read")
   const [externalChangeToken, setExternalChangeToken] = useState(0)
@@ -231,7 +235,7 @@ export function DocumentReaderPage({
     setMode("read")
   }
 
-  const canEdit = Boolean(doc.baseline?.hash)
+  const canEdit = Boolean(doc.baseline?.hash) && writable
 
   useEffect(() => {
     if (mode !== "read" || !canEdit) return
@@ -301,6 +305,7 @@ export function DocumentReaderPage({
     highlightSource: DraftAnnotation["anchor"]["highlightSource"],
     rect: DOMRect
   ) => {
+    if (!writable) return false
     if (popoverDirty) return false
     const quote = highlightSource.text.trim()
     if (!quote || quote.length < 2) return false
@@ -326,6 +331,7 @@ export function DocumentReaderPage({
   }
 
   const handleHighlightClick = (highlightId: string, rect: DOMRect) => {
+    if (!writable) return
     const annotation = annotations.find(
       (item) => item.anchor?.highlightSource?.id === highlightId
     )
@@ -496,6 +502,14 @@ export function DocumentReaderPage({
               Back
             </Button>
             <div className="flex items-center gap-2">
+              {!writable && (
+                <span
+                  className="hidden max-w-64 text-right text-xs text-muted-foreground lg:inline"
+                  title={writeDisabledReason ?? undefined}
+                >
+                  Linked worktree · read-only
+                </span>
+              )}
               {canEdit && (
                 <Button
                   variant="outline"
@@ -521,6 +535,7 @@ export function DocumentReaderPage({
                 <HandoverMenu
                   sourcePath={doc.path}
                   size="default"
+                  disabled={!writable}
                   onDispatched={setDispatched}
                   onStatus={(message, tone) => {
                     if (tone === "error") {
@@ -636,6 +651,8 @@ export function DocumentReaderPage({
             setAnnotationError(messageFromError(err))
           )
         }
+        writable={writable}
+        writeDisabledReason={writeDisabledReason}
       />
       {popover && (
         <AnnotationPopover

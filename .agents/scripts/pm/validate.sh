@@ -8,10 +8,14 @@ errors=0
 warnings=0
 
 release_checks=false
+allow_worktree_state=false
 for arg in "$@"; do
   case "$arg" in
     --release)
       release_checks=true
+      ;;
+    --allow-worktree-state)
+      allow_worktree_state=true
       ;;
   esac
 done
@@ -119,6 +123,32 @@ resolve_node_cmd() {
 
 echo "Delano validation"
 echo "================="
+
+primary_worktree="$(git worktree list --porcelain 2>/dev/null | awk '/^worktree / {sub(/^worktree /, ""); print; exit}')"
+current_worktree="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [[ -n "$primary_worktree" ]]; then
+  primary_worktree="$(cd "$primary_worktree" 2>/dev/null && pwd -P || printf '%s' "$primary_worktree")"
+  current_worktree="$(cd "$current_worktree" 2>/dev/null && pwd -P || printf '%s' "$current_worktree")"
+  if [[ "$current_worktree" != "$primary_worktree" ]]; then
+    project_changes="$(git status --porcelain=v1 --untracked-files=all -- .project 2>/dev/null || true)"
+    if [[ -n "$project_changes" ]]; then
+      if [[ "$allow_worktree_state" == true ]]; then
+        echo "Linked-worktree .project changes allowed by --allow-worktree-state"
+        warnings=$((warnings + 1))
+      else
+        echo "Linked worktree has uncommitted .project changes; commit/stash them or rerun with --allow-worktree-state"
+        errors=$((errors + 1))
+      fi
+    else
+      echo "Linked worktree .project state is clean"
+    fi
+  fi
+fi
+
+if [[ -f ".agents/leases/active-leases.json" ]]; then
+  echo "Legacy coordination state found at .agents/leases/active-leases.json; run a lease command to migrate it to the Git common directory"
+  warnings=$((warnings + 1))
+fi
 
 check_required_path ".project/projects"
 check_required_path ".project/context"

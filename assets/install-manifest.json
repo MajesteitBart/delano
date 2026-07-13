@@ -84,6 +84,7 @@
     ".agents/scripts/git-sparse-download.sh",
     ".agents/scripts/inspect-github-sync.mjs",
     ".agents/scripts/lease-manager.mjs",
+    ".agents/scripts/lib/coordination-state.mjs",
     ".agents/scripts/log-event.js",
     ".agents/scripts/log-event.sh",
     ".agents/scripts/plan-sync-repairs.mjs",
