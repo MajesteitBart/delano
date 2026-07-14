@@ -30,41 +30,6 @@ check_required_path() {
   fi
 }
 
-fm_get() {
-  local file="$1"
-  local key="$2"
-  awk -v key="$key" '
-    BEGIN {in_fm=0}
-    /^---[[:space:]]*$/ {if (in_fm==0) {in_fm=1; next} else {exit}}
-    in_fm==1 && $0 ~ "^" key ":[[:space:]]*" {
-      sub("^" key ":[[:space:]]*", "")
-      sub(/\r$/, "")
-      print
-      exit
-    }
-  ' "$file"
-}
-
-has_frontmatter() {
-  local file="$1"
-  [[ "$(awk 'NR==1 && /^---[[:space:]]*$/ {print "yes"}' "$file")" == "yes" ]]
-}
-
-is_iso_utc() {
-  local ts="$1"
-  [[ "$ts" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
-}
-
-contains_value() {
-  local needle="$1"
-  shift
-  local item
-  for item in "$@"; do
-    [[ "$item" == "$needle" ]] && return 0
-  done
-  return 1
-}
-
 python_cmd=()
 node_cmd=()
 
@@ -240,163 +205,188 @@ for skill in "${required_skills[@]}"; do
   fi
 done
 
-# Project contract validation
-for project_dir in .project/projects/*; do
-  [[ -d "$project_dir" ]] || continue
-  [[ "$(basename "$project_dir")" == ".gitkeep" ]] && continue
-
-  echo ""
-  echo "Project: $(basename "$project_dir")"
-
-  for path in spec.md plan.md decisions.md tasks workstreams updates; do
-    if [[ ! -e "$project_dir/$path" ]]; then
-      echo "  ❌ Missing $path"
-      errors=$((errors + 1))
-    fi
-  done
-
-  spec="$project_dir/spec.md"
-  if [[ -f "$spec" ]]; then
-    if ! has_frontmatter "$spec"; then
-      echo "  ❌ spec.md missing frontmatter"
-      errors=$((errors + 1))
-    fi
-    for key in name slug owner status created updated outcome uncertainty probe_required probe_status; do
-      val="$(fm_get "$spec" "$key")"
-      if [[ -z "$val" ]]; then
-        echo "  ❌ spec.md missing key: $key"
-        errors=$((errors + 1))
-      fi
-    done
-    for key in created updated; do
-      val="$(fm_get "$spec" "$key")"
-      if [[ -n "$val" ]] && ! is_iso_utc "$val"; then
-        echo "  ❌ spec.md $key must be ISO8601 UTC"
-        errors=$((errors + 1))
-      fi
-    done
-    probe_status_value="$(fm_get "$spec" "probe_status")"
-    if [[ "$probe_status_value" == "skipped" ]]; then
-      probe_rationale_value="$(fm_get "$spec" "probe_decision_rationale")"
-      if [[ -z "$probe_rationale_value" ]]; then
-        echo "  ❌ spec.md probe_status is skipped but probe_decision_rationale is missing or empty"
-        errors=$((errors + 1))
-      fi
-    fi
-  fi
-
-  plan="$project_dir/plan.md"
-  if [[ -f "$plan" ]]; then
-    if ! has_frontmatter "$plan"; then
-      echo "  ❌ plan.md missing frontmatter"
-      errors=$((errors + 1))
-    fi
-    for key in name status lead created updated linear_project_id risk_level spec_status_at_plan_time; do
-      val="$(fm_get "$plan" "$key")"
-      if [[ -z "$val" && "$key" != "linear_project_id" ]]; then
-        echo "  ❌ plan.md missing key: $key"
-        errors=$((errors + 1))
-      fi
-    done
-    for key in created updated; do
-      val="$(fm_get "$plan" "$key")"
-      if [[ -n "$val" ]] && ! is_iso_utc "$val"; then
-        echo "  ❌ plan.md $key must be ISO8601 UTC"
-        errors=$((errors + 1))
-      fi
-    done
-  fi
-
-  workstream_ids=()
-  for workstream in "$project_dir"/workstreams/*.md; do
-    [[ -f "$workstream" ]] || continue
-    workstream_file="$(basename "$workstream" .md)"
-    if [[ "$workstream_file" =~ ^(WS-[A-Za-z0-9]+) ]]; then
-      workstream_ids+=("${BASH_REMATCH[1]}")
-    fi
-  done
-
-  for task in "$project_dir"/tasks/*.md; do
-    [[ -f "$task" ]] || continue
-    if ! has_frontmatter "$task"; then
-      echo "  ❌ $(basename "$task") missing frontmatter"
-      errors=$((errors + 1))
-      continue
-    fi
-    for key in id name status workstream created updated linear_issue_id github_issue github_pr depends_on conflicts_with parallel priority estimate; do
-      val="$(fm_get "$task" "$key")"
-      if [[ -z "$val" && ! "$key" =~ ^(linear_issue_id|github_issue|github_pr|depends_on|conflicts_with)$ ]]; then
-        echo "  ❌ $(basename "$task") missing key: $key"
-        errors=$((errors + 1))
-      fi
-    done
-    task_workstream="$(fm_get "$task" "workstream")"
-    if [[ -n "$task_workstream" ]]; then
-      if [[ ! "$task_workstream" =~ ^WS-[A-Za-z0-9]+$ ]]; then
-        echo "  ❌ $(basename "$task") workstream must use canonical form like WS-A"
-        errors=$((errors + 1))
-      elif ! contains_value "$task_workstream" "${workstream_ids[@]}"; then
-        echo "  ❌ $(basename "$task") workstream does not match a project workstream: $task_workstream"
-        errors=$((errors + 1))
-      fi
-    fi
-  done
-
-  # dependency cycle check for this project
-  if [[ ${#python_cmd[@]} -gt 0 ]]; then
-    "${python_cmd[@]}" - "$project_dir" <<'PY' || errors=$((errors + 1))
-import sys, re
+# Project contract validation. Parse every Markdown file at most once in a single
+# Python process; spawning one awk process per field is prohibitively slow in
+# Git Bash on Windows for large portfolios.
+if [[ ${#python_cmd[@]} -gt 0 ]]; then
+  contract_error_count=-1
+  while IFS= read -r line; do
+    line="${line%$'\r'}"
+    case "$line" in
+      __DELANO_CONTRACT_ERRORS__=*)
+        contract_error_count="${line#*=}"
+        ;;
+      *)
+        printf '%s\n' "$line"
+        ;;
+    esac
+  done < <("${python_cmd[@]}" - ".project/projects" <<'PY'
+import re
+import sys
 from pathlib import Path
 
-project = Path(sys.argv[1])
-tasks = {}
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
-def parse_frontmatter(path: Path):
-    text = path.read_text(encoding='utf-8')
-    m = re.match(r'^---\r?\n(.*?)\r?\n---(?:\r?\n|$)', text, re.S)
-    if not m:
-        return {}
+projects_root = Path(sys.argv[1])
+error_count = 0
+iso_utc = re.compile(r"^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$")
+
+
+def report(message):
+    global error_count
+    print(f"  ❌ {message}")
+    error_count += 1
+
+
+def parse_frontmatter(path):
+    lines = path.read_text(encoding="utf-8").splitlines()
+    if not lines or not re.fullmatch(r"---[\t ]*", lines[0]):
+        return None
+
     data = {}
-    for line in m.group(1).splitlines():
-        if ':' not in line:
+    for line in lines[1:]:
+        if re.fullmatch(r"---[\t ]*", line):
+            return data
+        if ":" not in line:
             continue
-        k, v = line.split(':', 1)
-        data[k.strip()] = v.strip()
+        key, value = line.split(":", 1)
+        if key not in data:
+            data[key] = value.lstrip()
     return data
 
-for f in sorted((project / 'tasks').glob('*.md')):
-    meta = parse_frontmatter(f)
-    tid = meta.get('id') or f.stem
-    raw = meta.get('depends_on', '[]').strip()
-    deps = []
-    if raw.startswith('[') and raw.endswith(']'):
-        inner = raw[1:-1].strip()
-        if inner:
-            deps = [x.strip().strip('"\'') for x in inner.split(',') if x.strip()]
-    tasks[tid] = deps
 
-visited = {}
+def require_fields(filename, frontmatter, fields, optional=()):
+    for key in fields:
+        if not frontmatter.get(key, "") and key not in optional:
+            report(f"{filename} missing key: {key}")
 
-def dfs(node, stack):
-    state = visited.get(node, 0)
-    if state == 1:
-        cycle = ' -> '.join(stack + [node])
-        raise RuntimeError(f'dependency cycle: {cycle}')
-    if state == 2:
-        return
-    visited[node] = 1
-    for dep in tasks.get(node, []):
-        if dep in tasks:
-            dfs(dep, stack + [node])
-    visited[node] = 2
 
-for t in tasks:
-    dfs(t, [])
-print('  [ok] dependency graph acyclic')
+def validate_timestamps(filename, frontmatter):
+    for key in ("created", "updated"):
+        value = frontmatter.get(key, "")
+        if value and not iso_utc.fullmatch(value):
+            report(f"{filename} {key} must be ISO8601 UTC")
+
+
+def parse_dependencies(raw):
+    raw = raw.strip()
+    if not (raw.startswith("[") and raw.endswith("]")):
+        return []
+    inner = raw[1:-1].strip()
+    if not inner:
+        return []
+    return [item.strip().strip("\"'") for item in inner.split(",") if item.strip()]
+
+
+def validate_dependency_graph(tasks):
+    visited = {}
+
+    def visit(node, stack):
+        state = visited.get(node, 0)
+        if state == 1:
+            cycle = " -> ".join(stack + [node])
+            raise RuntimeError(f"dependency cycle: {cycle}")
+        if state == 2:
+            return
+        visited[node] = 1
+        for dependency in tasks.get(node, []):
+            if dependency in tasks:
+                visit(dependency, stack + [node])
+        visited[node] = 2
+
+    for task_id in tasks:
+        visit(task_id, [])
+
+
+for project_dir in sorted(path for path in projects_root.iterdir() if path.is_dir()):
+    print()
+    print(f"Project: {project_dir.name}")
+
+    for required_path in ("spec.md", "plan.md", "decisions.md", "tasks", "workstreams", "updates"):
+        if not (project_dir / required_path).exists():
+            report(f"Missing {required_path}")
+
+    spec_path = project_dir / "spec.md"
+    if spec_path.is_file():
+        spec = parse_frontmatter(spec_path)
+        if spec is None:
+            report("spec.md missing frontmatter")
+            spec = {}
+        require_fields(
+            "spec.md",
+            spec,
+            ("name", "slug", "owner", "status", "created", "updated", "outcome", "uncertainty", "probe_required", "probe_status"),
+        )
+        validate_timestamps("spec.md", spec)
+        if spec.get("probe_status") == "skipped" and not spec.get("probe_decision_rationale", ""):
+            report("spec.md probe_status is skipped but probe_decision_rationale is missing or empty")
+
+    plan_path = project_dir / "plan.md"
+    if plan_path.is_file():
+        plan = parse_frontmatter(plan_path)
+        if plan is None:
+            report("plan.md missing frontmatter")
+            plan = {}
+        require_fields(
+            "plan.md",
+            plan,
+            ("name", "status", "lead", "created", "updated", "linear_project_id", "risk_level", "spec_status_at_plan_time"),
+            optional=("linear_project_id",),
+        )
+        validate_timestamps("plan.md", plan)
+
+    workstream_ids = set()
+    workstreams_dir = project_dir / "workstreams"
+    if workstreams_dir.is_dir():
+        for workstream_path in workstreams_dir.glob("*.md"):
+            match = re.match(r"^(WS-[A-Za-z0-9]+)", workstream_path.stem)
+            if match:
+                workstream_ids.add(match.group(1))
+
+    tasks = {}
+    tasks_dir = project_dir / "tasks"
+    if tasks_dir.is_dir():
+        for task_path in sorted(tasks_dir.glob("*.md")):
+            task = parse_frontmatter(task_path)
+            if task is None:
+                report(f"{task_path.name} missing frontmatter")
+                continue
+            require_fields(
+                task_path.name,
+                task,
+                ("id", "name", "status", "workstream", "created", "updated", "linear_issue_id", "github_issue", "github_pr", "depends_on", "conflicts_with", "parallel", "priority", "estimate"),
+                optional=("linear_issue_id", "github_issue", "github_pr", "depends_on", "conflicts_with"),
+            )
+            task_workstream = task.get("workstream", "")
+            if task_workstream:
+                if not re.fullmatch(r"WS-[A-Za-z0-9]+", task_workstream):
+                    report(f"{task_path.name} workstream must use canonical form like WS-A")
+                elif task_workstream not in workstream_ids:
+                    report(f"{task_path.name} workstream does not match a project workstream: {task_workstream}")
+
+            task_id = task.get("id") or task_path.stem
+            tasks[task_id] = parse_dependencies(task.get("depends_on", "[]"))
+
+    try:
+        validate_dependency_graph(tasks)
+    except RuntimeError as error:
+        print(str(error))
+        error_count += 1
+    else:
+        print("  [ok] dependency graph acyclic")
+
+print(f"__DELANO_CONTRACT_ERRORS__={error_count}")
 PY
-  fi
+  )
 
-done
+  if [[ "$contract_error_count" =~ ^[0-9]+$ ]]; then
+    errors=$((errors + contract_error_count))
+  else
+    echo "Contract validation process did not return an error count"
+    errors=$((errors + 1))
+  fi
+fi
 
 # Absolute path leakage check (documentation and contract files only)
 path_tmp="$(mktemp)"
