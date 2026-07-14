@@ -418,13 +418,41 @@ function firstHeading(body) {
 }
 
 function snippet(body) {
-  return body
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/^#+\s+/gm, '')
-    .replace(/[*_`>#\-[\]]/g, ' ')
+  const lines = body.replace(/```[\s\S]*?```/g, '').split(/\r?\n/);
+  const paragraph = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (paragraph.length) break;
+      continue;
+    }
+    if (
+      /^#{1,6}\s/.test(trimmed) ||
+      /^(?:[-*+]\s|\d+[.)]\s|>\s?|\|)/.test(trimmed) ||
+      /^(?:-{3,}|_{3,}|\*{3,})$/.test(trimmed)
+    ) {
+      if (paragraph.length) break;
+      continue;
+    }
+    paragraph.push(trimmed);
+  }
+
+  const text = paragraph
+    .join(' ')
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/\[\[([^\]|]+)\|([^\]]+)\]\]/g, '$2')
+    .replace(/\[\[([^\]]+)\]\]/g, '$1')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[*_`~]/g, '')
     .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 180);
+    .trim();
+  if (text.length <= 180) return text;
+
+  const candidate = text.slice(0, 179).trimEnd();
+  const boundary = candidate.lastIndexOf(' ');
+  const truncated = boundary >= 120 ? candidate.slice(0, boundary) : candidate;
+  return `${truncated}…`;
 }
 
 function relationshipFields(frontmatter) {
@@ -445,6 +473,7 @@ function projectSlugFor(rel) {
 function artifactRoleFor(rel) {
   if (rel.startsWith('context/')) return rel.endsWith('/progress.md') || rel.endsWith('progress.md') ? 'progress' : 'context';
   if (rel.startsWith('templates/')) return 'template';
+  if (/^projects\/[^/]+\/research\//.test(rel)) return 'research';
   if (/\/spec\.md$/.test(rel)) return 'spec';
   if (/\/plan\.md$/.test(rel)) return 'plan';
   if (/\/decisions\.md$/.test(rel)) return 'decision';
@@ -536,6 +565,7 @@ function projectOutline(projectDocs) {
   return {
     spec: byRole('spec')[0]?.path || null,
     plan: byRole('plan')[0]?.path || null,
+    research: byName(byRole('research')).map((doc) => doc.path),
     progress: byRole('progress').map((doc) => doc.path),
     decisions: byRole('decision').map((doc) => doc.path),
     workstreams: byName(byRole('workstream')).map((ws) => ({

@@ -17,7 +17,6 @@ import {
 } from "@/components/molecules/DataTable"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   Empty,
   EmptyDescription,
@@ -36,7 +35,12 @@ import {
   type ProjectStat,
   type WorkspaceTaskItem,
 } from "@/lib/domain/workspace-model"
-import { dataTableMeta, optionMembershipFilter } from "@/lib/data-table"
+import {
+  dataTableMeta,
+  dateRangeFilter,
+  optionMembershipFilter,
+  type DataTableOption,
+} from "@/lib/data-table"
 
 const WORKSPACE_COPY: Record<
   WorkspaceView,
@@ -126,12 +130,14 @@ export function WorkspacePage({
           docs={workspace.context}
           emptyTitle="No context files"
           onOpenDoc={onOpenDoc}
+          sortByUpdated={false}
         />
       )}
       {view === "workspace-projects" && (
         <ProjectTable
           items={workspace.projects}
           onOpenProject={onOpenProject}
+          statusOptions={index?.schemaOptions?.spec?.status ?? []}
         />
       )}
       {view === "workspace-tasks" && (
@@ -140,6 +146,8 @@ export function WorkspacePage({
           emptyTitle="No tasks"
           emptyDescription="No indexed task contracts are available."
           statusOptions={index?.schemaOptions?.task?.status ?? []}
+          priorityOptions={index?.schemaOptions?.task?.priority ?? []}
+          estimateOptions={index?.schemaOptions?.task?.estimate ?? []}
           statusOptionsError={index?.schemaOptionsError}
           onOpenDoc={onOpenDoc}
           onOpenProject={onOpenProject}
@@ -183,6 +191,8 @@ export function WorkspacePage({
           onOpenDoc={onOpenDoc}
           onOpenProject={onOpenProject}
           statusOptions={index?.schemaOptions?.task?.status ?? []}
+          priorityOptions={index?.schemaOptions?.task?.priority ?? []}
+          estimateOptions={index?.schemaOptions?.task?.estimate ?? []}
           statusOptionsError={index?.schemaOptionsError}
         />
       )}
@@ -254,6 +264,12 @@ function AnnotationTable({
       sourceTitle: sourceDoc?.title ?? annotation.repoPath,
     }
   })
+  const statusOptions = uniqueOptions(
+    sorted.map((annotation) => {
+      const value = annotation.status || "open"
+      return { label: statusLabel(value), value }
+    })
+  )
   const columns: ColumnDef<(typeof rows)[number]>[] = [
     {
       id: "annotation",
@@ -320,23 +336,24 @@ function AnnotationTable({
     },
     {
       id: "status",
-      accessorFn: (row) => statusLabel(row.annotation.status || "open"),
+      accessorFn: (row) => row.annotation.status || "open",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Status" />
       ),
       cell: ({ row }) => (
         <StatusBadge status={row.original.annotation.status || "open"} />
       ),
-      filterFn: "includesString",
+      filterFn: optionMembershipFilter,
       meta: dataTableMeta({
         cellClassName: "min-w-28",
+        filter: { kind: "options", options: statusOptions },
         headerClassName: "min-w-28",
       }),
     },
     {
       id: "updated",
       accessorFn: (row) =>
-        formatDate(row.annotation.updatedAt ?? row.annotation.createdAt),
+        row.annotation.updatedAt ?? row.annotation.createdAt ?? "",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Updated" />
       ),
@@ -344,7 +361,7 @@ function AnnotationTable({
         formatDate(
           row.original.annotation.updatedAt ?? row.original.annotation.createdAt
         ),
-      filterFn: "includesString",
+      filterFn: dateRangeFilter,
       sortingFn: (a, b) =>
         String(
           a.original.annotation.updatedAt ??
@@ -359,6 +376,7 @@ function AnnotationTable({
         ),
       meta: dataTableMeta({
         cellClassName: "min-w-40",
+        filter: { kind: "date-range" },
         headerClassName: "min-w-40",
       }),
     },
@@ -395,24 +413,23 @@ function AnnotationTable({
   }
 
   return (
-    <Card>
-      <CardContent>
-        <DataTable
-          columns={columns}
-          data={rows}
-          getRowId={(row) => row.annotation.id}
-        />
-      </CardContent>
-    </Card>
+    <DataTable
+      columns={columns}
+      data={rows}
+      getRowId={(row) => row.annotation.id}
+      initialSorting={[{ id: "updated", desc: true }]}
+    />
   )
 }
 
 function ProjectTable({
   items,
   onOpenProject,
+  statusOptions,
 }: {
   items: ProjectStat[]
   onOpenProject: (slug: string) => void
+  statusOptions: string[]
 }) {
   const columns: ColumnDef<ProjectStat>[] = [
     {
@@ -438,7 +455,7 @@ function ProjectTable({
     },
     {
       id: "status",
-      accessorFn: (item) => statusLabel(item.project.status),
+      accessorFn: (item) => item.project.status ?? "planned",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Status" />
       ),
@@ -448,9 +465,16 @@ function ProjectTable({
         ) : (
           "Planned"
         ),
-      filterFn: "includesString",
+      filterFn: optionMembershipFilter,
       meta: dataTableMeta({
         cellClassName: "min-w-28",
+        filter: {
+          kind: "options",
+          options: statusOptions.map((value) => ({
+            label: statusLabel(value),
+            value,
+          })),
+        },
         headerClassName: "min-w-28",
       }),
     },
@@ -481,19 +505,34 @@ function ProjectTable({
       }),
     },
     {
+      id: "created",
+      accessorFn: (item) => item.created ?? "",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Created" />
+      ),
+      cell: ({ row }) => formatDate(row.original.created),
+      filterFn: dateRangeFilter,
+      meta: dataTableMeta({
+        cellClassName: "min-w-40",
+        filter: { kind: "date-range" },
+        headerClassName: "min-w-40",
+      }),
+    },
+    {
       id: "updated",
-      accessorFn: (item) => formatDate(item.updated),
+      accessorFn: (item) => item.updated ?? "",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Updated" />
       ),
       cell: ({ row }) => formatDate(row.original.updated),
-      filterFn: "includesString",
+      filterFn: dateRangeFilter,
       sortingFn: (a, b) =>
         String(a.original.updated ?? "").localeCompare(
           String(b.original.updated ?? "")
         ),
       meta: dataTableMeta({
         cellClassName: "min-w-40",
+        filter: { kind: "date-range" },
         headerClassName: "min-w-40",
       }),
     },
@@ -510,15 +549,12 @@ function ProjectTable({
   }
 
   return (
-    <Card>
-      <CardContent>
-        <DataTable
-          columns={columns}
-          data={items}
-          getRowId={(item) => item.project.slug}
-        />
-      </CardContent>
-    </Card>
+    <DataTable
+      columns={columns}
+      data={items}
+      getRowId={(item) => item.project.slug}
+      initialSorting={[{ id: "updated", desc: true }]}
+    />
   )
 }
 
@@ -528,6 +564,8 @@ function TaskTable({
   items,
   onOpenDoc,
   onOpenProject,
+  priorityOptions,
+  estimateOptions,
   statusOptions,
   statusOptionsError,
 }: {
@@ -536,9 +574,23 @@ function TaskTable({
   items: WorkspaceTaskItem[]
   onOpenDoc: (path: string) => void
   onOpenProject: (slug: string) => void
+  priorityOptions: string[]
+  estimateOptions: string[]
   statusOptions: string[]
   statusOptionsError?: string | null
 }) {
+  const projectOptions = uniqueOptions(
+    items.map((item) => ({
+      label: item.project?.title ?? "None",
+      value: item.project?.slug ?? "__none__",
+    }))
+  )
+  const workstreamOptions = uniqueOptions(
+    items.map((item) => ({
+      label: item.workstream?.title ?? "None",
+      value: item.workstream?.path ?? "__none__",
+    }))
+  )
   const columns: ColumnDef<WorkspaceTaskItem>[] = [
     {
       id: "task",
@@ -563,7 +615,7 @@ function TaskTable({
     },
     {
       id: "project",
-      accessorFn: (item) => item.project?.title ?? "None",
+      accessorFn: (item) => item.project?.slug ?? "__none__",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Project" />
       ),
@@ -579,15 +631,16 @@ function TaskTable({
         ) : (
           <span className="text-muted-foreground">None</span>
         ),
-      filterFn: "includesString",
+      filterFn: optionMembershipFilter,
       meta: dataTableMeta({
         cellClassName: "min-w-64 whitespace-normal",
+        filter: { kind: "options", options: projectOptions },
         headerClassName: "min-w-64",
       }),
     },
     {
       id: "workstream",
-      accessorFn: (item) => item.workstream?.title ?? "None",
+      accessorFn: (item) => item.workstream?.path ?? "__none__",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Workstream" />
       ),
@@ -595,9 +648,10 @@ function TaskTable({
         row.original.workstream?.title ?? (
           <span className="text-muted-foreground">None</span>
         ),
-      filterFn: "includesString",
+      filterFn: optionMembershipFilter,
       meta: dataTableMeta({
         cellClassName: "min-w-64 whitespace-normal",
+        filter: { kind: "options", options: workstreamOptions },
         headerClassName: "min-w-64",
       }),
     },
@@ -632,9 +686,17 @@ function TaskTable({
       ),
       cell: ({ row }) =>
         frontmatterText(row.original.doc, "priority") || "None",
-      filterFn: "includesString",
+      filterFn: optionMembershipFilter,
       meta: dataTableMeta({
         cellClassName: "min-w-28",
+        filter: {
+          kind: "options",
+          options: priorityOptions.map((value) => ({
+            label: statusLabel(value),
+            value,
+          })),
+          unavailableReason: statusOptionsError,
+        },
         headerClassName: "min-w-28",
       }),
     },
@@ -646,9 +708,14 @@ function TaskTable({
       ),
       cell: ({ row }) =>
         frontmatterText(row.original.doc, "estimate") || "None",
-      filterFn: "includesString",
+      filterFn: optionMembershipFilter,
       meta: dataTableMeta({
         cellClassName: "min-w-28",
+        filter: {
+          kind: "options",
+          options: estimateOptions.map((value) => ({ label: value, value })),
+          unavailableReason: statusOptionsError,
+        },
         headerClassName: "min-w-28",
       }),
     },
@@ -659,9 +726,10 @@ function TaskTable({
         <DataTableColumnHeader column={column} title="Updated" />
       ),
       cell: ({ row }) => formatDate(row.original.doc.updated),
-      filterFn: "includesString",
+      filterFn: dateRangeFilter,
       meta: dataTableMeta({
         cellClassName: "min-w-40",
+        filter: { kind: "date-range" },
         headerClassName: "min-w-40",
       }),
     },
@@ -678,15 +746,12 @@ function TaskTable({
   }
 
   return (
-    <Card>
-      <CardContent>
-        <DataTable
-          columns={columns}
-          data={items}
-          getRowId={(item) => item.doc.path}
-        />
-      </CardContent>
-    </Card>
+    <DataTable
+      columns={columns}
+      data={items}
+      getRowId={(item) => item.doc.path}
+      initialSorting={[{ id: "updated", desc: true }]}
+    />
   )
 }
 
@@ -697,14 +762,22 @@ function frontmatterText(doc: DocMeta, key: string) {
     : ""
 }
 
+function uniqueOptions(options: DataTableOption[]) {
+  return [
+    ...new Map(options.map((option) => [option.value, option])).values(),
+  ].sort((a, b) => a.label.localeCompare(b.label))
+}
+
 function DocTable({
   docs,
   emptyTitle,
   onOpenDoc,
+  sortByUpdated = true,
 }: {
   docs: DocMeta[]
   emptyTitle: string
   onOpenDoc: (path: string) => void
+  sortByUpdated?: boolean
 }) {
   const columns: ColumnDef<DocMeta>[] = [
     {
@@ -764,18 +837,19 @@ function DocTable({
     },
     {
       id: "updated",
-      accessorFn: (doc) => formatDate(doc.updated),
+      accessorFn: (doc) => doc.updated ?? "",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title="Updated" />
       ),
       cell: ({ row }) => formatDate(row.original.updated),
-      filterFn: "includesString",
+      filterFn: dateRangeFilter,
       sortingFn: (a, b) =>
         String(a.original.updated ?? "").localeCompare(
           String(b.original.updated ?? "")
         ),
       meta: dataTableMeta({
         cellClassName: "min-w-40",
+        filter: { kind: "date-range" },
         headerClassName: "min-w-40",
       }),
     },
@@ -792,11 +866,12 @@ function DocTable({
   }
 
   return (
-    <Card>
-      <CardContent>
-        <DataTable columns={columns} data={docs} getRowId={(doc) => doc.path} />
-      </CardContent>
-    </Card>
+    <DataTable
+      columns={columns}
+      data={docs}
+      getRowId={(doc) => doc.path}
+      initialSorting={sortByUpdated ? [{ id: "updated", desc: true }] : []}
+    />
   )
 }
 

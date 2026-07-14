@@ -94,3 +94,24 @@ test("review drawer is a single annotation surface with existing actions", () =>
   assert.match(drawerSource, /exportAnnotations\("copy"\)/)
   assert.match(drawerSource, /<AgentSplitButton/)
 })
+
+test("annotations are gated behind explicit Review mode", () => {
+  assert.doesNotMatch(readerSource, /setReviewOpen\(items\.length > 0\)/)
+  assert.match(readerSource, /annotationEnabled=\{reviewMode && writable\}/)
+  assert.match(readerSource, /reviewMode=\{reviewMode\}/)
+  assert.match(
+    markdownArticleSource,
+    /onMouseUp=\{annotationEnabled \? handleSelection : undefined\}/
+  )
+  assert.match(
+    markdownArticleSource,
+    /onClick=\{reviewMode \? handleClick : undefined\}/
+  )
+  assert.match(markdownArticleSource, /if \(!reviewMode\) return/)
+})
+
+test("Review drawer does not reserve document width", () => {
+  assert.doesNotMatch(readerSource, /pr-\[416px\]/)
+  assert.doesNotMatch(readerSource, /transition-\[padding\]/)
+  assert.match(drawerSource, /fixed inset-y-0 right-0/)
+})

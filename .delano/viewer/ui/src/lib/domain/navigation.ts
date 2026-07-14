@@ -16,6 +16,8 @@ export type ViewerRoute =
   | { kind: "project-overview" }
   | { kind: "project-workstreams" }
   | { kind: "project-tasks" }
+  | { kind: "project-research" }
+  | { kind: "project-progress" }
   | { kind: "document"; path: string }
 
 export const WORKSPACE_NAV: Array<{
@@ -31,16 +33,14 @@ export const WORKSPACE_NAV: Array<{
     | "warnings"
     | "blockers"
 }> = [
-  { view: "workspace-context", label: "Context pack", countKey: "context" },
   { view: "workspace-projects", label: "Projects", countKey: "projects" },
   { view: "workspace-tasks", label: "Tasks", countKey: "tasks" },
-  { view: "workspace-progress", label: "Progress", countKey: "progress" },
+  { view: "workspace-context", label: "Context pack", countKey: "context" },
   {
     view: "workspace-annotations",
     label: "Annotations",
     countKey: "annotations",
   },
-  { view: "workspace-validation", label: "Validation", countKey: "validation" },
   { view: "workspace-warnings", label: "Warnings", countKey: "warnings" },
   { view: "workspace-blockers", label: "Blockers", countKey: "blockers" },
 ]
@@ -53,20 +53,28 @@ type ViewerIndexLike = {
   contextPack?: {
     files?: Array<{ path: string }>
   }
-  docs?: Array<{ path: string; role?: string }>
+  docs?: Array<{
+    path: string
+    role?: string
+    project?: string | null
+  }>
   projects?: Array<{
     slug: string
     outline?: {
       spec?: string | null
+      plan?: string | null
+      decisions?: string[]
+      research?: string[]
+      progress?: string[]
     }
   }>
 }
 
 export const NAVIGATION_STORAGE_KEY = "delano-viewer-navigation"
-export const NAVIGATION_STORAGE_VERSION = 2
+export const NAVIGATION_STORAGE_VERSION = 3
 
 export type StoredNavigation = {
-  version: 2
+  version: 3
   repositoryId?: string
   worktreeId?: string
   projectSlug: string | null
@@ -79,7 +87,11 @@ export function restoreStoredNavigation(
 ): Pick<StoredNavigation, "projectSlug" | "route"> | null {
   if (!raw || typeof raw !== "object") return null
   const stored = raw as Record<string, unknown>
-  if (stored.version !== 1 && stored.version !== NAVIGATION_STORAGE_VERSION)
+  if (
+    stored.version !== 1 &&
+    stored.version !== 2 &&
+    stored.version !== NAVIGATION_STORAGE_VERSION
+  )
     return null
   if (
     typeof stored.repositoryId === "string" &&
@@ -109,7 +121,7 @@ export function restoreStoredNavigation(
   if (route.kind === "workspace") {
     const view =
       route.view === "workspace-current" ? "workspace-tasks" : route.view
-    if (WORKSPACE_NAV.some((item) => item.view === view)) {
+    if (workspaceViewAvailable(view)) {
       return {
         projectSlug,
         route: { kind: "workspace", view: view as WorkspaceView },
@@ -117,7 +129,7 @@ export function restoreStoredNavigation(
     }
     return {
       projectSlug,
-      route: { kind: "workspace", view: "workspace-tasks" },
+      route: { kind: "workspace", view: DEFAULT_WORKSPACE_VIEW },
     }
   }
   if (route.kind === "document" && typeof route.path === "string") {
@@ -125,17 +137,24 @@ export function restoreStoredNavigation(
     if (doc?.role === "progress") {
       return {
         projectSlug,
-        route: { kind: "workspace", view: "workspace-progress" },
+        route: { kind: "project-progress" },
       }
+    }
+    if (doc?.role === "research") {
+      return { projectSlug, route: { kind: "project-research" } }
     }
     if (doc)
       return { projectSlug, route: { kind: "document", path: route.path } }
     return { projectSlug, route: defaultRoute() }
   }
   if (
-    ["project-overview", "project-workstreams", "project-tasks"].includes(
-      String(route.kind)
-    )
+    [
+      "project-overview",
+      "project-workstreams",
+      "project-tasks",
+      "project-research",
+      "project-progress",
+    ].includes(String(route.kind))
   ) {
     return { projectSlug, route: { kind: route.kind } as ViewerRoute }
   }
@@ -173,6 +192,97 @@ export function pickInitialProjectSlug(
 
 export function defaultRoute(): ViewerRoute {
   return { kind: "project-overview" }
+}
+
+export function translateNavigation(
+  current: Pick<StoredNavigation, "projectSlug" | "route">,
+  nextIndex: ViewerIndexLike,
+  options: {
+    previousIndex?: ViewerIndexLike | null
+    targetProjectSlug?: string | null
+  } = {}
+): Pick<StoredNavigation, "projectSlug" | "route"> {
+  const route = current.route
+  const requestedProject =
+    options.targetProjectSlug === undefined
+      ? current.projectSlug
+      : options.targetProjectSlug
+  const projectSlug = projectExists(nextIndex, requestedProject)
+    ? requestedProject
+    : pickInitialProjectSlug(nextIndex)
+
+  if (route.kind === "workspace") {
+    const view = workspaceViewAvailable(route.view)
+      ? route.view
+      : DEFAULT_WORKSPACE_VIEW
+    return { projectSlug, route: { kind: "workspace", view } }
+  }
+
+  if (!projectSlug) {
+    return {
+      projectSlug: null,
+      route: { kind: "workspace", view: DEFAULT_WORKSPACE_VIEW },
+    }
+  }
+
+  if (route.kind !== "document") {
+    return { projectSlug, route }
+  }
+
+  const exact = nextIndex.docs?.find(
+    (doc) => doc.path === route.path
+  )
+  if (
+    exact &&
+    (options.targetProjectSlug === undefined || exact.project === projectSlug)
+  ) {
+    return {
+      projectSlug: exact.project ?? projectSlug,
+      route,
+    }
+  }
+
+  const previousDoc = (options.previousIndex ?? nextIndex).docs?.find(
+    (doc) => doc.path === route.path
+  )
+  const role = previousDoc?.role
+  if (["spec", "plan", "decision"].includes(String(role))) {
+    const equivalent = nextIndex.docs
+      ?.filter((doc) => doc.project === projectSlug && doc.role === role)
+      .sort((a, b) => a.path.localeCompare(b.path))[0]
+    if (equivalent) {
+      return {
+        projectSlug,
+        route: { kind: "document", path: equivalent.path },
+      }
+    }
+  }
+
+  const collectionRoute = collectionRouteForRole(role)
+  return {
+    projectSlug,
+    route: collectionRoute ?? { kind: "project-overview" },
+  }
+}
+
+function projectExists(index: ViewerIndexLike, slug?: string | null) {
+  return Boolean(slug && index.projects?.some((project) => project.slug === slug))
+}
+
+function workspaceViewAvailable(view: unknown): view is WorkspaceView {
+  return (
+    view !== "workspace-progress" &&
+    view !== "workspace-validation" &&
+    WORKSPACE_NAV.some((item) => item.view === view)
+  )
+}
+
+function collectionRouteForRole(role?: string): ViewerRoute | null {
+  if (role === "task") return { kind: "project-tasks" }
+  if (role === "workstream") return { kind: "project-workstreams" }
+  if (role === "research") return { kind: "project-research" }
+  if (role === "progress") return { kind: "project-progress" }
+  return null
 }
 
 export function normalizeDocPath(path: string) {

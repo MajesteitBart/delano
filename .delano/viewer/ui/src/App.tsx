@@ -52,6 +52,8 @@ function App() {
         isCompact={isCompact}
         onOpenDoc={navigation.setActivePath}
         onOpenProjectOverview={navigation.openProjectOverview}
+        onOpenProjectProgress={navigation.openProjectProgress}
+        onOpenProjectResearch={navigation.openProjectResearch}
         onOpenProjectTasks={navigation.openProjectTasks}
         onOpenProjectWorkstreams={navigation.openProjectWorkstreams}
         onOpenWorkspace={navigation.openWorkspace}
@@ -87,7 +89,7 @@ function App() {
             liveEvent={live.lastDocEvent}
             onOpenActivity={() => setActivityOpen(true)}
             onOpenDoc={navigation.setActivePath}
-            onOpenProject={navigation.selectProject}
+            onOpenProject={navigation.openProjectOverviewFor}
             onOpenProjectTasks={navigation.openProjectTasks}
             onOpenProjectWorkstreams={navigation.openProjectWorkstreams}
             route={navigation.route}
@@ -134,6 +136,22 @@ function getTopbarState(
   if (route.kind === "project-tasks") {
     return {
       title: `${project?.title ?? "Project"} tasks`,
+      status: project?.status,
+      updated: index?.generatedAt,
+    }
+  }
+
+  if (route.kind === "project-research") {
+    return {
+      title: `${project?.title ?? "Project"} research`,
+      status: project?.status,
+      updated: index?.generatedAt,
+    }
+  }
+
+  if (route.kind === "project-progress") {
+    return {
+      title: `${project?.title ?? "Project"} progress`,
       status: project?.status,
       updated: index?.generatedAt,
     }

@@ -24,6 +24,8 @@ export function AppShell({
   isCompact,
   onOpenDoc,
   onOpenProjectOverview,
+  onOpenProjectProgress,
+  onOpenProjectResearch,
   onOpenProjectTasks,
   onOpenProjectWorkstreams,
   onOpenWorkspace,
@@ -42,6 +44,8 @@ export function AppShell({
   isCompact: boolean
   onOpenDoc: (path: string) => void
   onOpenProjectOverview: () => void
+  onOpenProjectProgress: () => void
+  onOpenProjectResearch: () => void
   onOpenProjectTasks: () => void
   onOpenProjectWorkstreams: () => void
   onOpenWorkspace: (view: WorkspaceView) => void
@@ -71,6 +75,8 @@ export function AppShell({
       route={route}
       onOpenDoc={closeAfter(onOpenDoc)}
       onOpenProjectOverview={closeAfter(onOpenProjectOverview)}
+      onOpenProjectProgress={closeAfter(onOpenProjectProgress)}
+      onOpenProjectResearch={closeAfter(onOpenProjectResearch)}
       onOpenProjectTasks={closeAfter(onOpenProjectTasks)}
       onOpenProjectWorkstreams={closeAfter(onOpenProjectWorkstreams)}
       onOpenWorkspace={closeAfter(onOpenWorkspace)}

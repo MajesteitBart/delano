@@ -6,6 +6,7 @@ import {
   NAVIGATION_STORAGE_VERSION,
   pickInitialProjectSlug,
   restoreStoredNavigation,
+  translateNavigation,
   type ViewerRoute,
   type WorkspaceView,
 } from "@/lib/domain/navigation"
@@ -19,6 +20,11 @@ export function useViewerNavigation(index: ViewerIndex | null) {
   const [documentReturnRoute, setDocumentReturnRoute] =
     useState<ViewerRoute | null>(null)
   const initializedGeneration = useRef<number | null | undefined>(undefined)
+  const navigationRef = useRef<{
+    projectSlug: string | null
+    route: ViewerRoute
+  }>({ projectSlug: null, route: defaultRoute() })
+  const previousIndexRef = useRef<ViewerIndex | null>(null)
   const [storageReady, setStorageReady] = useState(false)
 
   const contextGeneration = index?.context?.generation
@@ -43,17 +49,32 @@ export function useViewerNavigation(index: ViewerIndex | null) {
           // Invalid storage falls back to the current context's defaults.
         }
       }
-      setActiveProjectSlug(
-        restored?.projectSlug ?? pickInitialProjectSlug(index)
-      )
+      const translated = firstInitialization
+        ? {
+            projectSlug: restored?.projectSlug ?? pickInitialProjectSlug(index),
+            route: restored?.route ?? defaultRoute(),
+          }
+        : translateNavigation(navigationRef.current, index, {
+            previousIndex: previousIndexRef.current,
+          })
+      setActiveProjectSlug(translated.projectSlug)
       setDocumentReturnRoute(null)
-      setRoute(restored?.route ?? defaultRoute())
+      setRoute(translated.route)
       setStorageReady(true)
+      previousIndexRef.current = index
     })
     return () => {
       cancelled = true
     }
   }, [contextGeneration, index])
+
+  useEffect(() => {
+    navigationRef.current = { projectSlug: activeProjectSlug, route }
+  }, [activeProjectSlug, route])
+
+  useEffect(() => {
+    if (index) previousIndexRef.current = index
+  }, [index])
 
   useEffect(() => {
     if (!storageReady || !index?.context) return
@@ -105,6 +126,12 @@ export function useViewerNavigation(index: ViewerIndex | null) {
     setRoute({ kind: "project-overview" })
   }
 
+  const openProjectOverviewFor = (slug: string) => {
+    setActiveProjectSlug(slug)
+    setDocumentReturnRoute(null)
+    setRoute({ kind: "project-overview" })
+  }
+
   const openProjectWorkstreams = () => {
     setDocumentReturnRoute(null)
     setRoute({ kind: "project-workstreams" })
@@ -115,10 +142,26 @@ export function useViewerNavigation(index: ViewerIndex | null) {
     setRoute({ kind: "project-tasks" })
   }
 
-  const selectProject = (slug: string) => {
-    setActiveProjectSlug(slug)
+  const openProjectResearch = () => {
     setDocumentReturnRoute(null)
-    setRoute({ kind: "project-overview" })
+    setRoute({ kind: "project-research" })
+  }
+
+  const openProjectProgress = () => {
+    setDocumentReturnRoute(null)
+    setRoute({ kind: "project-progress" })
+  }
+
+  const selectProject = (slug: string) => {
+    const translated = index
+      ? translateNavigation(navigationRef.current, index, {
+          previousIndex: index,
+          targetProjectSlug: slug,
+        })
+      : { projectSlug: slug, route: defaultRoute() }
+    setActiveProjectSlug(translated.projectSlug)
+    setDocumentReturnRoute(null)
+    setRoute(translated.route)
   }
 
   return {
@@ -126,6 +169,9 @@ export function useViewerNavigation(index: ViewerIndex | null) {
     activeProjectSlug,
     docsByPath,
     openProjectOverview,
+    openProjectOverviewFor,
+    openProjectProgress,
+    openProjectResearch,
     openProjectTasks,
     openProjectWorkstreams,
     openWorkspace,

@@ -73,6 +73,7 @@ const context = loadSourceModule("@/lib/domain/context")
 const dataTable = loadSourceModule("@/lib/data-table")
 const navigation = loadSourceModule("@/lib/domain/navigation")
 const pagination = loadSourceModule("@/lib/domain/pagination")
+const projectDashboard = loadSourceModule("@/lib/domain/project-dashboard")
 const status = loadSourceModule("@/lib/domain/status")
 const workspaceModel = loadSourceModule("@/lib/domain/workspace-model")
 const markdown = loadSourceModule("@/lib/markdown/renderMarkdown")
@@ -173,7 +174,46 @@ assert.equal(
   dataTable.optionMembershipFilter(filterRow, "status", undefined),
   true
 )
+const localDay = new Date(2026, 6, 13)
+const localDayEnd = new Date(2026, 6, 13, 23, 59, 59, 999)
+const nextLocalDay = new Date(2026, 6, 14, 0, 0, 0, 0)
+assert.equal(
+  dataTable.dateRangeFilter(
+    { getValue: () => localDayEnd.toISOString() },
+    "updated",
+    { from: localDay, to: localDay }
+  ),
+  true
+)
+assert.equal(
+  dataTable.dateRangeFilter(
+    { getValue: () => nextLocalDay.toISOString() },
+    "updated",
+    { from: localDay, to: localDay }
+  ),
+  false
+)
+assert.equal(
+  dataTable.dateRangeFilter(
+    { getValue: () => "not-a-date" },
+    "updated",
+    { from: localDay, to: localDay }
+  ),
+  false
+)
+assert.equal(
+  dataTable.dateRangeFilter(
+    { getValue: () => "not-a-date" },
+    "updated",
+    undefined
+  ),
+  true
+)
 assert.notEqual(status.statusLabel("in-progress"), "in-progress")
+assert.deepEqual(
+  navigation.WORKSPACE_NAV.map((item) => item.label),
+  ["Projects", "Tasks", "Context pack", "Annotations", "Warnings", "Blockers"]
+)
 
 const navigationIndex = {
   context: {
@@ -205,7 +245,18 @@ assert.deepEqual(
     },
     navigationIndex
   ).route,
-  { kind: "workspace", view: "workspace-progress" }
+  { kind: "project-progress" }
+)
+assert.deepEqual(
+  navigation.restoreStoredNavigation(
+    {
+      version: 2,
+      projectSlug: "demo",
+      route: { kind: "workspace", view: "workspace-validation" },
+    },
+    navigationIndex
+  ).route,
+  { kind: "workspace", view: "workspace-projects" }
 )
 assert.equal(
   navigation.restoreStoredNavigation(
@@ -218,6 +269,105 @@ assert.equal(
     navigationIndex
   ),
   null
+)
+
+const routeIndex = {
+  projects: [
+    { slug: "alpha", outline: { spec: "projects/alpha/spec.md" } },
+    { slug: "beta", outline: { spec: "projects/beta/spec.md" } },
+  ],
+  docs: [
+    { path: "projects/alpha/spec.md", project: "alpha", role: "spec" },
+    {
+      path: "projects/alpha/tasks/T-001.md",
+      project: "alpha",
+      role: "task",
+    },
+    {
+      path: "projects/alpha/research/a/findings.md",
+      project: "alpha",
+      role: "research",
+    },
+    { path: "projects/beta/spec.md", project: "beta", role: "spec" },
+  ],
+}
+assert.deepEqual(
+  navigation.translateNavigation(
+    {
+      projectSlug: "alpha",
+      route: { kind: "workspace", view: "workspace-tasks" },
+    },
+    routeIndex,
+    { targetProjectSlug: "beta" }
+  ),
+  {
+    projectSlug: "beta",
+    route: { kind: "workspace", view: "workspace-tasks" },
+  }
+)
+assert.deepEqual(
+  navigation.translateNavigation(
+    {
+      projectSlug: "alpha",
+      route: { kind: "document", path: "projects/alpha/spec.md" },
+    },
+    routeIndex,
+    { previousIndex: routeIndex, targetProjectSlug: "beta" }
+  ),
+  {
+    projectSlug: "beta",
+    route: { kind: "document", path: "projects/beta/spec.md" },
+  }
+)
+assert.deepEqual(
+  navigation.translateNavigation(
+    {
+      projectSlug: "alpha",
+      route: { kind: "document", path: "projects/alpha/tasks/T-001.md" },
+    },
+    routeIndex,
+    { previousIndex: routeIndex, targetProjectSlug: "beta" }
+  ).route,
+  { kind: "project-tasks" }
+)
+assert.deepEqual(
+  navigation.translateNavigation(
+    {
+      projectSlug: "alpha",
+      route: {
+        kind: "document",
+        path: "projects/alpha/research/a/findings.md",
+      },
+    },
+    routeIndex,
+    { previousIndex: routeIndex, targetProjectSlug: "beta" }
+  ).route,
+  { kind: "project-research" }
+)
+assert.deepEqual(
+  navigation.translateNavigation(
+    {
+      projectSlug: "alpha",
+      route: { kind: "document", path: "projects/alpha/spec.md" },
+    },
+    routeIndex,
+    { previousIndex: routeIndex }
+  ).route,
+  { kind: "document", path: "projects/alpha/spec.md" }
+)
+assert.deepEqual(
+  navigation.translateNavigation(
+    {
+      projectSlug: "alpha",
+      route: { kind: "document", path: "projects/alpha/tasks/T-001.md" },
+    },
+    { projects: [], docs: [] },
+    { previousIndex: routeIndex }
+  ),
+  {
+    projectSlug: null,
+    route: { kind: "workspace", view: "workspace-projects" },
+  }
 )
 
 assert.equal(
@@ -283,13 +433,35 @@ assert.equal(
   }),
   "plan.md"
 )
+assert.equal(
+  workspaceModel.projectStats({
+    projects: [
+      {
+        slug: "demo",
+        title: "Demo",
+        created: "2026-07-01T00:00:00Z",
+        outline: { spec: "projects/demo/spec.md" },
+        docs: ["projects/demo/spec.md"],
+      },
+    ],
+    docs: [
+      {
+        path: "projects/demo/spec.md",
+        title: "Demo",
+        role: "spec",
+        updated: "2026-07-02T00:00:00Z",
+      },
+    ],
+  })[0].created,
+  "2026-07-01T00:00:00Z"
+)
 assert.deepEqual(
   workspaceModel.sidebarCounts({
     repo: "demo",
     generatedAt: "2026-06-30T00:00:00Z",
     annotationSummary: {
       total: 2,
-      open: 2,
+      open: 1,
       storePath: ".project/viewer/annotations.json",
     },
     contextPack: { files: [{ path: "context/a.md", title: "A" }] },
@@ -351,14 +523,138 @@ assert.deepEqual(
   {
     context: 1,
     projects: 1,
-    tasks: 6,
+    tasks: 4,
     progress: 1,
-    annotations: 2,
+    annotations: 1,
     validation: 7,
     warnings: 0,
     blockers: 1,
   }
 )
+assert.equal(workspaceModel.isOpenTaskStatus("planned"), true)
+assert.equal(workspaceModel.isOpenTaskStatus("ready"), true)
+assert.equal(workspaceModel.isOpenTaskStatus("in-progress"), true)
+assert.equal(workspaceModel.isOpenTaskStatus("blocked"), true)
+assert.equal(workspaceModel.isOpenTaskStatus("done"), false)
+assert.equal(workspaceModel.isOpenTaskStatus("deferred"), false)
+
+const dashboardDocs = new Map(
+  [
+    {
+      path: "projects/demo/spec.md",
+      title: "Demo",
+      role: "spec",
+      snippet: "A concise project brief.",
+      updated: "2026-07-01T00:00:00Z",
+    },
+    {
+      path: "projects/demo/tasks/T-001.md",
+      title: "Done task",
+      role: "task",
+      status: "done",
+      updated: "2026-07-02T00:00:00Z",
+    },
+    {
+      path: "projects/demo/tasks/T-002.md",
+      title: "Active task",
+      role: "task",
+      status: "in-progress",
+      updated: "2026-07-03T00:00:00Z",
+    },
+    {
+      path: "projects/demo/tasks/T-003.md",
+      title: "Blocked task",
+      role: "task",
+      status: "blocked",
+      updated: "2026-07-04T00:00:00Z",
+    },
+    {
+      path: "projects/demo/tasks/T-004.md",
+      title: "Legacy task",
+      role: "task",
+      status: "waiting-on-operator",
+      updated: "2026-07-05T00:00:00Z",
+    },
+    {
+      path: "projects/demo/tasks/T-005.md",
+      title: "Deferred task",
+      role: "task",
+      status: "deferred",
+      updated: "2026-07-06T00:00:00Z",
+    },
+    {
+      path: "projects/demo/updates/older.md",
+      title: "Older evidence",
+      role: "progress",
+      updated: "2026-07-07T00:00:00Z",
+    },
+    {
+      path: "projects/demo/updates/newer.md",
+      title: "Newer evidence",
+      role: "progress",
+      updated: "2026-07-08T00:00:00Z",
+    },
+  ].map((doc) => [doc.path, doc])
+)
+const dashboard = projectDashboard.buildProjectDashboard(
+  {
+    slug: "demo",
+    title: "Demo",
+    docs: [...dashboardDocs.keys()],
+    outline: {
+      spec: "projects/demo/spec.md",
+      progress: [
+        "projects/demo/updates/older.md",
+        "projects/demo/updates/newer.md",
+      ],
+      workstreams: [
+        {
+          id: "WS-A",
+          title: "WS-A Delivery",
+          path: "projects/demo/workstreams/WS-A.md",
+          tasks: [
+            "projects/demo/tasks/T-001.md",
+            "projects/demo/tasks/T-002.md",
+            "projects/demo/tasks/T-003.md",
+          ],
+        },
+      ],
+      unassignedTasks: [
+        "projects/demo/tasks/T-004.md",
+        "projects/demo/tasks/T-005.md",
+      ],
+    },
+  },
+  dashboardDocs
+)
+assert.deepEqual(dashboard.taskCounts, {
+  done: 1,
+  active: 1,
+  blocked: 1,
+  planned: 1,
+  deferred: 1,
+})
+assert.equal(dashboard.taskTotal, 5)
+assert.equal(dashboard.openTaskCount, 3)
+assert.equal(dashboard.completion, 20)
+assert.equal(dashboard.workstreams[0].completion, 33)
+assert.equal(dashboard.workstreams[0].open, 2)
+assert.equal(dashboard.workstreams[0].displayTitle, "Delivery")
+assert.equal(dashboard.recentEvidence[0].title, "Newer evidence")
+assert.equal(dashboard.updated, "2026-07-08T00:00:00Z")
+assert.equal(dashboard.spec.snippet, "A concise project brief.")
+
+const emptyDashboard = projectDashboard.buildProjectDashboard(
+  { slug: "empty", title: "Empty", docs: [], outline: {} },
+  new Map()
+)
+assert.equal(emptyDashboard.taskTotal, 0)
+assert.equal(emptyDashboard.completion, 0)
+assert.deepEqual(emptyDashboard.workstreams, [])
+
+assert.equal(projectDashboard.taskState("approved"), "done")
+assert.equal(projectDashboard.taskState("in_review"), "active")
+assert.equal(projectDashboard.taskState("unknown-legacy-value"), "planned")
 
 const rendered = markdown.renderMarkdown(
   [

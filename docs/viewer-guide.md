@@ -51,7 +51,9 @@ It derives:
 - dependency-oriented navigation;
 - snippets and rendered markdown.
 
-Project folders show a project-oriented outline for specs, plans, decisions, updates, workstreams, and tasks. Selecting a workstream narrows the task view to that workstream.
+Project folders show a project-oriented outline for specs, plans, decisions, research, updates, workstreams, and tasks. Research is one entry that lists every Markdown file below the selected project's `research/` subtree; a nested research `progress.md` remains research rather than becoming a delivery update. Progress is likewise project-specific. Selecting a workstream narrows the task view to that workstream.
+
+**Project overview** is a delivery dashboard, not an all-files table. Its summary strip and execution map show the project’s current task distribution; the project brief comes from the canonical spec; workstream rows expose completion, blockers, and active task drilldowns; and recent evidence links to the newest progress updates. These are current contract facts. The viewer does not draw historical or predictive graphs when the repository does not contain that history.
 
 The workspace sidebar also includes an **Annotations** page. It lists viewer comments across all projects, links each row back to its source document, and stays outside the selected-project navigation.
 
@@ -59,11 +61,17 @@ The workspace sidebar also includes an **Annotations** page. It lists viewer com
 
 The searchable repository and worktree controls at the top of the sidebar use the machine-local Delano registry plus a fresh `git worktree list --porcelain` inventory. The registry stores local paths and timestamps at `~/.delano/repositories.json` (or `$DELANO_HOME/repositories.json`), so treat it as private machine metadata and do not commit or share it. Use `delano repos --forget <path>` to remove an entry without touching the repository itself.
 
-The topbar always identifies the selected repository and whether its worktree is primary or linked. Open the adjacent details control to inspect the full repository/worktree paths, branch or detached state, HEAD, selected `.project` source, availability, dirty files, and committed divergence from primary. The browser persists only a versioned pair of opaque IDs and restores it after refresh only if the fresh inventory still validates it; stale or missing choices fall back to the server's current context with an explanation rather than silently reading another path.
+The sidebar controls identify the selected repository and whether its worktree is primary or linked. Open their details control to inspect the full repository/worktree paths, branch or detached state, HEAD, selected `.project` source, availability, dirty files, and committed divergence from primary. The browser persists only a versioned pair of opaque IDs and restores it after refresh only if the fresh inventory still validates it; stale or missing choices fall back to the server's current context with an explanation rather than silently reading another path.
 
-The selected worktree's own `.project/` directory is the viewer's project-data source. Primary worktrees retain editing, annotations, and handover. Linked worktrees are read-only in the UI, and the server independently rejects annotation, apply, and handover writes. This makes divergent linked contracts inspectable without treating them as canonical.
+The selected worktree's own `.project/` directory is the viewer's project-data source. Primary worktrees retain editing, annotations, and handover. Linked worktrees are read-only in the UI, and the server independently rejects annotation, apply, and handover writes. This makes divergent linked contracts inspectable without treating them as canonical. Restart a running viewer after updating server-side viewer code so its indexer and compiled client come from the same source state.
 
-The workspace **Tasks** page includes all indexed statuses. Its multi-select status values come directly from the canonical task schema exposed by `/api/index`; labels are presentation only, and a missing/malformed schema is shown as an error instead of replaced by viewer constants. **Progress** is one navigation entry that opens the complete update list.
+Workspace navigation contains **Projects**, **Tasks**, **Context pack**, **Annotations**, **Warnings**, and **Blockers**, in that order. The Tasks badge counts planned, ready, in-progress, and blocked contracts, but the page includes all indexed statuses, including done and deferred. Project and Workstream columns use searchable relationship choices derived from the active index. Status, Priority, and Estimate use canonical task-schema values exposed by `/api/index`; labels are presentation only, and a missing or malformed schema is shown as an error instead of replaced by viewer constants. The Annotations badge uses the open count while its page retains non-deleted annotation history. Progress and Research stay under the selected project rather than appearing as cross-project Workspace entries.
+
+The annotation count is intentionally asymmetric: the sidebar badge counts only open comments, while the table keeps every non-deleted annotation, including resolved and closed history. Its Status column uses a selectable filter over the statuses present in that history.
+
+Data tables use a single ledger boundary with shared row padding. Tables that expose Updated default to newest-first, except Context pack because context-reader order is canonical. Workspace Projects adds Created. Updated and Created filters offer Today, Last 7 days, Last 30 days, This year, and a custom inclusive range calendar. Text filters remain available for open-ended fields, and every active filter can be cleared by column or all at once.
+
+Changing the selected project through the sidebar keeps a Workspace view active, retains the equivalent project section, or maps source documents by role. Activating a project name in the Workspace Projects table is intentionally different: it selects that project and opens Project overview. Repository/worktree switches keep the exact path when it exists in the new index and otherwise use the closest valid project section. Stale paths are never retained; only a missing semantic equivalent falls back to Projects or Project overview.
 
 Coordination state is shared across worktrees under the Git common directory at `delano/leases/active-leases.json`. On first use, Delano safely migrates the legacy `.agents/leases/active-leases.json` only when there is no destination collision; conflicting copies are preserved and reported for manual resolution.
 
@@ -79,12 +87,16 @@ The viewer may expose convenience actions to open a selected markdown file or fo
 
 In a document view:
 
-- select text to open the annotation popover;
+- use the default reading mode for ordinary native text selection and copying;
+- activate **Review** explicitly to reveal existing yellow highlights and the review panel;
+- while Review is active in a writable primary worktree, select text to open the annotation popover;
 - add a comment, question, verify request, or a quick review label;
 - click an existing highlight to reopen its popover and edit or delete the annotation;
 - use the review panel to select annotations and hand the bundle over to an agent.
 
-The annotation popover is sticky: it closes only through Save, the close button, or Escape - clicking elsewhere in the document never discards unsaved feedback.
+Documents always open in reading mode, even when they already have annotations. Closing Review removes review-only highlights and dismisses an unsaved draft without changing saved annotations. The fixed review panel overlays the page, including the header, without reserving width or changing document line length. In a linked worktree, Review remains useful for inspecting saved highlights and their read-only popovers, but selection never creates a new annotation.
+
+While Review remains open, the annotation popover is sticky: it closes only through Save, the close button, or Escape - clicking elsewhere in the document never discards unsaved feedback.
 
 Handover is the primary review output. The **Hand over** button posts to `/api/handover`, which writes a handover file under `.project/viewer/handovers/` containing the selected annotations plus agent instructions, and then either:
 

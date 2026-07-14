@@ -13,6 +13,7 @@ export type WorkspaceTaskItem = {
 
 export type ProjectStat = {
   project: ProjectIndex
+  created?: string | null
   updated?: string
   workstreamCount: number
   taskCount: number
@@ -70,11 +71,11 @@ export function projectStats(index: ViewerIndex | null): ProjectStat[] {
 
     return {
       project,
+      created: project.created,
       updated: latest,
       workstreamCount: project.outline?.workstreams?.length ?? 0,
       taskCount: tasks.length,
-      openTaskCount: tasks.filter((doc) => statusTone(doc.status) !== "done")
-        .length,
+      openTaskCount: tasks.filter((doc) => isOpenTaskStatus(doc.status)).length,
       primaryPath: projectPrimaryPath(project),
     }
   })
@@ -102,6 +103,11 @@ export function workspaceTasks(index: ViewerIndex | null) {
     }))
 }
 
+export function isOpenTaskStatus(status?: string | null) {
+  const normalized = String(status ?? "planned").toLowerCase()
+  return statusTone(normalized) !== "done" && normalized !== "deferred"
+}
+
 export function getWorkspaceModel(index: ViewerIndex | null) {
   const allDocs = index?.docs ?? []
   const tasks = workspaceTasks(index)
@@ -110,10 +116,11 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
   const blockers = tasks.filter(
     (item) => statusTone(item.doc.status) === "blocked"
   )
+  const openTasks = tasks.filter((item) => isOpenTaskStatus(item.doc.status))
   const warnings = allDocs.filter((doc) => statusTone(doc.status) === "warning")
   const progress = allDocs.filter((doc) => doc.role === "progress")
   const validation = allDocs.filter((doc) => doc.role !== "context")
-  const annotations = index?.annotationSummary?.total ?? 0
+  const annotations = index?.annotationSummary?.open ?? 0
 
   return {
     context,
@@ -127,7 +134,7 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
     counts: {
       context: context.length,
       projects: projects.length,
-      tasks: tasks.length,
+      tasks: openTasks.length,
       progress: progress.length,
       annotations,
       validation: validation.length,

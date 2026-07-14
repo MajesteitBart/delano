@@ -17,16 +17,19 @@ export type ProjectIndex = {
   slug: string
   title: string
   status?: string | null
+  created?: string | null
   docs?: string[]
   outline?: {
     spec?: string | null
     plan?: string | null
     decisions?: string[]
+    research?: string[]
     progress?: string[]
     workstreams?: Array<{
       path: string
       id?: string
       title: string
+      status?: string | null
       tasks?: string[]
     }>
     unassignedTasks?: string[]

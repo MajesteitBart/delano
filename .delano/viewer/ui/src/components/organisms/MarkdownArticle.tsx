@@ -57,6 +57,8 @@ function nodeElement(node: Node) {
 export function MarkdownArticle({
   html,
   hideFirstHeading = false,
+  reviewMode,
+  annotationEnabled,
   annotations,
   draftSource,
   repaintToken,
@@ -65,6 +67,8 @@ export function MarkdownArticle({
 }: {
   html: string
   hideFirstHeading?: boolean
+  reviewMode: boolean
+  annotationEnabled: boolean
   annotations: Annotation[]
   draftSource?: WebHighlightSource | null
   repaintToken?: unknown
@@ -78,20 +82,6 @@ export function MarkdownArticle({
   const rootRef = useRef<HTMLDivElement>(null)
   const highlighterRef = useRef<Highlighter | null>(null)
 
-  useLayoutEffect(() => {
-    if (!rootRef.current) return
-    const highlighter = new Highlighter({
-      $root: rootRef.current,
-      exceptSelectors: ["pre", "code"],
-      style: { className: "md-annotation-mark" },
-    })
-    highlighterRef.current = highlighter
-    return () => {
-      highlighter.dispose()
-      highlighterRef.current = null
-    }
-  }, [])
-
   // This effect is the sole owner of the article markup. Rendering it through
   // dangerouslySetInnerHTML instead would hand ownership to React, and React
   // 19 re-assigns innerHTML on every commit where the prop object identity
@@ -99,9 +89,10 @@ export function MarkdownArticle({
   // re-render (each keystroke in the annotation popover, for instance).
   // A layout effect keeps the markup in place before first paint.
   useLayoutEffect(() => {
-    const highlighter = highlighterRef.current
     const root = rootRef.current
-    if (!highlighter || !root) return
+    if (!root) return
+    highlighterRef.current?.dispose()
+    highlighterRef.current = null
     // Repaints must be idempotent: painting splits text nodes and removal
     // leaves the fragments behind, so anchors drift after a few cycles.
     // Restoring the pristine markup first keeps every anchor resolvable.
@@ -118,12 +109,30 @@ export function MarkdownArticle({
         titleBlock.setAttribute("aria-hidden", "true")
       }
     }
+    if (!reviewMode) return
+    const highlighter = new Highlighter({
+      $root: root,
+      exceptSelectors: ["pre", "code"],
+      style: { className: "md-annotation-mark" },
+    })
+    highlighterRef.current = highlighter
     annotations.forEach((annotation) => {
       if (annotation.status === "deleted") return
       highlightFromStore(highlighter, annotation.anchor?.highlightSource)
     })
     highlightFromStore(highlighter, draftSource)
-  }, [annotations, draftSource, hideFirstHeading, html, repaintToken])
+    return () => {
+      highlighter.dispose()
+      if (highlighterRef.current === highlighter) highlighterRef.current = null
+    }
+  }, [
+    annotations,
+    draftSource,
+    hideFirstHeading,
+    html,
+    repaintToken,
+    reviewMode,
+  ])
 
   const handleClick = useCallback(
     (event: SyntheticEvent<HTMLElement>) => {
@@ -172,9 +181,9 @@ export function MarkdownArticle({
     <div
       ref={rootRef}
       className="md-body"
-      onMouseUp={handleSelection}
-      onKeyUp={handleSelection}
-      onClick={handleClick}
+      onMouseUp={annotationEnabled ? handleSelection : undefined}
+      onKeyUp={annotationEnabled ? handleSelection : undefined}
+      onClick={reviewMode ? handleClick : undefined}
     />
   )
 }

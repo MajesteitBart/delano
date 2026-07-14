@@ -128,7 +128,7 @@ export function DocumentReaderPage({
   const [annotationError, setAnnotationError] = useState("")
   const [notice, setNotice] = useState("")
   const [saving, setSaving] = useState(false)
-  const [reviewOpen, setReviewOpen] = useState(false)
+  const [reviewMode, setReviewMode] = useState(false)
   const [activeTocLine, setActiveTocLine] = useState<number | null>(null)
 
   const loadAnnotations = useCallback(async () => {
@@ -153,15 +153,11 @@ export function DocumentReaderPage({
       setType("comment")
       setAnnotations([])
       setSelectedIds([])
-      setReviewOpen(false)
+      setReviewMode(false)
       setAnnotationError("")
-      void loadAnnotations()
-        .then((items) => {
-          if (!cancelled) setReviewOpen(items.length > 0)
-        })
-        .catch((err) => {
-          if (!cancelled) setAnnotationError(messageFromError(err))
-        })
+      void loadAnnotations().catch((err) => {
+        if (!cancelled) setAnnotationError(messageFromError(err))
+      })
     })
     return () => {
       cancelled = true
@@ -300,12 +296,17 @@ export function DocumentReaderPage({
     window.getSelection()?.removeAllRanges()
   }
 
+  const exitReview = () => {
+    closePopover()
+    setReviewMode(false)
+  }
+
   const handleSelection = (
     event: SyntheticEvent<HTMLElement>,
     highlightSource: DraftAnnotation["anchor"]["highlightSource"],
     rect: DOMRect
   ) => {
-    if (!writable) return false
+    if (!reviewMode || !writable) return false
     if (popoverDirty) return false
     const quote = highlightSource.text.trim()
     if (!quote || quote.length < 2) return false
@@ -331,7 +332,7 @@ export function DocumentReaderPage({
   }
 
   const handleHighlightClick = (highlightId: string, rect: DOMRect) => {
-    if (!writable) return
+    if (!reviewMode) return
     const annotation = annotations.find(
       (item) => item.anchor?.highlightSource?.id === highlightId
     )
@@ -379,7 +380,6 @@ export function DocumentReaderPage({
         )
         setAnnotations((items) => [...items, payload.annotation])
         setSelectedIds((ids) => [...ids, payload.annotation.id])
-        setReviewOpen(true)
       } else {
         await updateAnnotation(popover.annotationId, {
           comment,
@@ -466,12 +466,7 @@ export function DocumentReaderPage({
   }
 
   return (
-    <div
-      className={cn(
-        "overflow-x-clip transition-[padding] duration-300 ease-in-out",
-        reviewOpen && "min-[1280px]:pr-[416px]"
-      )}
-    >
+    <div className="overflow-x-clip">
       <div className="reader-layout">
         {toc.length > 1 && (
           <nav className="reader-toc" aria-label="Document contents">
@@ -522,10 +517,12 @@ export function DocumentReaderPage({
                 </Button>
               )}
               <Button
-                variant={reviewOpen ? "secondary" : "outline"}
+                variant={reviewMode ? "secondary" : "outline"}
                 size="default"
-                onClick={() => setReviewOpen((open) => !open)}
-                aria-pressed={reviewOpen}
+                onClick={() =>
+                  reviewMode ? exitReview() : setReviewMode(true)
+                }
+                aria-pressed={reviewMode}
               >
                 <MessageSquareTextIcon data-icon="inline-start" />
                 Review
@@ -605,13 +602,15 @@ export function DocumentReaderPage({
           <MarkdownArticle
             html={markdown}
             hideFirstHeading={Boolean(taskTitleHeading)}
+            reviewMode={reviewMode}
+            annotationEnabled={reviewMode && writable}
             annotations={annotations}
             draftSource={
               popover?.mode === "create"
                 ? popover.draft.anchor.highlightSource
                 : null
             }
-            repaintToken={reviewOpen}
+            repaintToken={reviewMode}
             onSelectText={handleSelection}
             onHighlightClick={handleHighlightClick}
           />
@@ -626,8 +625,8 @@ export function DocumentReaderPage({
         </article>
       </div>
       <AnnotationDrawer
-        open={reviewOpen}
-        onOpenChange={setReviewOpen}
+        open={reviewMode}
+        onOpenChange={(open) => (open ? setReviewMode(true) : exitReview())}
         doc={doc}
         annotations={annotations}
         selectedIds={selectedIds}
@@ -671,6 +670,7 @@ export function DocumentReaderPage({
           type={type}
           comment={comment}
           saving={saving}
+          readOnly={!writable}
           onTypeChange={setType}
           onCommentChange={setComment}
           onCancel={closePopover}

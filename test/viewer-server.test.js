@@ -150,6 +150,11 @@ test("viewer switches only across registered Git contexts and isolates root-scop
   spawnSync("git", ["add", ".project/projects/demo/spec.md"], { cwd: linked });
   const linkedCommit = spawnSync("git", ["commit", "-m", "diverge linked project"], { cwd: linked, encoding: "utf8" });
   assert.equal(linkedCommit.status, 0, linkedCommit.stderr || linkedCommit.stdout);
+  const researchDir = path.join(first.repo, ".project", "projects", "demo", "research", "navigation-study");
+  fs.mkdirSync(researchDir, { recursive: true });
+  fs.writeFileSync(path.join(researchDir, "findings.md"), "# Findings\n", "utf8");
+  fs.writeFileSync(path.join(researchDir, "progress.md"), "# Research progress\n", "utf8");
+  fs.writeFileSync(path.join(researchDir, "task_plan.md"), "# Research plan\n", "utf8");
 
   t.after(() => fs.rmSync(first.repo, { recursive: true, force: true }));
   t.after(() => fs.rmSync(second.repo, { recursive: true, force: true }));
@@ -174,6 +179,18 @@ test("viewer switches only across registered Git contexts and isolates root-scop
   const taskSchema = JSON.parse(fs.readFileSync(path.join(__dirname, "..", ".agents", "schemas", "artifacts", "task.schema.json"), "utf8"));
   assert.deepEqual(initialIndex.schemaOptions.task.status, taskSchema.properties.status.enum);
   assert.equal(initialIndex.schemaOptionsError, null);
+  const demoProject = initialIndex.projects.find((project) => project.slug === "demo");
+  assert.deepEqual(demoProject.outline.research, [
+    "projects/demo/research/navigation-study/findings.md",
+    "projects/demo/research/navigation-study/progress.md",
+    "projects/demo/research/navigation-study/task_plan.md"
+  ]);
+  assert.deepEqual(
+    initialIndex.docs
+      .filter((doc) => doc.path.startsWith("projects/demo/research/"))
+      .map((doc) => doc.role),
+    ["research", "research", "research"]
+  );
   assert.match((await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`)).markdown, /Repository A primary/);
 
   const annotation = await requestJson(`${baseUrl}/api/annotations`, {
@@ -237,6 +254,41 @@ test("viewer switches only across registered Git contexts and isolates root-scop
     assert.equal(rejected.status, 403, `${endpoint}: ${rejected.raw}`);
     assert.match(rejected.json.error, /writes are disabled.*linked worktree/i);
   }
+});
+
+test("viewer snippets use the first regular paragraph and mark truncation", async (t) => {
+  const { repo, projectDir, specPath } = createLiveViewerRepo("delano-viewer-snippet-");
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
+  fs.writeFileSync(
+    specPath,
+    [
+      "# Spec: Demo",
+      "",
+      "## Executive Summary",
+      "",
+      "The **first regular paragraph** is the only project brief. It contains enough carefully chosen words to exceed the viewer summary boundary while still ending on a complete word instead of leaving a visibly broken fragment in the interface for operators who scan it.",
+      "",
+      "This second paragraph must never appear in the project brief.",
+    ].join("\n"),
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(projectDir, "plan.md"),
+    "# Plan\n\nA short regular paragraph.\n",
+    "utf8"
+  );
+
+  const baseUrl = await startViewerForRepo(t, repo);
+  const index = await readJson(`${baseUrl}/api/index`);
+  const spec = index.docs.find((doc) => doc.path === "projects/demo/spec.md");
+  const plan = index.docs.find((doc) => doc.path === "projects/demo/plan.md");
+
+  assert.match(spec.snippet, /^The first regular paragraph is the only project brief\./);
+  assert.equal(spec.snippet.endsWith("…"), true);
+  assert.ok(spec.snippet.length <= 180);
+  assert.doesNotMatch(spec.snippet, /Spec: Demo|Executive Summary|second paragraph/);
+  assert.equal(plan.snippet, "A short regular paragraph.");
+  assert.equal(plan.snippet.endsWith("…"), false);
 });
 
 test("viewer launches T3 Code handovers through the t3code CLI", async (t) => {

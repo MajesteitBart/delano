@@ -17,6 +17,7 @@ import type {
 } from "@/lib/domain/types"
 import { DocumentReaderPage } from "@/pages/DocumentReaderPage"
 import {
+  ProjectDocumentsPage,
   ProjectOverviewPage,
   ProjectTasksPage,
   ProjectWorkstreamsPage,
@@ -125,6 +126,36 @@ export function ViewerRoute({
         project={activeProject}
         onOpenDoc={onOpenDoc}
         writable={index?.context?.writable ?? true}
+      />
+    )
+  }
+
+  if (route.kind === "project-research") {
+    return (
+      <ProjectDocumentsPage
+        description="Research findings, plans, and progress captured before or during delivery."
+        docs={docsByPath}
+        emptyDescription="This project has no indexed research documents."
+        emptyTitle="No research"
+        onOpenDoc={onOpenDoc}
+        paths={activeProject?.outline?.research ?? []}
+        project={activeProject}
+        title="Research"
+      />
+    )
+  }
+
+  if (route.kind === "project-progress") {
+    return (
+      <ProjectDocumentsPage
+        description="Progress updates and completion evidence for the selected project."
+        docs={docsByPath}
+        emptyDescription="This project has no indexed progress updates."
+        emptyTitle="No progress"
+        onOpenDoc={onOpenDoc}
+        paths={activeProject?.outline?.progress ?? []}
+        project={activeProject}
+        title="Progress"
       />
     )
   }

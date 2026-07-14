@@ -21,16 +21,48 @@ import {
 import { Spinner } from "@/components/ui/spinner"
 import { Textarea } from "@/components/ui/textarea"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 const QUICK_FEEDBACK = [
-  { label: "Clarify this", type: "question", comment: "Clarify this. I need a bit more detail here." },
-  { label: "Give me an example", type: "question", comment: "Give me a concrete example of this." },
-  { label: "Verify this", type: "verify", comment: "Verify this claim against the actual code or contract." },
-  { label: "Consider alternatives", type: "question", comment: "Consider alternatives before committing to this approach." },
-  { label: "Out of scope", type: "comment", comment: "This is out of scope. Remove or defer it." },
-  { label: "Needs tests", type: "verify", comment: "This needs test coverage before it can land." },
-  { label: "Nice approach", type: "comment", comment: "Nice approach, keep this as is." },
+  {
+    label: "Clarify this",
+    type: "question",
+    comment: "Clarify this. I need a bit more detail here.",
+  },
+  {
+    label: "Give me an example",
+    type: "question",
+    comment: "Give me a concrete example of this.",
+  },
+  {
+    label: "Verify this",
+    type: "verify",
+    comment: "Verify this claim against the actual code or contract.",
+  },
+  {
+    label: "Consider alternatives",
+    type: "question",
+    comment: "Consider alternatives before committing to this approach.",
+  },
+  {
+    label: "Out of scope",
+    type: "comment",
+    comment: "This is out of scope. Remove or defer it.",
+  },
+  {
+    label: "Needs tests",
+    type: "verify",
+    comment: "This needs test coverage before it can land.",
+  },
+  {
+    label: "Nice approach",
+    type: "comment",
+    comment: "Nice approach, keep this as is.",
+  },
 ]
 
 export function AnnotationPopover({
@@ -43,6 +75,7 @@ export function AnnotationPopover({
   type,
   comment,
   saving,
+  readOnly = false,
   onTypeChange,
   onCommentChange,
   onCancel,
@@ -58,6 +91,7 @@ export function AnnotationPopover({
   type: string
   comment: string
   saving: boolean
+  readOnly?: boolean
   onTypeChange: (type: string) => void
   onCommentChange: (comment: string) => void
   onCancel: () => void
@@ -67,9 +101,14 @@ export function AnnotationPopover({
   // Key the delete confirmation to the popover instance so switching
   // annotations resets it without a state-syncing effect.
   const popoverKey = `${mode}:${quote}:${x}:${y}`
-  const [confirmState, setConfirmState] = useState<{ key: string; value: boolean } | null>(null)
-  const confirmDelete = confirmState?.key === popoverKey ? confirmState.value : false
-  const setConfirmDelete = (value: boolean) => setConfirmState({ key: popoverKey, value })
+  const [confirmState, setConfirmState] = useState<{
+    key: string
+    value: boolean
+  } | null>(null)
+  const confirmDelete =
+    confirmState?.key === popoverKey ? confirmState.value : false
+  const setConfirmDelete = (value: boolean) =>
+    setConfirmState({ key: popoverKey, value })
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -83,10 +122,7 @@ export function AnnotationPopover({
   return (
     <Popover open onOpenChange={(open) => !open && onCancel()}>
       <PopoverAnchor asChild>
-        <span
-          className="fixed z-50 size-px"
-          style={{ left: x, top: y }}
-        />
+        <span className="fixed z-50 size-px" style={{ left: x, top: y }} />
       </PopoverAnchor>
       <PopoverContent
         align="center"
@@ -104,14 +140,20 @@ export function AnnotationPopover({
               "{quote}"
             </PopoverTitle>
             <PopoverDescription className="mt-1 font-mono text-xs">
-              {mode === "edit" ? `Editing annotation, ${lineLabel}` : lineLabel}
+              {mode === "edit"
+                ? `${readOnly ? "Viewing" : "Editing"} annotation, ${lineLabel}`
+                : lineLabel}
             </PopoverDescription>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {mode === "edit" && onDelete && (
-              confirmDelete ? (
+            {mode === "edit" &&
+              onDelete &&
+              !readOnly &&
+              (confirmDelete ? (
                 <>
-                  <span className="self-center text-xs text-muted-foreground">Delete?</span>
+                  <span className="self-center text-xs text-muted-foreground">
+                    Delete?
+                  </span>
                   <Button
                     variant="ghost"
                     size="icon-xs"
@@ -120,7 +162,12 @@ export function AnnotationPopover({
                   >
                     <XIcon />
                   </Button>
-                  <Button variant="ghost" size="icon-xs" onClick={onDelete} aria-label="Confirm delete">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={onDelete}
+                    aria-label="Confirm delete"
+                  >
                     <CheckIcon />
                   </Button>
                 </>
@@ -138,10 +185,14 @@ export function AnnotationPopover({
                   </TooltipTrigger>
                   <TooltipContent>Delete annotation</TooltipContent>
                 </Tooltip>
-              )
-            )}
+              ))}
             {!confirmDelete && (
-              <Button variant="ghost" size="icon-xs" onClick={onCancel} aria-label="Close annotation popover">
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={onCancel}
+                aria-label="Close annotation popover"
+              >
                 <XIcon />
               </Button>
             )}
@@ -152,21 +203,33 @@ export function AnnotationPopover({
             <ToggleGroup
               type="single"
               value={type}
+              disabled={readOnly}
               onValueChange={(value) => value && onTypeChange(value)}
               variant="outline"
               size="sm"
               spacing={0}
               className="flex-1"
             >
-              <ToggleGroupItem value="comment" className="flex-1">Comment</ToggleGroupItem>
-              <ToggleGroupItem value="question" className="flex-1">Question</ToggleGroupItem>
-              <ToggleGroupItem value="verify" className="flex-1">Verify</ToggleGroupItem>
+              <ToggleGroupItem value="comment" className="flex-1">
+                Comment
+              </ToggleGroupItem>
+              <ToggleGroupItem value="question" className="flex-1">
+                Question
+              </ToggleGroupItem>
+              <ToggleGroupItem value="verify" className="flex-1">
+                Verify
+              </ToggleGroupItem>
             </ToggleGroup>
             <DropdownMenu>
               <Tooltip>
                 <TooltipTrigger asChild>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="icon-sm" aria-label="Quick feedback">
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label="Quick feedback"
+                      disabled={readOnly}
+                    >
                       <ZapIcon />
                     </Button>
                   </DropdownMenuTrigger>
@@ -195,26 +258,37 @@ export function AnnotationPopover({
               <FieldLabel className="sr-only">Annotation comment</FieldLabel>
               <Textarea
                 value={comment}
+                readOnly={readOnly}
                 onChange={(event) => onCommentChange(event.target.value)}
                 onKeyDown={(event) => {
-                  if ((event.ctrlKey || event.metaKey) && event.key === "Enter") {
+                  if (readOnly) return
+                  if (
+                    (event.ctrlKey || event.metaKey) &&
+                    event.key === "Enter"
+                  ) {
                     event.preventDefault()
                     onSave()
                   }
                 }}
                 placeholder="Add a comment..."
                 rows={4}
-                autoFocus
+                autoFocus={!readOnly}
               />
             </Field>
           </FieldGroup>
-          <div className="flex items-center justify-end gap-3">
-            <span className="text-xs text-muted-foreground">Ctrl+Enter</span>
-            <Button onClick={onSave} disabled={!comment.trim() || saving}>
-              {saving ? <Spinner data-icon="inline-start" /> : <PencilIcon data-icon="inline-start" />}
-              {mode === "edit" ? "Update" : "Save"}
-            </Button>
-          </div>
+          {!readOnly && (
+            <div className="flex items-center justify-end gap-3">
+              <span className="text-xs text-muted-foreground">Ctrl+Enter</span>
+              <Button onClick={onSave} disabled={!comment.trim() || saving}>
+                {saving ? (
+                  <Spinner data-icon="inline-start" />
+                ) : (
+                  <PencilIcon data-icon="inline-start" />
+                )}
+                {mode === "edit" ? "Update" : "Save"}
+              </Button>
+            </div>
+          )}
         </div>
       </PopoverContent>
     </Popover>

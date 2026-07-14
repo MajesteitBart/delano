@@ -5,7 +5,9 @@ import {
   CheckIcon,
   ListFilterIcon,
 } from "lucide-react"
+import { endOfDay, format, startOfDay, startOfYear, subDays } from "date-fns"
 import { useState } from "react"
+import type { DateRange } from "react-day-picker"
 import {
   flexRender,
   getCoreRowModel,
@@ -22,6 +24,15 @@ import {
 
 import { TablePaginationFooter } from "@/components/molecules/TablePaginationFooter"
 import { Button } from "@/components/ui/button"
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
 import { Input } from "@/components/ui/input"
 import {
   Popover,
@@ -38,13 +49,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import type { DataTableColumnMeta, DataTableOption } from "@/lib/data-table"
+import {
+  normalizeDateRange,
+  type DataTableColumnMeta,
+  type DataTableDateRange,
+  type DataTableOption,
+} from "@/lib/data-table"
+import { cn } from "@/lib/utils"
 
 export function DataTable<TData>({
   columns,
   data,
   emptyMessage = "No results.",
   getRowId,
+  initialSorting = [],
   pageSize = 12,
   showPagination = true,
 }: {
@@ -52,10 +70,11 @@ export function DataTable<TData>({
   data: TData[]
   emptyMessage?: string
   getRowId?: (row: TData) => string
+  initialSorting?: SortingState
   pageSize?: number
   showPagination?: boolean
 }) {
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [sorting, setSorting] = useState<SortingState>(() => initialSorting)
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
@@ -95,7 +114,7 @@ export function DataTable<TData>({
           </Button>
         </div>
       )}
-      <div className="overflow-hidden rounded-lg border">
+      <div className="overflow-hidden rounded-md border">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -173,15 +192,20 @@ export function DataTableColumnHeader<TData>({
   const sorting = column.getIsSorted()
   const meta = column.columnDef.meta as DataTableColumnMeta | undefined
   const optionFilter = meta?.filter?.kind === "options" ? meta.filter : null
-  const textFilterValue = optionFilter
-    ? ""
-    : String(column.getFilterValue() ?? "")
+  const dateFilter = meta?.filter?.kind === "date-range"
+  const textFilterValue =
+    optionFilter || dateFilter ? "" : String(column.getFilterValue() ?? "")
   const selectedOptions = optionFilter
     ? normalizeSelectedOptions(column.getFilterValue())
     : []
-  const filterActive = optionFilter
-    ? selectedOptions.length > 0
-    : Boolean(textFilterValue)
+  const selectedDateRange = dateFilter
+    ? normalizeDateRange(column.getFilterValue())
+    : {}
+  const filterActive = dateFilter
+    ? Boolean(selectedDateRange.from || selectedDateRange.to)
+    : optionFilter
+      ? selectedOptions.length > 0
+      : Boolean(textFilterValue)
   const SortIcon =
     sorting === "asc"
       ? ArrowUpIcon
@@ -218,11 +242,24 @@ export function DataTableColumnHeader<TData>({
               <ListFilterIcon />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-64">
-            <PopoverHeader>
+          <PopoverContent
+            align="start"
+            className={cn(dateFilter ? "w-auto gap-0 p-0" : "w-64")}
+          >
+            <PopoverHeader className={cn(dateFilter && "px-3 pt-3 pb-2")}>
               <PopoverTitle>Filter {title}</PopoverTitle>
             </PopoverHeader>
-            {optionFilter ? (
+            {dateFilter ? (
+              <DateRangeFilter
+                range={selectedDateRange}
+                title={title}
+                onChange={(range) =>
+                  column.setFilterValue(
+                    range.from || range.to ? range : undefined
+                  )
+                }
+              />
+            ) : optionFilter ? (
               <OptionFilter
                 column={column}
                 options={optionFilter.options}
@@ -259,6 +296,98 @@ export function DataTableColumnHeader<TData>({
       )}
     </div>
   )
+}
+
+const DATE_PRESETS = [
+  {
+    label: "Today",
+    range: (now: Date) => ({
+      from: startOfDay(now),
+      to: endOfDay(now),
+    }),
+  },
+  {
+    label: "Last 7 days",
+    range: (now: Date) => ({
+      from: startOfDay(subDays(now, 6)),
+      to: endOfDay(now),
+    }),
+  },
+  {
+    label: "Last 30 days",
+    range: (now: Date) => ({
+      from: startOfDay(subDays(now, 29)),
+      to: endOfDay(now),
+    }),
+  },
+  {
+    label: "This year",
+    range: (now: Date) => ({
+      from: startOfYear(now),
+      to: endOfDay(now),
+    }),
+  },
+]
+
+function DateRangeFilter({
+  onChange,
+  range,
+  title,
+}: {
+  onChange: (range: DataTableDateRange) => void
+  range: DataTableDateRange
+  title: string
+}) {
+  const selected: DateRange | undefined = range.from
+    ? { from: range.from, to: range.to }
+    : undefined
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
+  return (
+    <div className="flex flex-col">
+      <div className="grid grid-cols-2 gap-1 border-y p-2">
+        {DATE_PRESETS.map((preset) => (
+          <Button
+            key={preset.label}
+            variant={range.preset === preset.label ? "secondary" : "ghost"}
+            size="xs"
+            onClick={() =>
+              onChange({ ...preset.range(new Date()), preset: preset.label })
+            }
+          >
+            {preset.label}
+          </Button>
+        ))}
+      </div>
+      <Calendar
+        mode="range"
+        selected={selected}
+        onSelect={(next) =>
+          onChange({ from: next?.from, to: next?.to, preset: "Custom range" })
+        }
+        defaultMonth={range.from}
+        timeZone={timeZone}
+      />
+      <div className="flex min-h-10 items-center justify-between gap-3 border-t px-3 py-2">
+        <span className="text-xs text-muted-foreground">
+          {formatDateRangeSummary(range, title)}
+        </span>
+        {(range.from || range.to) && (
+          <Button variant="ghost" size="xs" onClick={() => onChange({})}>
+            Clear
+          </Button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function formatDateRangeSummary(range: DataTableDateRange, title: string) {
+  if (!range.from && !range.to) return `All ${title.toLowerCase()} dates`
+  if (range.preset && range.preset !== "Custom range") return range.preset
+  const from = range.from ? format(range.from, "d MMM yyyy") : "Start"
+  const to = range.to ? format(range.to, "d MMM yyyy") : from
+  return `${from} – ${to}`
 }
 
 function normalizeSelectedOptions(value: unknown) {
@@ -298,25 +427,34 @@ function OptionFilter<TData>({
 
   return (
     <div className="flex flex-col gap-1" aria-label={`${title} options`}>
-      {options.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          className="flex min-h-9 items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          onClick={() => toggle(option.value)}
-          aria-pressed={selected.includes(option.value)}
-        >
-          <span
-            className="flex size-4 shrink-0 items-center justify-center rounded-sm border border-input"
-            aria-hidden="true"
-          >
-            {selected.includes(option.value) && (
-              <CheckIcon className="size-3" />
-            )}
-          </span>
-          <span className="min-w-0 flex-1 truncate">{option.label}</span>
-        </button>
-      ))}
+      <Command>
+        <CommandInput
+          autoFocus
+          aria-label={`Search ${title} options`}
+          placeholder={`Search ${title.toLowerCase()}`}
+        />
+        <CommandList>
+          <CommandEmpty>No matching options.</CommandEmpty>
+          <CommandGroup>
+            {options.map((option) => (
+              <CommandItem
+                key={option.value}
+                value={`${option.label} ${option.value}`}
+                onSelect={() => toggle(option.value)}
+                aria-label={`${option.label}${selected.includes(option.value) ? ", selected" : ""}`}
+              >
+                <span
+                  className="flex size-4 shrink-0 items-center justify-center rounded-sm border border-input"
+                  aria-hidden="true"
+                >
+                  {selected.includes(option.value) && <CheckIcon />}
+                </span>
+                <span className="min-w-0 flex-1 truncate">{option.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </Command>
       {selected.length > 0 && (
         <div className="mt-1 flex justify-end border-t pt-2">
           <Button

@@ -9,6 +9,7 @@ import {
   ListChecksIcon,
   MessageSquareTextIcon,
   ScaleIcon,
+  SearchIcon,
   ShieldAlertIcon,
   TrendingUpIcon,
   XIcon,
@@ -56,6 +57,8 @@ export function Sidebar({
   inventory,
   onOpenDoc,
   onOpenProjectOverview,
+  onOpenProjectProgress,
+  onOpenProjectResearch,
   onOpenProjectTasks,
   onOpenProjectWorkstreams,
   onOpenWorkspace,
@@ -71,6 +74,8 @@ export function Sidebar({
   inventory: ViewerContextInventory | null
   onOpenDoc: (path: string) => void
   onOpenProjectOverview: () => void
+  onOpenProjectProgress: () => void
+  onOpenProjectResearch: () => void
   onOpenProjectTasks: () => void
   onOpenProjectWorkstreams: () => void
   onOpenWorkspace: (view: WorkspaceView) => void
@@ -102,6 +107,7 @@ export function Sidebar({
   }, [projectDocs])
 
   const progressCount = projectDocs?.progress?.length ?? 0
+  const researchCount = projectDocs?.research?.length ?? 0
 
   const workstreamDocs = useMemo(() => {
     if (!activeProject || !index?.docs) return []
@@ -181,6 +187,13 @@ export function Sidebar({
                 />
               ))}
               <NavButton
+                icon={SearchIcon}
+                label="Research"
+                count={researchCount}
+                active={route.kind === "project-research"}
+                onClick={onOpenProjectResearch}
+              />
+              <NavButton
                 icon={FolderIcon}
                 label="Workstreams"
                 count={workstreamDocs.length || undefined}
@@ -210,21 +223,14 @@ export function Sidebar({
                   onOpen={onOpenDoc}
                 />
               ))}
-              {progressCount > 0 && (
-                <>
-                  <Separator />
-                  <NavButton
-                    icon={Clock3Icon}
-                    label="Progress"
-                    count={progressCount}
-                    active={
-                      route.kind === "workspace" &&
-                      route.view === "workspace-progress"
-                    }
-                    onClick={() => onOpenWorkspace("workspace-progress")}
-                  />
-                </>
-              )}
+              <Separator />
+              <NavButton
+                icon={Clock3Icon}
+                label="Progress"
+                count={progressCount}
+                active={route.kind === "project-progress"}
+                onClick={onOpenProjectProgress}
+              />
             </NavSection>
           )}
         </div>
