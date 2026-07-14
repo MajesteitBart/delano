@@ -6,6 +6,8 @@ const path = require("node:path");
 const { spawnSync } = require("node:child_process");
 
 const repoRoot = path.resolve(__dirname, "..");
+const gitBashPath = path.join(process.env.ProgramFiles || "C:\\Program Files", "Git", "bin", "bash.exe");
+const bashExecutable = process.platform === "win32" && fs.existsSync(gitBashPath) ? gitBashPath : "bash";
 const shellCommand = process.platform === "win32" ? (process.env.ComSpec || "cmd.exe") : "/bin/sh";
 const shellArgs = process.platform === "win32"
   ? ["/d", "/s", "/c", "npm pack --json"]
@@ -152,7 +154,7 @@ test("install manifest includes shipped runtime script dependencies", () => {
 });
 
 test("status supports open brief output for startup context", () => {
-  const result = spawnSync("bash", [".agents/scripts/pm/status.sh", "--open", "--brief"], {
+  const result = spawnSync(bashExecutable, [".agents/scripts/pm/status.sh", "--open", "--brief"], {
     cwd: repoRoot,
     encoding: "utf8"
   });
@@ -166,7 +168,8 @@ test("status supports open brief output for startup context", () => {
 test("Codex session status hook emits SessionStart context", () => {
   const result = spawnSync(process.execPath, [".agents/hooks/codex-session-status.js"], {
     cwd: repoRoot,
-    encoding: "utf8"
+    encoding: "utf8",
+    env: { ...process.env, DELANO_BASH: bashExecutable }
   });
 
   assert.equal(result.status, 0, result.stderr || result.stdout);
@@ -1082,7 +1085,7 @@ estimate: M
   spawnSync("git", ["add", "."], { cwd: repo, encoding: "utf8" });
   spawnSync("git", ["-c", "user.name=Delano Test", "-c", "user.email=delano@example.invalid", "commit", "-m", "fixture"], { cwd: repo, encoding: "utf8" });
 
-  const validateResult = spawnSync("bash", [".agents/scripts/pm/validate.sh"], {
+  const validateResult = spawnSync(bashExecutable, [".agents/scripts/pm/validate.sh"], {
     cwd: repo,
     encoding: "utf8"
   });
@@ -1090,7 +1093,7 @@ estimate: M
   assert.match(validateResult.stdout, /Errors: 0/);
   assert.match(validateResult.stdout, /Warnings: 0/);
 
-  const nextResult = spawnSync("bash", [".agents/scripts/pm/next.sh", "--all"], {
+  const nextResult = spawnSync(bashExecutable, [".agents/scripts/pm/next.sh", "--all"], {
     cwd: repo,
     encoding: "utf8"
   });
@@ -1098,6 +1101,198 @@ estimate: M
   assert.match(nextResult.stdout, /example-project\s+t001-setup\s+medium\s+Setup/);
   assert.doesNotMatch(nextResult.stdout, /t002-auth/);
 });
+
+test("validate scales to a 25-project and 250-task portfolio on Windows", { timeout: 45_000 }, () => {
+  const buildResult = spawnSync(process.execPath, ["scripts/build-npm-assets.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+  assert.equal(buildResult.status, 0, buildResult.stderr || buildResult.stdout);
+
+  const repo = createValidationRepo("delano-validation-performance-");
+  for (let projectIndex = 1; projectIndex <= 25; projectIndex += 1) {
+    writeValidationProject(repo, projectIndex, 10);
+  }
+  commitValidationRepo(repo);
+
+  const startedAt = Date.now();
+  const validateResult = spawnSync(bashExecutable, [".agents/scripts/pm/validate.sh"], {
+    cwd: repo,
+    encoding: "utf8",
+    timeout: 30_000
+  });
+  const elapsedMs = Date.now() - startedAt;
+
+  assert.equal(validateResult.error, undefined, validateResult.error?.message);
+  assert.equal(validateResult.status, 0, validateResult.stderr || validateResult.stdout);
+  assert.match(validateResult.stdout, /Errors: 0/);
+  assert.ok(elapsedMs < 30_000, `validation took ${elapsedMs}ms; expected less than 30000ms`);
+});
+
+test("one-pass contract validation preserves core error reporting", { timeout: 45_000 }, () => {
+  const buildResult = spawnSync(process.execPath, ["scripts/build-npm-assets.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+  assert.equal(buildResult.status, 0, buildResult.stderr || buildResult.stdout);
+
+  const repo = createValidationRepo("delano-validation-errors-");
+  const projectDir = writeValidationProject(repo, 1, 2);
+  const specPath = path.join(projectDir, "spec.md");
+  fs.writeFileSync(specPath, fs.readFileSync(specPath, "utf8")
+    .replace("owner: team\n", "")
+    .replace("created: 2026-07-14T00:00:00Z", "created: not-a-timestamp"), "utf8");
+  fs.writeFileSync(path.join(projectDir, "tasks", "T-001-task.md"), validationTask({
+    id: "T-001",
+    workstream: "WS-MISSING",
+    dependsOn: "[T-002]"
+  }), "utf8");
+  fs.writeFileSync(path.join(projectDir, "tasks", "T-002-task.md"), validationTask({
+    id: "T-002",
+    workstream: "WS-A",
+    dependsOn: "[T-001]"
+  }), "utf8");
+  commitValidationRepo(repo);
+
+  const validateResult = spawnSync(bashExecutable, [".agents/scripts/pm/validate.sh"], {
+    cwd: repo,
+    encoding: "utf8",
+    timeout: 30_000
+  });
+
+  assert.equal(validateResult.error, undefined, validateResult.error?.message);
+  assert.equal(validateResult.status, 1, validateResult.stderr || validateResult.stdout);
+  assert.match(validateResult.stdout, /spec\.md missing key: owner/);
+  assert.match(validateResult.stdout, /spec\.md created must be ISO8601 UTC/);
+  assert.match(validateResult.stdout, /T-001-task\.md workstream does not match a project workstream: WS-MISSING/);
+  assert.match(validateResult.stdout, /dependency cycle:/);
+});
+
+function createValidationRepo(prefix) {
+  const repo = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  fs.cpSync(path.join(repoRoot, "assets", "payload"), repo, { recursive: true });
+  fs.rmSync(path.join(repo, ".project", "projects"), { recursive: true, force: true });
+  fs.mkdirSync(path.join(repo, ".project", "projects"), { recursive: true });
+  fs.writeFileSync(path.join(repo, ".project", "registry", "linear-map.json"), JSON.stringify({
+    version: 1,
+    updated: "2026-07-14T00:00:00Z",
+    projects: {},
+    tasks: {}
+  }, null, 2) + "\n", "utf8");
+  fs.writeFileSync(path.join(repo, "AGENTS.md"), "# Agent Instructions\n\nUse `.agents/scripts/pm/validate.sh` before handoff.\nRun `npm test` when package behavior changes.\n", "utf8");
+  return repo;
+}
+
+function writeValidationProject(repo, projectIndex, taskCount) {
+  const slug = `project-${String(projectIndex).padStart(2, "0")}`;
+  const projectDir = path.join(repo, ".project", "projects", slug);
+  fs.mkdirSync(path.join(projectDir, "tasks"), { recursive: true });
+  fs.mkdirSync(path.join(projectDir, "workstreams"), { recursive: true });
+  fs.mkdirSync(path.join(projectDir, "updates"), { recursive: true });
+
+  fs.writeFileSync(path.join(projectDir, "spec.md"), `---
+name: Project ${projectIndex}
+slug: ${slug}
+owner: team
+status: active
+created: 2026-07-14T00:00:00Z
+updated: 2026-07-14T00:00:00Z
+outcome: Validate quickly
+uncertainty: low
+probe_required: false
+probe_status: skipped
+probe_decision_rationale: Synthetic performance fixture.
+operating_mode: scoped-change
+---
+
+# Spec: Project ${projectIndex}
+`, "utf8");
+  fs.writeFileSync(path.join(projectDir, "plan.md"), `---
+name: Project ${projectIndex}
+status: active
+lead: team
+created: 2026-07-14T00:00:00Z
+updated: 2026-07-14T00:00:00Z
+linear_project_id:
+risk_level: low
+spec_status_at_plan_time: active
+operating_mode: scoped-change
+---
+
+# Plan: Project ${projectIndex}
+`, "utf8");
+  fs.writeFileSync(path.join(projectDir, "decisions.md"), `---
+name: Project ${projectIndex}
+slug: ${slug}
+owner: team
+created: 2026-07-14T00:00:00Z
+updated: 2026-07-14T00:00:00Z
+---
+
+# Decisions: Project ${projectIndex}
+`, "utf8");
+  fs.writeFileSync(path.join(projectDir, "workstreams", "WS-A-validation.md"), `---
+id: WS-A
+name: Validation
+owner: team
+status: active
+created: 2026-07-14T00:00:00Z
+updated: 2026-07-14T00:00:00Z
+operating_mode: scoped-change
+---
+
+# Workstream: Validation
+`, "utf8");
+
+  for (let taskIndex = 1; taskIndex <= taskCount; taskIndex += 1) {
+    const id = `T-${String(taskIndex).padStart(3, "0")}`;
+    fs.writeFileSync(path.join(projectDir, "tasks", `${id}-task.md`), validationTask({
+      id,
+      workstream: "WS-A",
+      dependsOn: "[]"
+    }), "utf8");
+  }
+  fs.writeFileSync(path.join(projectDir, "updates", ".gitkeep"), "", "utf8");
+  return projectDir;
+}
+
+function validationTask({ id, workstream, dependsOn }) {
+  return `---
+id: ${id}
+name: Task ${id}
+status: ready
+workstream: ${workstream}
+created: 2026-07-14T00:00:00Z
+updated: 2026-07-14T00:00:00Z
+linear_issue_id:
+github_issue:
+github_pr:
+depends_on: ${dependsOn}
+conflicts_with: []
+parallel: true
+priority: medium
+estimate: S
+operating_mode: scoped-change
+story_id: US-001
+acceptance_criteria_ids: [AC-001]
+---
+
+# Task: ${id}
+
+## Acceptance Criteria
+- [ ] Fixture remains valid.
+
+## Evidence Log
+- 2026-07-14T00:00:00Z: Created fixture.
+`;
+}
+
+function commitValidationRepo(repo) {
+  spawnSync("git", ["init", "--initial-branch", "main"], { cwd: repo, encoding: "utf8" });
+  spawnSync("git", ["add", "."], { cwd: repo, encoding: "utf8" });
+  const commitResult = spawnSync("git", ["-c", "user.name=Delano Test", "-c", "user.email=delano@example.invalid", "commit", "-m", "fixture"], { cwd: repo, encoding: "utf8" });
+  assert.equal(commitResult.status, 0, commitResult.stderr || commitResult.stdout);
+}
 
 function crlf(text) {
   return text.replace(/\n/g, "\r\n");
