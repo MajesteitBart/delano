@@ -88,7 +88,9 @@ function discoverBashCandidates({ platform, env, spawnSync: spawn }) {
       windowsHide: true
     });
     if (whereResult.status === 0 && whereResult.stdout) {
-      candidates.push(...whereResult.stdout.split(/\r?\n/));
+      candidates.push(...whereResult.stdout
+        .split(/\r?\n/)
+        .filter((candidate) => !isWindowsSystemBash(candidate)));
     }
 
     const programRoots = [
@@ -126,6 +128,10 @@ function discoverBashCandidates({ platform, env, spawnSync: spawn }) {
   }
 
   return dedupeCandidates(candidates, platform);
+}
+
+function isWindowsSystemBash(candidate) {
+  return /^[a-z]:[\\/]windows[\\/]system32[\\/]bash\.exe$/i.test(String(candidate).trim());
 }
 
 function dedupeCandidates(candidates, platform) {
