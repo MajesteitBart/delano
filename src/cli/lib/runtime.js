@@ -179,7 +179,7 @@ function probeBashCandidate(candidate, { env, spawnSync: spawn }) {
     return { ok: false, reason: shellFailure };
   }
 
-  if ((shellResult.stdout || "").trim() !== BASH_PROBE_MARKER) {
+  if (!(shellResult.stdout || "").includes(BASH_PROBE_MARKER)) {
     return {
       ok: false,
       reason: `-lc capability probe returned unexpected output${formatProcessDetail(shellResult)}`

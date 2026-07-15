@@ -53,6 +53,28 @@ test("resolveBash skips an unusable Windows shim and selects working Git Bash", 
   assert.ok(calls.some(([command, arg]) => command === gitBash && arg === "-lc"));
 });
 
+test("resolveBash accepts a working shell when login startup writes to stdout", () => {
+  const gitBash = "C:\\Program Files\\Git\\bin\\bash.exe";
+  const fakeSpawnSync = (command, args) => {
+    if (command === "where.exe") {
+      return { status: 0, stdout: `${gitBash}\r\n`, stderr: "" };
+    }
+    if (command === gitBash && args[0] === "--version") {
+      return { status: 0, stdout: "GNU bash, version 5.2", stderr: "" };
+    }
+    if (command === gitBash && args[0] === "-lc") {
+      return { status: 0, stdout: `Welcome to Git Bash\n${PROBE_MARKER}`, stderr: "" };
+    }
+    return missing(command);
+  };
+
+  assert.equal(resolveBash({
+    platform: "win32",
+    env: { ProgramFiles: "C:\\Program Files" },
+    spawnSync: fakeSpawnSync
+  }), gitBash);
+});
+
 test("resolveBash reports every failed Windows candidate with its probe reason", () => {
   const wslShim = "C:\\Windows\\System32\\bash.exe";
   const gitBash = "C:\\Program Files\\Git\\bin\\bash.exe";
