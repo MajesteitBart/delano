@@ -1,8 +1,11 @@
 import {
   ActivityIcon,
+  ArchiveIcon,
   ArrowLeftIcon,
+  CheckCircle2Icon,
   MessageSquareTextIcon,
   PencilIcon,
+  TriangleAlertIcon,
   XIcon,
 } from "lucide-react"
 import {
@@ -21,7 +24,7 @@ import {
   HandoverMenu,
   type DispatchInfo,
 } from "@/components/molecules/HandoverMenu"
-import { AnnotationDrawer } from "@/components/organisms/AnnotationDrawer"
+import { ReviewDraftPanel } from "@/components/organisms/ReviewDraftPanel"
 import { DocumentMetaPanel } from "@/components/organisms/DocumentMetaPanel"
 import { MarkdownArticle } from "@/components/organisms/MarkdownArticle"
 import { TaskContextPanel } from "@/components/organisms/TaskContextPanel"
@@ -34,11 +37,19 @@ import { messageFromError, requestJson } from "@/lib/api"
 import type { LiveDocEvent } from "@/app/useLiveEvents"
 import { annotationLine, numberOrNull } from "@/lib/domain/annotations"
 import { agentLabel } from "@/lib/domain/handover"
+import {
+  publicationFindings,
+  readReviewDraft,
+  reviewDraftKey,
+  writeReviewDraft,
+} from "@/lib/domain/review-drafts"
 import type {
   Annotation,
   DocMeta,
   DraftAnnotation,
   ProjectIndex,
+  ViewerCapabilities,
+  ViewerCapabilityDenial,
   ViewerDoc,
 } from "@/lib/domain/types"
 import { changedBlockIds } from "@/lib/markdown/blockDiff"
@@ -103,8 +114,14 @@ export function DocumentReaderPage({
   onOpenDoc,
   onRefresh,
   project,
-  writable = true,
-  writeDisabledReason,
+  draftScope = { repositoryId: "local", worktreeId: "local" },
+  capabilities = {
+    dispatch: true,
+    review: true,
+    publishReview: true,
+    applyContract: true,
+  },
+  capabilityDenials,
 }: {
   doc: ViewerDoc
   docs: Map<string, DocMeta>
@@ -114,8 +131,9 @@ export function DocumentReaderPage({
   onOpenDoc: (path: string) => void
   onRefresh?: () => void
   project: ProjectIndex | null
-  writable?: boolean
-  writeDisabledReason?: string | null
+  draftScope?: { repositoryId: string; worktreeId: string }
+  capabilities?: ViewerCapabilities
+  capabilityDenials?: Record<keyof ViewerCapabilities, ViewerCapabilityDenial | null>
 }) {
   const [mode, setMode] = useState<"read" | "edit">("read")
   const [externalChangeToken, setExternalChangeToken] = useState(0)
@@ -129,20 +147,34 @@ export function DocumentReaderPage({
   const [notice, setNotice] = useState("")
   const [saving, setSaving] = useState(false)
   const [reviewMode, setReviewMode] = useState(false)
+  const [publishBusy, setPublishBusy] = useState(false)
+  const [publishStatus, setPublishStatus] = useState("")
+  const [lifecycleBusy, setLifecycleBusy] = useState(false)
   const [activeTocLine, setActiveTocLine] = useState<number | null>(null)
 
+  const localDraftKey = useMemo(
+    () => reviewDraftKey(draftScope.repositoryId, draftScope.worktreeId, doc.path),
+    [doc.path, draftScope.repositoryId, draftScope.worktreeId]
+  )
+
   const loadAnnotations = useCallback(async () => {
-    const payload = await requestJson<{ annotations: Annotation[] }>(
-      `/api/annotations?path=${encodeURIComponent(doc.path)}`
-    )
-    setAnnotations(payload.annotations ?? [])
+    const draft = readReviewDraft(window.localStorage, localDraftKey)
+    setAnnotations(draft)
     setSelectedIds((ids) =>
       ids.filter((id) =>
-        (payload.annotations ?? []).some((annotation) => annotation.id === id)
+        draft.some((annotation) => annotation.id === id)
       )
     )
-    return payload.annotations ?? []
-  }, [doc.path])
+    return draft
+  }, [localDraftKey])
+
+  const persistAnnotations = useCallback(
+    (next: Annotation[]) => {
+      setAnnotations(next)
+      writeReviewDraft(window.localStorage, localDraftKey, next)
+    },
+    [localDraftKey]
+  )
 
   useEffect(() => {
     let cancelled = false
@@ -155,6 +187,7 @@ export function DocumentReaderPage({
       setSelectedIds([])
       setReviewMode(false)
       setAnnotationError("")
+      setPublishStatus("")
       void loadAnnotations().catch((err) => {
         if (!cancelled) setAnnotationError(messageFromError(err))
       })
@@ -231,7 +264,20 @@ export function DocumentReaderPage({
     setMode("read")
   }
 
-  const canEdit = Boolean(doc.baseline?.hash) && writable
+  const canEdit = doc.role !== "review" && Boolean(doc.baseline?.hash) && capabilities.applyContract
+  const canPublishReview = capabilities.publishReview
+  const reviewId = doc.role === "review" && typeof doc.frontmatter?.review_id === "string"
+    ? doc.frontmatter.review_id
+    : null
+  const reviewFindings = doc.role === "review" && Array.isArray(doc.frontmatter?.findings)
+    ? doc.frontmatter.findings.filter(
+        (finding): finding is { id: string; status: string } =>
+          Boolean(finding) &&
+          typeof finding === "object" &&
+          typeof (finding as { id?: unknown }).id === "string" &&
+          typeof (finding as { status?: unknown }).status === "string"
+      )
+    : []
 
   useEffect(() => {
     if (mode !== "read" || !canEdit) return
@@ -306,7 +352,7 @@ export function DocumentReaderPage({
     highlightSource: DraftAnnotation["anchor"]["highlightSource"],
     rect: DOMRect
   ) => {
-    if (!reviewMode || !writable) return false
+    if (!reviewMode || !canPublishReview) return false
     if (popoverDirty) return false
     const quote = highlightSource.text.trim()
     if (!quote || quote.length < 2) return false
@@ -363,23 +409,26 @@ export function DocumentReaderPage({
     setAnnotationError("")
     try {
       if (popover.mode === "create") {
-        const payload = await requestJson<{ annotation: Annotation }>(
-          "/api/annotations",
-          {
-            method: "POST",
-            body: JSON.stringify({
-              sourcePath: doc.path,
-              quote: popover.draft.quote,
-              comment,
-              type,
-              labels: type === "comment" ? [] : [type],
-              anchor: popover.draft.anchor,
-              author: { name: "viewer" },
-            }),
-          }
-        )
-        setAnnotations((items) => [...items, payload.annotation])
-        setSelectedIds((ids) => [...ids, payload.annotation.id])
+        const now = new Date().toISOString()
+        const annotation: Annotation = {
+          id: crypto.randomUUID(),
+          sourcePath: doc.path,
+          repoPath: `.project/${doc.path}`,
+          quote: popover.draft.quote,
+          comment,
+          type,
+          labels: type === "comment" ? [] : [type],
+          anchor: popover.draft.anchor,
+          author: { name: "Reviewer" },
+          status: "draft",
+          createdAt: now,
+          updatedAt: now,
+          baseline: doc.baseline
+            ? { ...doc.baseline, hash: doc.contentHash ?? doc.baseline.hash }
+            : null,
+        }
+        persistAnnotations([...annotations, annotation])
+        setSelectedIds((ids) => [...ids, annotation.id])
       } else {
         await updateAnnotation(popover.annotationId, {
           comment,
@@ -396,25 +445,81 @@ export function DocumentReaderPage({
   }
 
   const updateAnnotation = async (id: string, patch: Partial<Annotation>) => {
-    const payload = await requestJson<{ annotation: Annotation }>(
-      `/api/annotations?id=${encodeURIComponent(id)}`,
-      { method: "PATCH", body: JSON.stringify(patch) }
-    )
-    setAnnotations((items) =>
-      items.map((annotation) =>
-        annotation.id === id ? payload.annotation : annotation
+    persistAnnotations(
+      annotations.map((annotation) =>
+        annotation.id === id
+          ? { ...annotation, ...patch, updatedAt: new Date().toISOString() }
+          : annotation
       )
     )
   }
 
   const deleteAnnotation = async (id: string) => {
-    await requestJson(`/api/annotations?id=${encodeURIComponent(id)}`, {
-      method: "DELETE",
-    })
-    setAnnotations((items) =>
-      items.filter((annotation) => annotation.id !== id)
-    )
+    persistAnnotations(annotations.filter((annotation) => annotation.id !== id))
     setSelectedIds((ids) => ids.filter((item) => item !== id))
+  }
+
+  const publishReview = async (findings: Annotation[]) => {
+    if (!findings.length) return
+    setPublishBusy(true)
+    setPublishStatus("")
+    setAnnotationError("")
+    try {
+      const expectedContentHash = findings[0]?.baseline?.hash ?? doc.contentHash
+      const payload = await requestJson<{ path: string }>("/api/reviews", {
+        method: "POST",
+        body: JSON.stringify({
+          sourcePath: doc.path,
+          expectedContentHash,
+          confirmUncommitted: true,
+          findings: publicationFindings(findings, doc.markdown),
+        }),
+      })
+      const publishedIds = new Set(findings.map((finding) => finding.id))
+      persistAnnotations(
+        annotations.filter((annotation) => !publishedIds.has(annotation.id))
+      )
+      setSelectedIds([])
+      setPublishStatus(`Published ${payload.path}. Viewer did not commit or push it.`)
+      onRefresh?.()
+    } catch (error) {
+      setAnnotationError(messageFromError(error))
+    } finally {
+      setPublishBusy(false)
+    }
+  }
+
+  const updateReviewLifecycle = async (action: "resolve" | "archive") => {
+    if (!reviewId) return
+    setLifecycleBusy(true)
+    setAnnotationError("")
+    try {
+      if (action === "resolve") {
+        for (const finding of reviewFindings.filter((item) => item.status === "open")) {
+          await requestJson("/api/reviews", {
+            method: "PATCH",
+            body: JSON.stringify({
+              reviewId,
+              findingId: finding.id,
+              findingStatus: "resolved",
+              resolutionSummary: "Resolved through the Viewer review lifecycle.",
+            }),
+          })
+        }
+        setNotice("Resolved all open review findings.")
+      } else {
+        await requestJson("/api/reviews", {
+          method: "PATCH",
+          body: JSON.stringify({ reviewId, status: "archived" }),
+        })
+        setNotice("Archived the review without moving its artifact.")
+      }
+      onRefresh?.()
+    } catch (error) {
+      setAnnotationError(messageFromError(error))
+    } finally {
+      setLifecycleBusy(false)
+    }
   }
 
   const deleteFromPopover = () => {
@@ -497,12 +602,12 @@ export function DocumentReaderPage({
               Back
             </Button>
             <div className="flex items-center gap-2">
-              {!writable && (
+              {!capabilities.dispatch && (
                 <span
                   className="hidden max-w-64 text-right text-xs text-muted-foreground lg:inline"
-                  title={writeDisabledReason ?? undefined}
+                  title={capabilityDenials?.dispatch?.message}
                 >
-                  Linked worktree · read-only
+                  Dispatch unavailable
                 </span>
               )}
               {canEdit && (
@@ -516,23 +621,62 @@ export function DocumentReaderPage({
                   <Kbd className="ml-1">E</Kbd>
                 </Button>
               )}
-              <Button
-                variant={reviewMode ? "secondary" : "outline"}
-                size="default"
-                onClick={() =>
-                  reviewMode ? exitReview() : setReviewMode(true)
-                }
-                aria-pressed={reviewMode}
-              >
-                <MessageSquareTextIcon data-icon="inline-start" />
-                Review
-                <Badge variant="secondary">{annotations.length}</Badge>
-              </Button>
+              {doc.role !== "review" && (
+                <Button
+                  variant={reviewMode ? "secondary" : "outline"}
+                  size="default"
+                  onClick={() =>
+                    reviewMode ? exitReview() : setReviewMode(true)
+                  }
+                  aria-pressed={reviewMode}
+                >
+                  <MessageSquareTextIcon data-icon="inline-start" />
+                  Review
+                  <Badge variant="secondary">{annotations.length}</Badge>
+                </Button>
+              )}
+              {doc.role === "review" && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    disabled={lifecycleBusy || !reviewFindings.some((finding) => finding.status === "open")}
+                    onClick={() => void updateReviewLifecycle("resolve")}
+                  >
+                    <CheckCircle2Icon data-icon="inline-start" />
+                    Resolve open
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    disabled={lifecycleBusy || doc.status === "archived"}
+                    onClick={() => void updateReviewLifecycle("archive")}
+                  >
+                    <ArchiveIcon data-icon="inline-start" />
+                    Archive
+                  </Button>
+                  <HandoverMenu
+                    sourcePath={doc.path}
+                    size="default"
+                    dispatchEnabled={false}
+                    reviewEnabled={capabilities.review}
+                    expectedSourceHash={doc.baseline?.hash}
+                    primaryIntent="review"
+                    onDispatched={setDispatched}
+                    onStatus={(message, tone) => {
+                      if (tone === "error") setAnnotationError(message)
+                      else setNotice(message)
+                    }}
+                  />
+                </>
+              )}
               {(doc.role === "task" || doc.role === "workstream") && (
                 <HandoverMenu
                   sourcePath={doc.path}
                   size="default"
-                  disabled={!writable}
+                  dispatchEnabled={capabilities.dispatch}
+                  reviewEnabled={capabilities.review}
+                  expectedSourceHash={doc.baseline?.hash}
                   onDispatched={setDispatched}
                   onStatus={(message, tone) => {
                     if (tone === "error") {
@@ -547,6 +691,20 @@ export function DocumentReaderPage({
               )}
             </div>
           </div>
+          {doc.role === "review" && doc.reviewRuntime && (
+            <div className="mb-6 flex flex-wrap items-center gap-3 border-y py-3 text-sm">
+              {doc.reviewRuntime.freshness === "exact" ? (
+                <CheckCircle2Icon className="text-status-success" aria-hidden="true" />
+              ) : (
+                <TriangleAlertIcon className="text-status-warning-foreground" aria-hidden="true" />
+              )}
+              <strong className="capitalize">{doc.reviewRuntime.freshness} source</strong>
+              <span className="text-muted-foreground">
+                {doc.reviewRuntime.findings.filter((finding) => finding.anchorState === "reanchored").length} re-anchored, {doc.reviewRuntime.findings.filter((finding) => finding.anchorState === "unanchored").length} unanchored
+              </span>
+              <span className="ml-auto font-mono text-xs text-muted-foreground">{doc.sourcePath}</span>
+            </div>
+          )}
           {taskTitleHeading && (
             <h1
               className="reader-document-title"
@@ -603,7 +761,7 @@ export function DocumentReaderPage({
             html={markdown}
             hideFirstHeading={Boolean(taskTitleHeading)}
             reviewMode={reviewMode}
-            annotationEnabled={reviewMode && writable}
+            annotationEnabled={reviewMode && canPublishReview}
             annotations={annotations}
             draftSource={
               popover?.mode === "create"
@@ -624,7 +782,7 @@ export function DocumentReaderPage({
           )}
         </article>
       </div>
-      <AnnotationDrawer
+      <ReviewDraftPanel
         open={reviewMode}
         onOpenChange={(open) => (open ? setReviewMode(true) : exitReview())}
         doc={doc}
@@ -645,13 +803,11 @@ export function DocumentReaderPage({
             setAnnotationError(messageFromError(err))
           )
         }
-        onRefresh={() =>
-          loadAnnotations().catch((err) =>
-            setAnnotationError(messageFromError(err))
-          )
-        }
-        writable={writable}
-        writeDisabledReason={writeDisabledReason}
+        onPublish={(findings) => void publishReview(findings)}
+        publishBusy={publishBusy}
+        publishError={annotationError}
+        publishStatus={publishStatus}
+        publishEnabled={canPublishReview}
       />
       {popover && (
         <AnnotationPopover
@@ -670,7 +826,7 @@ export function DocumentReaderPage({
           type={type}
           comment={comment}
           saving={saving}
-          readOnly={!writable}
+          readOnly={!canPublishReview}
           onTypeChange={setType}
           onCommentChange={setComment}
           onCancel={closePopover}

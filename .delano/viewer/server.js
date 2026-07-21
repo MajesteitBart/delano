@@ -112,7 +112,12 @@ function resolveLaunchContext() {
     const registered = repositoryDomain.registry.registerRepository(launchRoot);
     const repository = registered.repository;
     const worktrees = repositoryDomain.state.classifyRepositoryWorktrees(repository);
-    const worktree = worktrees.find((candidate) => candidate.primary);
+    const launchReal = realpathSafe(launchRoot) || path.resolve(launchRoot);
+    const worktree = worktrees.find((candidate) => {
+      const candidateReal = realpathSafe(candidate.path) || path.resolve(candidate.path);
+      return sameFilesystemPath(candidateReal, launchReal);
+    });
+    if (!worktree) return legacyRepositoryContext(launchRoot);
     return { repository: { ...repository, worktrees }, worktree, legacy: false };
   } catch {
     return legacyRepositoryContext(launchRoot);
@@ -155,6 +160,15 @@ function realpathSafe(file) {
   } catch {
     return null;
   }
+}
+
+function sameFilesystemPath(left, right) {
+  const normalize = (value) => {
+    const resolved = path.resolve(String(value || ''));
+    const canonical = realpathSafe(resolved) || resolved;
+    return process.platform === 'win32' ? canonical.toLowerCase() : canonical;
+  };
+  return normalize(left) === normalize(right);
 }
 
 function sha256(text) {
@@ -380,7 +394,13 @@ function splitFrontmatter(markdown) {
   if (close < 0) return { frontmatter: {}, body: markdown };
   const yaml = normalized.slice(0, close);
   const body = normalized.slice(close).replace(/^\r?\n---\r?\n/, '');
-  return { frontmatter: parseSimpleYaml(yaml), body };
+  let frontmatter;
+  try {
+    frontmatter = yaml.trimStart().startsWith('{') ? JSON.parse(yaml) : parseSimpleYaml(yaml);
+  } catch {
+    frontmatter = {};
+  }
+  return { frontmatter, body };
 }
 
 function parseScalar(raw) {
@@ -473,6 +493,7 @@ function projectSlugFor(rel) {
 function artifactRoleFor(rel) {
   if (rel.startsWith('context/')) return rel.endsWith('/progress.md') || rel.endsWith('progress.md') ? 'progress' : 'context';
   if (rel.startsWith('templates/')) return 'template';
+  if (/^reviews\/[^/]+\.md$/.test(rel)) return 'review';
   if (/^projects\/[^/]+\/research\//.test(rel)) return 'research';
   if (/\/spec\.md$/.test(rel)) return 'spec';
   if (/\/plan\.md$/.test(rel)) return 'plan';
@@ -507,6 +528,9 @@ function docMeta(file, relOverride = null) {
   const rel = relOverride || path.relative(projectRoot, file).replace(/\\/g, '/');
   const stat = fs.statSync(file);
   const role = artifactRoleFor(rel);
+  const reviewOpenFindings = role === 'review' && Array.isArray(frontmatter.findings)
+    ? frontmatter.status === 'archived' ? 0 : frontmatter.findings.filter((finding) => finding?.status === 'open').length
+    : null;
   return {
     path: rel,
     title: frontmatter.name || firstHeading(body) || path.basename(file, '.md'),
@@ -523,6 +547,10 @@ function docMeta(file, relOverride = null) {
     relationships: relationshipFields(frontmatter),
     snippet: snippet(body),
     size: stat.size,
+    baselineHash: sha256(markdown),
+    reviewId: role === 'review' ? frontmatter.review_id || null : null,
+    sourcePath: role === 'review' ? frontmatter.source?.path || null : null,
+    openFindingCount: reviewOpenFindings,
   };
 }
 
@@ -656,9 +684,307 @@ function loadSchemaOptions() {
   }
 }
 
+function loadReviewSchema() {
+  const schemaPath = path.join(repoRoot, '.agents', 'schemas', 'artifacts', 'review.schema.json');
+  try {
+    return JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
+  } catch (error) {
+    throw new HttpRequestError(`Review schema is unavailable or malformed: ${error.message}`, 500);
+  }
+}
+
+function reviewSchemaOptions() {
+  try {
+    const schema = loadReviewSchema();
+    return {
+      status: [...schema.properties.status.enum],
+      findingStatus: [...schema.$defs.finding.properties.status.enum],
+      kind: [...schema.$defs.finding.properties.kind.enum],
+      severity: [...schema.$defs.finding.properties.severity.enum],
+      anchorState: [...schema.$defs.anchor.properties.state.enum],
+      hashAlgorithm: schema.$defs.source.properties.hash_algorithm.const,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function normalizeSourceText(file) {
+  const bytes = fs.readFileSync(file);
+  let decoded;
+  try {
+    decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new HttpRequestError('Review source must be valid UTF-8.', 400);
+  }
+  if (decoded.startsWith('\uFEFF')) decoded = decoded.slice(1);
+  return decoded.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
+function normalizedContentHash(file) {
+  return sha256(normalizeSourceText(file));
+}
+
+function gitSourceProvenance(source) {
+  const status = spawnSync('git', ['status', '--porcelain=v1', '--untracked-files=all', '--', source.repoPath], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  const tracked = spawnSync('git', ['ls-files', '--error-unmatch', '--', source.repoPath], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  const committed = status.status === 0 && tracked.status === 0 && !String(status.stdout || '').trim();
+  let blob = null;
+  if (committed && activeContext.worktree.head) {
+    const blobResult = spawnSync('git', ['rev-parse', `${activeContext.worktree.head}:${source.repoPath}`], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+    if (blobResult.status === 0) blob = String(blobResult.stdout || '').trim() || null;
+  }
+  return {
+    contentState: committed ? 'committed' : 'uncommitted',
+    commit: committed ? activeContext.worktree.head : null,
+    blob: committed ? blob : null,
+  };
+}
+
+function schemaAllowsOnly(value, definition, label, errors) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    errors.push(`${label} must be an object`);
+    return;
+  }
+  const allowed = new Set(Object.keys(definition.properties || {}));
+  for (const field of definition.required || []) {
+    if (!(field in value)) errors.push(`${label}.${field} is required`);
+  }
+  for (const field of Object.keys(value)) {
+    if (!allowed.has(field)) errors.push(`${label}.${field} is unsupported`);
+  }
+}
+
+function reviewValidationErrors(review, schema = loadReviewSchema()) {
+  const errors = [];
+  schemaAllowsOnly(review, schema, 'review', errors);
+  if (!schema.properties.status.enum.includes(review?.status)) errors.push('review.status is invalid');
+  if (!new RegExp(schema.properties.review_id.pattern).test(review?.review_id || '')) errors.push('review.review_id is invalid');
+  if (!review?.name || String(review.name).length > schema.properties.name.maxLength) errors.push('review.name is invalid');
+  if (!Number.isFinite(Date.parse(review?.created_at || '')) || !Number.isFinite(Date.parse(review?.updated_at || ''))) errors.push('review timestamps are invalid');
+  if (review?.author_display_name && (review.author_display_name.includes('@') || review.author_display_name.length > 100)) errors.push('review author display name is invalid');
+
+  const sourceDef = schema.$defs.source;
+  schemaAllowsOnly(review?.source, sourceDef, 'review.source', errors);
+  if (!new RegExp(schema.$defs.repositoryProjectPath.pattern).test(review?.source?.path || '')) errors.push('review.source.path is invalid');
+  if (!['committed', 'uncommitted'].includes(review?.source?.content_state)) errors.push('review.source.content_state is invalid');
+  if (review?.source?.hash_algorithm !== sourceDef.properties.hash_algorithm.const) errors.push('review.source.hash_algorithm is invalid');
+  if (!new RegExp(schema.$defs.contentHash.pattern).test(review?.source?.content_hash || '')) errors.push('review.source.content_hash is invalid');
+  if (review?.source?.content_state === 'uncommitted' && (review.source.commit !== null || review.source.blob !== null)) errors.push('uncommitted review source cannot contain Git objects');
+  if (review?.source?.content_state === 'committed' && !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(review.source.commit || '')) errors.push('committed review source requires a commit');
+
+  if (!Array.isArray(review?.findings) || review.findings.length < 1 || review.findings.length > 500) {
+    errors.push('review.findings must contain 1-500 findings');
+    return errors;
+  }
+  const findingIds = new Set();
+  for (const finding of review.findings) {
+    schemaAllowsOnly(finding, schema.$defs.finding, `finding ${finding?.id || '?'}`, errors);
+    if (!/^F-[0-9]{3,}$/.test(finding?.id || '') || findingIds.has(finding.id)) errors.push(`finding id ${finding?.id || '?'} is invalid or duplicated`);
+    findingIds.add(finding?.id);
+    if (!schema.$defs.finding.properties.kind.enum.includes(finding?.kind)) errors.push(`finding ${finding?.id} kind is invalid`);
+    if (!schema.$defs.finding.properties.severity.enum.includes(finding?.severity)) errors.push(`finding ${finding?.id} severity is invalid`);
+    if (!schema.$defs.finding.properties.status.enum.includes(finding?.status)) errors.push(`finding ${finding?.id} status is invalid`);
+    if (!finding?.quote || String(finding.quote).length > 20000) errors.push(`finding ${finding?.id} quote is invalid`);
+    schemaAllowsOnly(finding?.anchor, schema.$defs.anchor, `finding ${finding?.id}.anchor`, errors);
+    if (!schema.$defs.anchor.properties.state.enum.includes(finding?.anchor?.state)) errors.push(`finding ${finding?.id} anchor state is invalid`);
+    if (finding?.anchor?.state === 'unanchored') {
+      for (const field of ['line_start', 'line_end', 'start_offset', 'end_offset']) if (finding.anchor[field] !== null) errors.push(`finding ${finding.id} unanchored range must be null`);
+    } else {
+      for (const field of ['line_start', 'line_end']) if (!Number.isInteger(finding?.anchor?.[field]) || finding.anchor[field] < 1) errors.push(`finding ${finding.id} ${field} is invalid`);
+      for (const field of ['start_offset', 'end_offset']) if (!Number.isInteger(finding?.anchor?.[field]) || finding.anchor[field] < 0) errors.push(`finding ${finding.id} ${field} is invalid`);
+    }
+    if (!Array.isArray(finding?.labels) || new Set(finding.labels).size !== finding.labels.length) errors.push(`finding ${finding?.id} labels are invalid`);
+    if (!Array.isArray(finding?.thread) || finding.thread.length < 1) errors.push(`finding ${finding?.id} thread is required`);
+    const messageIds = new Set();
+    for (const message of finding?.thread || []) {
+      schemaAllowsOnly(message, schema.$defs.message, `finding ${finding?.id} message`, errors);
+      if (!/^M-[0-9]{3,}$/.test(message?.id || '') || messageIds.has(message.id)) errors.push(`finding ${finding?.id} message id is invalid or duplicated`);
+      messageIds.add(message?.id);
+      if (!message?.body || String(message.body).length > 20000 || !Number.isFinite(Date.parse(message?.created_at || ''))) errors.push(`finding ${finding?.id} message is invalid`);
+    }
+    if (finding.status === 'open' && finding.resolution !== null) errors.push(`finding ${finding.id} open resolution must be null`);
+    if (finding.status !== 'open') {
+      schemaAllowsOnly(finding.resolution, schema.$defs.resolution, `finding ${finding.id}.resolution`, errors);
+      if (!finding.resolution?.summary || !Number.isFinite(Date.parse(finding.resolution?.resolved_at || ''))) errors.push(`finding ${finding.id} resolution is invalid`);
+    }
+  }
+  const openCount = review.findings.filter((finding) => finding.status === 'open').length;
+  if (review.status === 'open' && openCount === 0) errors.push('open review requires an open finding');
+  if (review.status === 'resolved' && openCount > 0) errors.push('resolved review cannot contain open findings');
+  return errors;
+}
+
+function reviewBody(review) {
+  const findings = [...review.findings].sort((a, b) => a.id.localeCompare(b.id));
+  const openCount = review.status === 'archived' ? 0 : findings.filter((finding) => finding.status === 'open').length;
+  const sourceCommit = review.source.commit || 'uncommitted';
+  const lines = [
+    `# Review: ${review.name.replace(/^Review of\s+/i, '')}`,
+    '',
+    `- Source: \`${review.source.path}\``,
+    `- Source content: \`${review.source.content_hash}\` (\`${review.source.hash_algorithm}\`)`,
+    `- Source commit: \`${sourceCommit}\``,
+    `- Status: \`${review.status}\``,
+    `- Findings: ${findings.length} total, ${openCount} open`,
+    '',
+  ];
+  if (review.source.content_state === 'uncommitted') {
+    lines.push('> [!WARNING]', '> This review was published from uncommitted source content; `source.commit` is null.', '');
+  }
+  for (const finding of findings) {
+    lines.push(`## ${finding.id} · ${finding.severity} · ${finding.status}`, '', `> ${String(finding.quote).replace(/\n/g, '\n> ')}`, '');
+    const firstMessage = [...finding.thread].sort((a, b) => a.id.localeCompare(b.id))[0];
+    lines.push(firstMessage.body, '', '### Thread', '');
+    for (const message of [...finding.thread].sort((a, b) => a.id.localeCompare(b.id))) {
+      lines.push(`- \`${message.created_at}\` — **${message.author_display_name || 'Reviewer'}**: ${message.body}`);
+    }
+    lines.push('', '### Resolution', '');
+    if (finding.resolution) {
+      const actor = finding.resolution.resolved_by_display_name ? ` by **${finding.resolution.resolved_by_display_name}**` : '';
+      lines.push(`Resolved \`${finding.resolution.resolved_at}\`${actor}: ${finding.resolution.summary}`);
+    } else {
+      lines.push('Unresolved.');
+    }
+    lines.push('');
+  }
+  return `${lines.join('\n').trimEnd()}\n`;
+}
+
+function serializeReview(review) {
+  const canonical = {
+    ...review,
+    findings: [...review.findings]
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .map((finding) => ({ ...finding, thread: [...finding.thread].sort((a, b) => a.id.localeCompare(b.id)) })),
+  };
+  return `---\n${JSON.stringify(canonical, null, 2)}\n---\n\n${reviewBody(canonical)}`;
+}
+
+function privacyViolation(serialized) {
+  const checks = [
+    /[A-Za-z]:[\\/]/,
+    /\\\\[^\\\s]+\\/,
+    /file:\/\//i,
+    /(?:^|[\s"'`(])\/(?:home|Users|tmp|var\/tmp)\//m,
+  ];
+  const localRoots = [repoRoot, osHomeDirectory(), require('node:os').tmpdir()].filter(Boolean);
+  for (const root of localRoots) {
+    const variants = [String(root), String(root).replace(/\\/g, '/'), String(root).replace(/\//g, '\\')];
+    if (variants.some((candidate) => candidate && serialized.includes(candidate))) return 'tracked review contains a machine-local path';
+  }
+  return checks.some((pattern) => pattern.test(serialized)) ? 'tracked review contains an absolute or machine-local path' : null;
+}
+
+function osHomeDirectory() {
+  try {
+    return require('node:os').homedir();
+  } catch {
+    return null;
+  }
+}
+
+const CAPABILITY_NAMES = ['dispatch', 'review', 'publishReview', 'applyContract'];
+
+function selectedContextRisk(worktree) {
+  const indicators = [];
+  if (!worktree.primary) indicators.push('linked_worktree');
+  if (worktree.detached) indicators.push('detached_head');
+  if (worktree.projectState?.diverged) indicators.push('diverged_project_state');
+  if (worktree.projectState?.dirty) indicators.push('dirty_project_state');
+  return {
+    level: indicators.length ? 'elevated' : 'normal',
+    indicators,
+  };
+}
+
+function resolveFreshSelectedContext(expected = activeContext) {
+  if (!repositoryDomain || expected.legacy) {
+    const rootReal = realpathSafe(expected.worktree.path);
+    const projectReal = realpathSafe(path.join(expected.worktree.path, '.project'));
+    if (!rootReal || !projectReal || !isInside(rootReal, projectReal)) {
+      throw new HttpRequestError('Selected worktree is unavailable or no longer contains .project.', 409);
+    }
+    return expected;
+  }
+
+  const registry = repositoryDomain.registry.readRegistry();
+  const entry = registry.repositories.find((candidate) => candidate.id === expected.repository.id);
+  if (!entry) throw new HttpRequestError('Selected repository is no longer registered; refresh the Viewer context.', 409);
+
+  let repository;
+  try {
+    repository = repositoryDomain.git.resolveRepository(entry.primaryPath);
+  } catch (error) {
+    throw new HttpRequestError(`Selected repository is unavailable: ${error.message}`, 409);
+  }
+  if (repository.id !== expected.repository.id) {
+    throw new HttpRequestError('Selected repository identity changed; refresh the Viewer context.', 409);
+  }
+
+  const worktrees = repositoryDomain.state.classifyRepositoryWorktrees(repository);
+  const worktree = worktrees.find((candidate) => candidate.id === expected.worktree.id);
+  if (!worktree) throw new HttpRequestError('Selected worktree was removed or is no longer registered by Git.', 409);
+  if (!worktree.available || !worktree.projectAvailable || !worktree.projectState?.available) {
+    throw new HttpRequestError(`Selected worktree is unavailable: ${worktree.projectState?.reason || worktree.unavailableReason || '.project is missing'}`, 409);
+  }
+
+  const expectedRoot = realpathSafe(expected.worktree.path);
+  const freshRoot = realpathSafe(worktree.path);
+  const freshProject = realpathSafe(path.join(worktree.path, '.project'));
+  if (!expectedRoot || !freshRoot || !sameFilesystemPath(expectedRoot, freshRoot)) {
+    throw new HttpRequestError('Selected worktree root changed; refresh the Viewer context.', 409);
+  }
+  if (!sameFilesystemPath(freshRoot, repoRoot)) {
+    throw new HttpRequestError('Viewer root no longer matches the selected Git worktree.', 409);
+  }
+  if (!freshProject || !isInside(freshRoot, freshProject)) {
+    throw new HttpRequestError('Selected .project path escapes the Git-reported worktree.', 409);
+  }
+  if (Boolean(worktree.detached) !== Boolean(expected.worktree.detached) || (worktree.branch || null) !== (expected.worktree.branch || null)) {
+    throw new HttpRequestError('Selected worktree branch changed; refresh the Viewer context before continuing.', 409);
+  }
+  if ((worktree.head || null) !== (expected.worktree.head || null)) {
+    throw new HttpRequestError('Selected worktree HEAD changed; refresh the Viewer context before continuing.', 409);
+  }
+  return { repository: { ...repository, worktrees }, worktree, legacy: false };
+}
+
+function capabilityState() {
+  let denial = null;
+  try {
+    resolveFreshSelectedContext();
+  } catch (error) {
+    denial = {
+      code: 'stale_selected_context',
+      message: error.message,
+    };
+  }
+  if (contextSwitching) {
+    denial = {
+      code: 'context_switching',
+      message: 'Viewer context is switching; retry the request.',
+    };
+  }
+  return {
+    capabilities: Object.fromEntries(CAPABILITY_NAMES.map((name) => [name, denial === null])),
+    capabilityDenials: Object.fromEntries(CAPABILITY_NAMES.map((name) => [name, denial])),
+  };
+}
+
 function visibleContext() {
   const repository = activeContext.repository;
   const worktree = activeContext.worktree;
+  const capability = capabilityState();
   return {
     generation: contextGeneration,
     switching: contextSwitching,
@@ -680,8 +1006,8 @@ function visibleContext() {
       projectState: worktree.projectState,
     },
     projectRoot,
-    writable: Boolean(worktree.primary),
-    writeDisabledReason: worktree.primary ? null : 'Canonical writes are disabled while viewing a linked worktree.',
+    risk: selectedContextRisk(worktree),
+    ...capability,
   };
 }
 
@@ -725,15 +1051,6 @@ function contextInventory() {
       };
     }
   });
-  const freshActiveRepository = repositories.find((repository) => repository.id === activeContext.repository.id && repository.available);
-  const freshActiveWorktree = freshActiveRepository?.worktrees.find((worktree) => worktree.id === activeContext.worktree.id);
-  if (freshActiveRepository && freshActiveWorktree) {
-    activeContext = {
-      ...activeContext,
-      repository: { ...activeContext.repository, worktrees: freshActiveRepository.worktrees },
-      worktree: freshActiveWorktree,
-    };
-  }
   return { repositories, active: visibleContext() };
 }
 
@@ -790,6 +1107,7 @@ async function handleContext(req, res) {
     resetRootScopedState();
     setActiveRoot(next);
     startLiveUpdates();
+    contextSwitching = false;
     return sendJson(res, { ok: true, context: visibleContext(), index: loadIndex() });
   } finally {
     contextSwitching = false;
@@ -803,11 +1121,30 @@ function ensureRequestContext(req) {
   }
 }
 
-function ensureWritableContext(req) {
+function ensureCapability(req, capability) {
   ensureRequestContext(req);
-  if (!activeContext.worktree.primary) {
-    throw new HttpRequestError('Canonical writes are disabled while viewing a linked worktree.', 403);
+  if (!CAPABILITY_NAMES.includes(capability)) {
+    throw new HttpRequestError(`Unknown Viewer capability: ${capability}`, 500);
   }
+  const fresh = resolveFreshSelectedContext(req.delanoContext || activeContext);
+  if (req.delanoContext && req.delanoContext.generation !== contextGeneration) {
+    throw new HttpRequestError('Viewer context changed while the request was running; retry the request.', 409);
+  }
+  return fresh;
+}
+
+function ensureFreshSource(req, capability, source, expectedHash = null) {
+  ensureCapability(req, capability);
+  const freshSource = resolveProjectMarkdownPath(source.rel);
+  if (!freshSource || !sameFilesystemPath(freshSource.file, source.file)) {
+    throw new HttpRequestError('Selected source is unavailable or no longer contained in this worktree.', 409);
+  }
+  const current = fileBaseline(freshSource.file);
+  const baselineHash = expectedHash || source.baselineHash;
+  if (baselineHash && current.hash !== baselineHash) {
+    throw new HttpRequestError('Selected source changed; refresh it before dispatching the handover.', 409);
+  }
+  return current;
 }
 
 function loadIndex() {
@@ -866,6 +1203,8 @@ function loadIndex() {
     context: visibleContext(),
     schemaOptions: schema.options,
     schemaOptionsError: schema.error,
+    reviewOptions: reviewSchemaOptions(),
+    reviewSummary: reviewSummary(),
     contextPack,
     annotationSummary: annotationSummaryResult,
     projects,
@@ -1149,6 +1488,501 @@ function annotationSummary() {
   }
 }
 
+function reviewDirectory() {
+  return path.join(projectRoot, 'reviews');
+}
+
+function reviewFiles() {
+  const directory = reviewDirectory();
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /^review-[A-Za-z0-9-]+\.md$/.test(entry.name))
+    .map((entry) => path.join(directory, entry.name))
+    .sort((a, b) => a.localeCompare(b));
+}
+
+function readReviewFile(file) {
+  const reviewRoot = realpathSafe(reviewDirectory());
+  const fileReal = realpathSafe(file);
+  if (!reviewRoot || !fileReal || !isInside(reviewRoot, fileReal)) throw new HttpRequestError('Review artifact is not contained in .project/reviews.', 400);
+  const markdown = readText(fileReal);
+  const parsed = splitFrontmatter(markdown);
+  const errors = reviewValidationErrors(parsed.frontmatter);
+  if (errors.length) throw new HttpRequestError(`Review artifact is invalid: ${errors.join('; ')}`, 422);
+  if (serializeReview(parsed.frontmatter) !== markdown) throw new HttpRequestError('Review Markdown projection does not match canonical frontmatter.', 422);
+  return { file: fileReal, markdown, review: parsed.frontmatter };
+}
+
+function reviewFileForId(reviewId, mustExist = true) {
+  const schema = loadReviewSchema();
+  const id = sanitizeString(reviewId, 80, 'reviewId', true);
+  if (!new RegExp(schema.properties.review_id.pattern).test(id)) throw new HttpRequestError('reviewId is invalid.', 400);
+  const file = path.join(reviewDirectory(), `${id}.md`);
+  const root = path.resolve(reviewDirectory());
+  if (!isInside(root, path.resolve(file))) throw new HttpRequestError('Review path escapes .project/reviews.', 400);
+  if (mustExist && (!fs.existsSync(file) || !fs.statSync(file).isFile())) throw new HttpRequestError('Review artifact not found.', 404);
+  return file;
+}
+
+function runtimeReviewState(review) {
+  const source = resolveProjectMarkdownPath(review.source.path);
+  if (!source) return { freshness: 'unavailable', currentContentHash: null, findings: review.findings.map((finding) => ({ id: finding.id, anchorState: 'unanchored' })) };
+  const content = normalizeSourceText(source.file);
+  const currentContentHash = sha256(content);
+  const freshness = currentContentHash === review.source.content_hash ? 'exact' : 'stale';
+  const findings = review.findings.map((finding) => {
+    if (freshness === 'exact') return { id: finding.id, anchorState: finding.anchor.state };
+    let count = 0;
+    let offset = 0;
+    while ((offset = content.indexOf(finding.quote, offset)) >= 0) {
+      count += 1;
+      offset += Math.max(1, finding.quote.length);
+      if (count > 1) break;
+    }
+    return { id: finding.id, anchorState: count === 1 ? 'reanchored' : 'unanchored' };
+  });
+  return { freshness, currentContentHash, findings };
+}
+
+function reviewSummary() {
+  const reviews = [];
+  const warnings = [];
+  for (const file of reviewFiles()) {
+    try {
+      const { review } = readReviewFile(file);
+      const runtime = runtimeReviewState(review);
+      const openFindings = review.status === 'archived' ? 0 : review.findings.filter((finding) => finding.status === 'open').length;
+      reviews.push({
+        reviewId: review.review_id,
+        path: `.project/reviews/${path.basename(file)}`,
+        name: review.name,
+        status: review.status,
+        sourcePath: review.source.path,
+        openFindings,
+        freshness: runtime.freshness,
+        updatedAt: review.updated_at,
+      });
+    } catch (error) {
+      warnings.push(`${path.basename(file)}: ${error.message}`);
+    }
+  }
+  reviews.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)) || a.reviewId.localeCompare(b.reviewId));
+  return {
+    root: '.project/reviews',
+    total: reviews.length,
+    open: reviews.filter((review) => review.status !== 'archived' && review.openFindings > 0).length,
+    openFindings: reviews.reduce((sum, review) => sum + review.openFindings, 0),
+    reviews,
+    warnings,
+  };
+}
+
+function normalizeDisplayName(value, field) {
+  if (value == null || String(value).trim() === '') return undefined;
+  const name = sanitizeString(value, 100, field, true);
+  if (name.includes('@')) throw new HttpRequestError(`${field} must be a display name, not an email or account id.`, 400);
+  return name;
+}
+
+function normalizePublishedFindings(input, now, schema, defaultAuthor) {
+  if (!Array.isArray(input) || input.length < 1 || input.length > 500) throw new HttpRequestError('findings must contain 1-500 entries.', 400);
+  return input.map((raw, index) => {
+    if (!raw || typeof raw !== 'object') throw new HttpRequestError(`finding ${index + 1} must be an object.`, 400);
+    const status = raw.status == null ? 'open' : String(raw.status);
+    const kind = raw.kind == null ? 'comment' : String(raw.kind);
+    const severity = raw.severity == null ? 'note' : String(raw.severity);
+    if (!schema.$defs.finding.properties.status.enum.includes(status)) throw new HttpRequestError(`finding ${index + 1} status is invalid.`, 400);
+    if (!schema.$defs.finding.properties.kind.enum.includes(kind)) throw new HttpRequestError(`finding ${index + 1} kind is invalid.`, 400);
+    if (!schema.$defs.finding.properties.severity.enum.includes(severity)) throw new HttpRequestError(`finding ${index + 1} severity is invalid.`, 400);
+    const quote = sanitizeString(raw.quote, 20000, `finding ${index + 1} quote`, true);
+    const anchorInput = raw.anchor && typeof raw.anchor === 'object' ? raw.anchor : {};
+    const state = anchorInput.state == null ? 'unanchored' : String(anchorInput.state);
+    if (!schema.$defs.anchor.properties.state.enum.includes(state)) throw new HttpRequestError(`finding ${index + 1} anchor state is invalid.`, 400);
+    const anchored = state !== 'unanchored';
+    const integer = (value, minimum, field) => {
+      if (!Number.isInteger(value) || value < minimum) throw new HttpRequestError(`finding ${index + 1} ${field} is invalid.`, 400);
+      return value;
+    };
+    const threadInput = Array.isArray(raw.thread) && raw.thread.length
+      ? raw.thread
+      : [{ body: raw.comment, author_display_name: raw.author_display_name || defaultAuthor }];
+    const thread = threadInput.map((message, messageIndex) => ({
+      id: `M-${String(messageIndex + 1).padStart(3, '0')}`,
+      created_at: message.created_at && Number.isFinite(Date.parse(message.created_at)) ? new Date(message.created_at).toISOString() : now,
+      ...(normalizeDisplayName(message.author_display_name || defaultAuthor, `finding ${index + 1} message author`) ? { author_display_name: normalizeDisplayName(message.author_display_name || defaultAuthor, `finding ${index + 1} message author`) } : {}),
+      body: sanitizeString(message.body, 20000, `finding ${index + 1} message body`, true),
+    }));
+    let resolution = null;
+    if (status !== 'open') {
+      const resolutionInput = raw.resolution && typeof raw.resolution === 'object' ? raw.resolution : {};
+      resolution = {
+        resolved_at: resolutionInput.resolved_at && Number.isFinite(Date.parse(resolutionInput.resolved_at)) ? new Date(resolutionInput.resolved_at).toISOString() : now,
+        ...(normalizeDisplayName(resolutionInput.resolved_by_display_name, `finding ${index + 1} resolver`) ? { resolved_by_display_name: normalizeDisplayName(resolutionInput.resolved_by_display_name, `finding ${index + 1} resolver`) } : {}),
+        summary: sanitizeString(resolutionInput.summary, 20000, `finding ${index + 1} resolution summary`, true),
+      };
+    }
+    return {
+      id: `F-${String(index + 1).padStart(3, '0')}`,
+      kind,
+      severity,
+      status,
+      quote,
+      anchor: {
+        state,
+        line_start: anchored ? integer(anchorInput.line_start, 1, 'line_start') : null,
+        line_end: anchored ? integer(anchorInput.line_end, 1, 'line_end') : null,
+        start_offset: anchored ? integer(anchorInput.start_offset, 0, 'start_offset') : null,
+        end_offset: anchored ? integer(anchorInput.end_offset, 0, 'end_offset') : null,
+        block_id: anchorInput.block_id == null ? null : sanitizeString(anchorInput.block_id, 100, `finding ${index + 1} block_id`, false),
+      },
+      labels: sanitizeLabels(raw.labels).slice(0, 20),
+      thread,
+      resolution,
+    };
+  });
+}
+
+function makeReviewId(sessionSlug = null) {
+  const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+  const rawSlug = sessionSlug == null ? crypto.randomBytes(6).toString('hex') : String(sessionSlug).toLowerCase();
+  const slug = rawSlug.replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 63);
+  if (!slug) throw new HttpRequestError('sessionSlug must contain a letter or number.', 400);
+  return `review-${stamp}-${slug}`;
+}
+
+function ensureNormalizedReviewSource(req, source, expectedHash) {
+  ensureCapability(req, 'publishReview');
+  const fresh = resolveProjectMarkdownPath(source.rel);
+  if (!fresh || !sameFilesystemPath(fresh.file, source.file)) throw new HttpRequestError('Review source is unavailable or escaped the selected worktree.', 409);
+  const currentHash = normalizedContentHash(fresh.file);
+  if (currentHash !== expectedHash) throw new HttpRequestError('Review source content changed; refresh the draft before publishing.', 409);
+  return currentHash;
+}
+
+function reviewTimestampId(dateValue) {
+  const parsed = new Date(dateValue);
+  const date = Number.isFinite(parsed.getTime()) ? parsed : new Date(0);
+  return date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+}
+
+function legacyFindingAnchor(annotation, sourceText) {
+  const quote = String(annotation.quote || '').trim();
+  const first = quote ? sourceText.indexOf(quote) : -1;
+  const unique = first >= 0 && sourceText.indexOf(quote, first + 1) < 0;
+  if (!unique) {
+    return {
+      state: 'unanchored',
+      line_start: null,
+      line_end: null,
+      start_offset: null,
+      end_offset: null,
+      block_id: annotation.anchor?.blockId || null,
+    };
+  }
+  const lineStart = sourceText.slice(0, first).split('\n').length;
+  return {
+    state: 'exact',
+    line_start: lineStart,
+    line_end: lineStart + quote.split('\n').length - 1,
+    start_offset: first,
+    end_offset: first + quote.length,
+    block_id: annotation.anchor?.blockId || null,
+  };
+}
+
+function stableLegacyReview(source, annotations) {
+  const schema = loadReviewSchema();
+  const ordered = [...annotations].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+  const legacyIds = ordered.map((annotation) => String(annotation.id));
+  const fingerprint = sha256(`${source.repoPath}\n${legacyIds.join('\n')}`).slice(0, 16);
+  const created = ordered.map((annotation) => annotation.createdAt).filter((value) => Number.isFinite(Date.parse(value))).sort()[0] || new Date(0).toISOString();
+  const updated = ordered.map((annotation) => annotation.updatedAt || annotation.createdAt).filter((value) => Number.isFinite(Date.parse(value))).sort().at(-1) || created;
+  const reviewId = `review-${reviewTimestampId(created)}-legacy-${fingerprint}`;
+  const sourceText = normalizeSourceText(source.file);
+  const provenance = gitSourceProvenance(source);
+  const findings = ordered.map((annotation, index) => {
+    const resolved = ['closed', 'done', 'resolved'].includes(String(annotation.status || '').toLowerCase());
+    const author = normalizeDisplayName(annotation.author?.name, `legacy annotation ${annotation.id} author`);
+    return {
+      id: `F-${String(index + 1).padStart(3, '0')}`,
+      kind: schema.$defs.finding.properties.kind.enum.includes(annotation.type) ? annotation.type : 'comment',
+      severity: 'note',
+      status: resolved ? 'resolved' : 'open',
+      quote: sanitizeString(annotation.quote, 20000, `legacy annotation ${annotation.id} quote`, true),
+      anchor: legacyFindingAnchor(annotation, sourceText),
+      labels: sanitizeLabels(annotation.labels).slice(0, 20),
+      thread: [{
+        id: 'M-001',
+        created_at: Number.isFinite(Date.parse(annotation.createdAt)) ? new Date(annotation.createdAt).toISOString() : new Date(0).toISOString(),
+        ...(author ? { author_display_name: author } : {}),
+        body: sanitizeString(annotation.comment, 20000, `legacy annotation ${annotation.id} comment`, true),
+      }],
+      resolution: resolved ? {
+        resolved_at: Number.isFinite(Date.parse(annotation.updatedAt || annotation.createdAt)) ? new Date(annotation.updatedAt || annotation.createdAt).toISOString() : new Date(0).toISOString(),
+        summary: 'Resolved in the legacy annotation store before migration.',
+      } : null,
+    };
+  });
+  return {
+    schema_version: 1,
+    review_id: reviewId,
+    name: `Migrated review of ${source.repoPath}`,
+    status: findings.some((finding) => finding.status === 'open') ? 'open' : 'resolved',
+    created_at: new Date(created).toISOString(),
+    updated_at: new Date(updated).toISOString(),
+    source: {
+      path: source.repoPath,
+      branch_at_creation: activeContext.worktree.detached ? null : (activeContext.worktree.branch || null),
+      content_state: provenance.contentState,
+      commit: provenance.commit,
+      blob: provenance.blob,
+      hash_algorithm: schema.$defs.source.properties.hash_algorithm.const,
+      content_hash: sha256(sourceText),
+    },
+    findings,
+    migration: {
+      source_kind: 'legacy-annotations',
+      legacy_ids: legacyIds,
+      warnings: findings.some((finding) => finding.anchor.state === 'unanchored')
+        ? ['One or more legacy anchors could not be verified exactly.']
+        : [],
+    },
+  };
+}
+
+function writeApplyAuditReceipts(entries, report) {
+  if (!entries.length) return;
+  const common = spawnSync('git', ['rev-parse', '--git-common-dir'], { cwd: repoRoot, encoding: 'utf8' });
+  if (common.status !== 0) {
+    report.ambiguous.push({ kind: 'apply-audit', reason: 'Git common directory is unavailable.' });
+    return;
+  }
+  const commonPath = path.resolve(repoRoot, String(common.stdout || '').trim());
+  const receiptRoot = path.join(commonPath, 'delano', 'review-migration');
+  fs.mkdirSync(receiptRoot, { recursive: true });
+  for (const entry of entries) {
+    const id = entry && entry.id ? String(entry.id) : null;
+    const target = normalizeProjectMarkdownPath(entry?.sourcePath || entry?.target || '');
+    if (!id || !target) {
+      report.ambiguous.push({ kind: 'apply-audit', id, reason: 'Missing id or safe repository-relative target.' });
+      continue;
+    }
+    const base = {
+      id,
+      timestamp: Number.isFinite(Date.parse(entry.appliedAt || entry.timestamp)) ? new Date(entry.appliedAt || entry.timestamp).toISOString() : null,
+      target: `.project/${target}`,
+      outcome: String(entry.outcome || 'applied'),
+    };
+    const receiptChecksum = sha256(JSON.stringify(base));
+    const receipt = { ...base, receipt_checksum: receiptChecksum };
+    const receiptFile = path.join(receiptRoot, `apply-audit-${sha256(id).slice(0, 20)}.json`);
+    if (!fs.existsSync(receiptFile)) fs.writeFileSync(receiptFile, `${JSON.stringify(receipt, null, 2)}\n`, { encoding: 'utf8', flag: 'wx' });
+    report.applyAudit.push({ id, outcome: base.outcome, receipt_checksum: receiptChecksum });
+  }
+}
+
+async function handleReviewMigration(req, res) {
+  if (req.method !== 'POST') return sendError(res, 405, 'Use POST');
+  ensureCapability(req, 'publishReview');
+  const payload = await readJsonBody(req);
+  ensureCapability(req, 'publishReview');
+  if (payload.confirm !== true) return sendError(res, 400, 'confirm:true is required for explicit legacy migration.');
+  const report = { migrated: [], existing: [], ambiguous: [], applyAudit: [], handovers: [] };
+  if (!fs.existsSync(annotationStorePath)) return sendJson(res, { ok: true, ...report });
+  let store;
+  try {
+    store = JSON.parse(readText(annotationStorePath));
+  } catch (error) {
+    report.ambiguous.push({ kind: 'store', reason: `Legacy annotation store is malformed: ${error.message}` });
+    return sendJson(res, { ok: true, ...report });
+  }
+  const annotations = Array.isArray(store.annotations) ? store.annotations : [];
+  const duplicateIds = new Set();
+  const byId = new Map();
+  for (const annotation of annotations) {
+    const id = annotation?.id ? String(annotation.id) : null;
+    if (!id) continue;
+    if (byId.has(id) && JSON.stringify(byId.get(id)) !== JSON.stringify(annotation)) duplicateIds.add(id);
+    else byId.set(id, annotation);
+  }
+  const groups = new Map();
+  const acceptedIds = new Set();
+  for (const annotation of annotations) {
+    const id = annotation?.id ? String(annotation.id) : null;
+    if (!id || duplicateIds.has(id)) {
+      report.ambiguous.push({ kind: 'annotation', id, reason: id ? 'Duplicate id has conflicting content.' : 'Annotation id is missing.' });
+      continue;
+    }
+    if (acceptedIds.has(id)) continue;
+    acceptedIds.add(id);
+    const source = resolveProjectMarkdownPath(annotation.sourcePath);
+    if (!source || artifactRoleFor(source.rel) === 'review') {
+      report.ambiguous.push({ kind: 'annotation', id, reason: 'Source path is missing, unsafe, or unavailable.' });
+      continue;
+    }
+    const group = groups.get(source.rel) || { source, annotations: [] };
+    group.annotations.push(annotation);
+    groups.set(source.rel, group);
+  }
+  fs.mkdirSync(reviewDirectory(), { recursive: true });
+  for (const group of groups.values()) {
+    try {
+      const review = stableLegacyReview(group.source, group.annotations);
+      const errors = reviewValidationErrors(review);
+      if (errors.length) throw new Error(errors.join('; '));
+      const serialized = serializeReview(review);
+      const privacy = privacyViolation(serialized);
+      if (privacy) throw new Error(privacy);
+      const target = reviewFileForId(review.review_id, false);
+      if (fs.existsSync(target)) {
+        const existing = readReviewFile(target).review;
+        if (JSON.stringify(existing.migration?.legacy_ids || []) !== JSON.stringify(review.migration.legacy_ids)) {
+          throw new Error('Stable migration target exists with different legacy ids.');
+        }
+        report.existing.push({ reviewId: review.review_id, path: `.project/reviews/${path.basename(target)}` });
+        continue;
+      }
+      ensureNormalizedReviewSource(req, group.source, review.source.content_hash);
+      fs.writeFileSync(target, serialized, { encoding: 'utf8', flag: 'wx' });
+      report.migrated.push({ reviewId: review.review_id, path: `.project/reviews/${path.basename(target)}`, legacyIds: review.migration.legacy_ids });
+    } catch (error) {
+      report.ambiguous.push({ kind: 'annotation-group', sourcePath: `.project/${group.source.rel}`, reason: error.message });
+    }
+  }
+  writeApplyAuditReceipts(Array.isArray(store.applyAudit) ? store.applyAudit : [], report);
+  if (fs.existsSync(handoverDir)) {
+    for (const entry of fs.readdirSync(handoverDir, { withFileTypes: true }).filter((item) => item.isFile() && item.name.endsWith('.md'))) {
+      report.handovers.push({ name: path.basename(entry.name), status: 'retained-legacy-evidence' });
+    }
+  }
+  return sendJson(res, { ok: true, ...report });
+}
+
+async function handleReviews(req, res, parsed) {
+  if (req.method === 'GET') {
+    const reviewId = parsed.query.id || null;
+    if (!reviewId) return sendJson(res, { ok: true, ...reviewSummary() });
+    const artifact = readReviewFile(reviewFileForId(reviewId));
+    return sendJson(res, {
+      ok: true,
+      path: `.project/reviews/${path.basename(artifact.file)}`,
+      review: artifact.review,
+      markdown: artifact.markdown,
+      runtime: runtimeReviewState(artifact.review),
+    });
+  }
+  if (req.method === 'POST') {
+    ensureCapability(req, 'publishReview');
+    const payload = await readJsonBody(req);
+    ensureCapability(req, 'publishReview');
+    const source = resolveProjectMarkdownPath(payload.sourcePath);
+    if (!source || artifactRoleFor(source.rel) === 'review') return sendError(res, 400, 'sourcePath must identify a non-review .project Markdown artifact.');
+    const initialHash = normalizedContentHash(source.file);
+    if (payload.expectedContentHash != null && sanitizeString(payload.expectedContentHash, 128, 'expectedContentHash', true) !== initialHash) {
+      return sendError(res, 409, 'Review draft baseline does not match the selected source content.');
+    }
+    const provenance = gitSourceProvenance(source);
+    if (provenance.contentState === 'uncommitted' && payload.confirmUncommitted !== true) {
+      return sendError(res, 409, 'Publishing a review of uncommitted source requires confirmUncommitted:true.');
+    }
+    const schema = loadReviewSchema();
+    const now = new Date().toISOString();
+    const author = normalizeDisplayName(payload.authorDisplayName, 'authorDisplayName');
+    const findings = normalizePublishedFindings(payload.findings, now, schema, author);
+    const reviewId = makeReviewId(payload.sessionSlug);
+    const review = {
+      schema_version: 1,
+      review_id: reviewId,
+      name: sanitizeString(payload.name || `Review of ${source.repoPath}`, 200, 'name', true),
+      status: findings.some((finding) => finding.status === 'open') ? 'open' : 'resolved',
+      created_at: now,
+      updated_at: now,
+      ...(author ? { author_display_name: author } : {}),
+      source: {
+        path: source.repoPath,
+        branch_at_creation: activeContext.worktree.detached ? null : (activeContext.worktree.branch || null),
+        content_state: provenance.contentState,
+        commit: provenance.commit,
+        blob: provenance.blob,
+        hash_algorithm: schema.$defs.source.properties.hash_algorithm.const,
+        content_hash: initialHash,
+      },
+      findings,
+    };
+    const errors = reviewValidationErrors(review, schema);
+    if (errors.length) return sendError(res, 422, 'Review artifact failed schema validation.', { errors });
+    const serialized = serializeReview(review);
+    const privacy = privacyViolation(serialized);
+    if (privacy) return sendError(res, 422, privacy);
+    ensureNormalizedReviewSource(req, source, initialHash);
+    fs.mkdirSync(reviewDirectory(), { recursive: true });
+    const target = reviewFileForId(reviewId, false);
+    try {
+      fs.writeFileSync(target, serialized, { encoding: 'utf8', flag: 'wx' });
+    } catch (error) {
+      if (error.code === 'EEXIST') return sendError(res, 409, 'Review id already exists; retry publication with a unique session slug.');
+      throw error;
+    }
+    return sendJsonStatus(res, 201, {
+      ok: true,
+      path: `.project/reviews/${path.basename(target)}`,
+      review,
+      runtime: runtimeReviewState(review),
+    });
+  }
+  if (req.method === 'PATCH') {
+    ensureCapability(req, 'publishReview');
+    const payload = await readJsonBody(req);
+    ensureCapability(req, 'publishReview');
+    const artifact = readReviewFile(reviewFileForId(payload.reviewId || parsed.query.id));
+    const review = structuredClone(artifact.review);
+    const schema = loadReviewSchema();
+    const now = new Date().toISOString();
+    if (payload.status != null) {
+      const status = String(payload.status);
+      if (!schema.properties.status.enum.includes(status)) return sendError(res, 400, 'Review status is invalid.');
+      review.status = status;
+    }
+    if (payload.findingId != null) {
+      const finding = review.findings.find((candidate) => candidate.id === String(payload.findingId));
+      if (!finding) return sendError(res, 404, 'Review finding not found.');
+      const status = String(payload.findingStatus || '');
+      if (!schema.$defs.finding.properties.status.enum.includes(status)) return sendError(res, 400, 'Finding status is invalid.');
+      finding.status = status;
+      if (status === 'open') {
+        finding.resolution = null;
+      } else {
+        finding.resolution = {
+          resolved_at: now,
+          ...(normalizeDisplayName(payload.resolvedByDisplayName, 'resolvedByDisplayName') ? { resolved_by_display_name: normalizeDisplayName(payload.resolvedByDisplayName, 'resolvedByDisplayName') } : {}),
+          summary: sanitizeString(payload.resolutionSummary, 20000, 'resolutionSummary', true),
+        };
+      }
+      if (review.status !== 'archived') review.status = review.findings.some((candidate) => candidate.status === 'open') ? 'open' : 'resolved';
+    }
+    review.updated_at = now;
+    const errors = reviewValidationErrors(review, schema);
+    if (errors.length) return sendError(res, 422, 'Review artifact failed schema validation.', { errors });
+    const serialized = serializeReview(review);
+    const privacy = privacyViolation(serialized);
+    if (privacy) return sendError(res, 422, privacy);
+    const temporary = `${artifact.file}.${crypto.randomUUID()}.tmp`;
+    fs.writeFileSync(temporary, serialized, { encoding: 'utf8', flag: 'wx' });
+    try {
+      fs.renameSync(temporary, artifact.file);
+    } finally {
+      if (fs.existsSync(temporary)) fs.rmSync(temporary, { force: true });
+    }
+    return sendJson(res, {
+      ok: true,
+      path: `.project/reviews/${path.basename(artifact.file)}`,
+      review,
+      runtime: runtimeReviewState(review),
+    });
+  }
+  return sendError(res, 405, 'Use GET, POST, or PATCH');
+}
+
 function annotationSectionLines(selected) {
   const lines = [];
   selected.forEach((annotation, index) => {
@@ -1427,7 +2261,7 @@ async function launchAgentTerminal(agent, prompt) {
 
 function handoverRoleName(rel) {
   const role = artifactRoleFor(rel);
-  return role === 'task' || role === 'workstream' ? role : 'document';
+  return role === 'task' || role === 'workstream' || role === 'review' ? role : 'document';
 }
 
 function handoverPrompt(intent, source, handoverPath, annotationCount) {
@@ -1439,6 +2273,9 @@ function handoverPrompt(intent, source, handoverPath, annotationCount) {
     return `Work the Delano ${role} ${source.repoPath}. Read AGENTS.md and the owning project spec and plan first, implement the acceptance criteria, record evidence, and update lifecycle state with the delano CLI.`;
   }
   if (intent === 'review') {
+    if (role === 'review') {
+      return `Review the tracked Delano review ${source.repoPath}. Read its source provenance and every open finding, verify the current source state, and record resolution evidence per AGENTS.md.`;
+    }
     const feedback = handoverPath && annotationCount > 0
       ? ` Reviewer annotations are in ${handoverPath}; address every one of them.`
       : '';
@@ -1449,27 +2286,32 @@ function handoverPrompt(intent, source, handoverPath, annotationCount) {
 
 async function handleHandover(req, res) {
   if (req.method !== 'POST') return sendError(res, 405, 'Use POST');
-  ensureWritableContext(req);
   let payload;
   try {
     payload = await readJsonBody(req);
   } catch (error) {
     return sendError(res, statusCodeForError(error), error.message);
   }
-  ensureWritableContext(req);
   const agent = payload.agent == null ? 'chatgpt' : String(payload.agent);
   if (!HANDOVER_AGENTS.has(agent)) {
     return sendError(res, 400, 'Unsupported handover agent.');
   }
   const action = payload.action === 'launch' ? 'launch' : 'command';
   const intent = payload.intent === 'start' || payload.intent === 'review' ? payload.intent : 'annotations';
+  const capability = intent === 'start' ? 'dispatch' : 'review';
+  ensureCapability(req, capability);
   const source = resolveProjectMarkdownPath(String(payload.sourcePath || ''));
   if (!source) return sendError(res, 404, 'Source document not found.');
+  source.baselineHash = fileBaseline(source.file).hash;
+  const expectedSourceHash = payload.expectedSourceHash == null
+    ? null
+    : sanitizeString(payload.expectedSourceHash, 128, 'expectedSourceHash', true);
+  ensureFreshSource(req, capability, source, expectedSourceHash);
   const ids = Array.isArray(payload.ids)
     ? payload.ids.slice(0, MAX_HANDOVER_IDS).map((id) => String(id))
     : null;
-  const store = readAnnotationStore();
-  const annotations = store.annotations.filter((annotation) => (
+  const sourceRole = artifactRoleFor(source.rel);
+  const annotations = sourceRole === 'review' ? [] : readAnnotationStore().annotations.filter((annotation) => (
     annotation.status !== 'deleted' &&
     annotation.sourcePath === source.rel &&
     (!ids || ids.includes(annotation.id))
@@ -1477,8 +2319,9 @@ async function handleHandover(req, res) {
 
   // Work-dispatch handovers reference the contract directly; the annotation
   // file is only written when there is captured feedback to carry along.
-  let handoverPath = null;
-  if (intent === 'annotations' || (intent === 'review' && annotations.length)) {
+  let handoverPath = sourceRole === 'review' ? source.repoPath : null;
+  if (sourceRole !== 'review' && intent === 'annotations') {
+    ensureFreshSource(req, capability, source, expectedSourceHash);
     ensureAnnotationStoreDir();
     fs.mkdirSync(handoverDir, { recursive: true });
     const fileName = handoverFileName(source.rel);
@@ -1506,8 +2349,9 @@ async function handleHandover(req, res) {
   };
 
   if (action === 'launch') {
+    ensureFreshSource(req, capability, source, expectedSourceHash);
     const launch = await launchAgentTerminal(agent, prompt);
-    ensureRequestContext(req);
+    ensureFreshSource(req, capability, source, expectedSourceHash);
     if (!launch.ok) return sendJsonStatus(res, 400, { ok: false, error: launch.error, ...base });
     return sendJson(res, { ok: true, launched: true, ...base, ...launch });
   }
@@ -1640,9 +2484,9 @@ async function handleAnnotations(req, res, parsed) {
   }
 
   if (req.method === 'POST') {
-    ensureWritableContext(req);
+    ensureCapability(req, 'publishReview');
     const payload = await readJsonBody(req);
-    ensureWritableContext(req);
+    ensureCapability(req, 'publishReview');
     let annotation;
     try {
       annotation = normalizeAnnotationInput(payload);
@@ -1655,12 +2499,12 @@ async function handleAnnotations(req, res, parsed) {
   }
 
   if (req.method === 'PATCH') {
-    ensureWritableContext(req);
+    ensureCapability(req, 'publishReview');
     const id = sanitizeString(parsed.query.id, 120, 'id', true);
     const index = store.annotations.findIndex((annotation) => annotation.id === id);
     if (index < 0) return sendError(res, 404, 'Annotation not found.');
     const payload = await readJsonBody(req);
-    ensureWritableContext(req);
+    ensureCapability(req, 'publishReview');
     let annotation;
     try {
       annotation = normalizeAnnotationInput({ ...store.annotations[index], ...payload }, store.annotations[index]);
@@ -1673,7 +2517,7 @@ async function handleAnnotations(req, res, parsed) {
   }
 
   if (req.method === 'DELETE') {
-    ensureWritableContext(req);
+    ensureCapability(req, 'publishReview');
     const ids = String(parsed.query.id || '').split(',').map((id) => id.trim()).filter(Boolean);
     if (!ids.length) return sendError(res, 400, 'Annotation id is required.');
     const before = store.annotations.length;
@@ -1715,14 +2559,14 @@ async function handleAnnotationExport(req, res, parsed) {
 
 async function handleApplyPreview(req, res, shouldWrite) {
   if (req.method !== 'POST') return sendError(res, 405, 'Use POST');
-  if (shouldWrite) ensureWritableContext(req);
+  if (shouldWrite) ensureCapability(req, 'applyContract');
   let payload;
   try {
     payload = await readJsonBody(req);
   } catch (error) {
     return sendError(res, statusCodeForError(error), error.message);
   }
-  if (shouldWrite) ensureWritableContext(req);
+  if (shouldWrite) ensureCapability(req, 'applyContract');
   else ensureRequestContext(req);
   const source = resolveProjectMarkdownPath(payload.sourcePath);
   if (!source) return sendError(res, 400, 'sourcePath must point at a known .project markdown document.');
@@ -1776,6 +2620,18 @@ async function handleApplyPreview(req, res, shouldWrite) {
 const server = http.createServer(async (req, res) => {
   try {
     req.delanoGeneration = contextGeneration;
+    req.delanoContext = {
+      repository: { id: activeContext.repository.id },
+      worktree: {
+        id: activeContext.worktree.id,
+        path: activeContext.worktree.path,
+        branch: activeContext.worktree.branch || null,
+        detached: Boolean(activeContext.worktree.detached),
+        head: activeContext.worktree.head || null,
+      },
+      legacy: activeContext.legacy,
+      generation: contextGeneration,
+    };
     const parsed = parseRequestUrl(req.url);
     if (parsed.pathname === '/api/context') return await handleContext(req, res);
     if (contextSwitching && parsed.pathname.startsWith('/api/')) {
@@ -1802,13 +2658,30 @@ const server = http.createServer(async (req, res) => {
       }
       const markdown = readText(source.file);
       const meta = docMeta(source.file, source.rel);
-      return sendJson(res, { ...meta, markdown, body: splitFrontmatter(markdown).body, baseline: fileBaseline(source.file) });
+      let reviewRuntime = null;
+      if (meta.role === 'review') {
+        reviewRuntime = runtimeReviewState(readReviewFile(source.file).review);
+      }
+      return sendJson(res, {
+        ...meta,
+        markdown,
+        body: splitFrontmatter(markdown).body,
+        baseline: fileBaseline(source.file),
+        contentHash: normalizedContentHash(source.file),
+        reviewRuntime,
+      });
     }
     if (parsed.pathname === '/api/annotations') {
       return await handleAnnotations(req, res, parsed);
     }
     if (parsed.pathname === '/api/annotations/export') {
       return await handleAnnotationExport(req, res, parsed);
+    }
+    if (parsed.pathname === '/api/reviews/migrate') {
+      return await handleReviewMigration(req, res);
+    }
+    if (parsed.pathname === '/api/reviews') {
+      return await handleReviews(req, res, parsed);
     }
     if (parsed.pathname === '/api/apply/preview') {
       return await handleApplyPreview(req, res, false);

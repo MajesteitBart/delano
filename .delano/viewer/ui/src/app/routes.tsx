@@ -114,7 +114,8 @@ export function ViewerRoute({
         docs={docsByPath}
         project={activeProject}
         onOpenDoc={onOpenDoc}
-        writable={index?.context?.writable ?? true}
+        dispatchEnabled={index?.context?.capabilities.dispatch ?? true}
+        reviewEnabled={index?.context?.capabilities.review ?? true}
       />
     )
   }
@@ -125,7 +126,8 @@ export function ViewerRoute({
         docs={docsByPath}
         project={activeProject}
         onOpenDoc={onOpenDoc}
-        writable={index?.context?.writable ?? true}
+        dispatchEnabled={index?.context?.capabilities.dispatch ?? true}
+        reviewEnabled={index?.context?.capabilities.review ?? true}
       />
     )
   }
@@ -171,8 +173,12 @@ export function ViewerRoute({
         onOpenDoc={onOpenDoc}
         onRefresh={onRefreshDocument}
         project={activeProject}
-        writable={index?.context?.writable ?? true}
-        writeDisabledReason={index?.context?.writeDisabledReason}
+        draftScope={{
+          repositoryId: index?.context?.repository.id ?? "local",
+          worktreeId: index?.context?.worktree.id ?? "local",
+        }}
+        capabilities={index?.context?.capabilities}
+        capabilityDenials={index?.context?.capabilityDenials}
       />
     )
   }

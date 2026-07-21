@@ -93,8 +93,9 @@ export async function performHandover(options: {
   action: HandoverAction
   intent?: HandoverIntent
   ids?: string[]
+  expectedSourceHash?: string
 }): Promise<{ message: string; payload: HandoverResponse }> {
-  const { sourcePath, agent, action, intent = "annotations", ids } = options
+  const { sourcePath, agent, action, intent = "annotations", ids, expectedSourceHash } = options
   rememberAgent(agent)
   const payload = await requestJson<HandoverResponse>("/api/handover", {
     method: "POST",
@@ -103,6 +104,7 @@ export async function performHandover(options: {
       ids: ids?.length ? ids : undefined,
       agent,
       intent,
+      expectedSourceHash,
       action: action === "launch" ? "launch" : "command",
     }),
   })

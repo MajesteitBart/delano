@@ -121,6 +121,7 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
   const progress = allDocs.filter((doc) => doc.role === "progress")
   const validation = allDocs.filter((doc) => doc.role !== "context")
   const annotations = index?.annotationSummary?.open ?? 0
+  const reviews = allDocs.filter((doc) => doc.role === "review")
 
   return {
     context,
@@ -128,6 +129,7 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
     tasks,
     progress,
     annotations,
+    reviews,
     validation,
     warnings,
     blockers,
@@ -137,6 +139,7 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
       tasks: openTasks.length,
       progress: progress.length,
       annotations,
+      reviews: index?.reviewSummary?.open ?? reviews.length,
       validation: validation.length,
       warnings: warnings.length,
       blockers: blockers.length,

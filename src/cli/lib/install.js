@@ -36,11 +36,6 @@ const INSTALL_CATEGORIES = [
     matches: (target) => target.startsWith(".agents/skills/")
   },
   {
-    name: "viewer",
-    description: ".delano viewer files",
-    matches: (target) => target.startsWith(".delano/")
-  },
-  {
     name: "project-context",
     description: ".project/context starter templates",
     matches: (target) => target.startsWith(".project/context/")
@@ -83,7 +78,6 @@ const INSTALL_CATEGORY_ALIASES = new Map([
   ["project-state", "project-projects"],
   ["projects", "project-projects"],
   ["registry", "project-registry"],
-  ["delano", "viewer"],
   ["installer", "legacy-installer"]
 ]);
 

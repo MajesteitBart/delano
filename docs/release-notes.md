@@ -1,6 +1,18 @@
 # Delano release notes
 
-There have been some major new features added to Delano.
+## Branch-local reviews and one packaged Viewer runtime (v0.3.4)
+
+Viewer permission now follows the selected, fresh registered worktree rather than primary-checkout identity. Primary/linked role remains visible risk and provenance, while explicit `dispatch`, `review`, `publishReview`, and `applyContract` capabilities govern actions. Every launch or write revalidates the selected context and relevant content hash; stale or unavailable contexts fail without falling back to another checkout.
+
+Review drafts remain browser-local until explicit publication. Publication writes one schema-valid, human-readable artifact under `.project/reviews/`, performs no commit, push, or remote post, and records only repository-relative provenance. Review freshness follows normalized source content rather than unrelated HEAD movement. Published reviews can be resolved or archived in place and handed to agents by tracked path. Legacy `.project/viewer/annotations.json` and generated handovers are now noncanonical migration inputs; migration is explicit, idempotent, and non-destructive.
+
+Normal validation reports dirty `.project` provenance consistently across primary and linked worktrees. Release validation enforces the same cleanliness policy for both, with the documented explicit override.
+
+The npm package still contains and executes the Viewer. Fresh and update-safe repository installs no longer copy `.delano/viewer`, and Delano never executes or automatically deletes an existing repository-local copy. Before manual cleanup, compare legacy files with the package version and preserve anything modified or unrecognized.
+
+## Historical v0.2.11 review workspace notes
+
+The sections below describe the earlier annotation-store and generated-handover model. v0.3.4 supersedes those storage, worktree-permission, validation, and install-boundary claims as described above.
 
 Since `v0.2.11`, Delano has moved from a guarded local contract viewer toward a more complete review and handover workspace. The important idea has not changed: `HANDBOOK.md` and `.project/` are still the source of truth. What changed is that users and agents now have better ways to read that truth, annotate it, and turn it into scoped work.
 

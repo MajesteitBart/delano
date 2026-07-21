@@ -47,9 +47,14 @@ function getViewerHelp() {
     "  If that port is busy, the viewer starts on the next available port.",
     "",
     "Review mode:",
-    "  Annotations are stored in .project/viewer/annotations.json.",
-    "  Canonical markdown writes require preview/apply with a current file hash."
+    "  Draft findings stay local until explicit publication writes a tracked .project/reviews artifact.",
+    "  Publication never commits or pushes. Canonical markdown writes require preview/apply with fresh context and a current file hash.",
+    "  The Viewer runtime is loaded from the active Delano package, not from the target repository."
   ].join("\n");
+}
+
+function getViewerServerPath() {
+  return path.join(getPackageRoot(), ".delano", "viewer", "server.js");
 }
 
 async function runViewer(args) {
@@ -62,7 +67,7 @@ async function runViewer(args) {
     );
   }
 
-  const serverPath = path.join(getPackageRoot(), ".delano", "viewer", "server.js");
+  const serverPath = getViewerServerPath();
   const result = spawnSync(process.execPath, [serverPath], {
     cwd: delanoRoot,
     stdio: "inherit",
@@ -81,6 +86,7 @@ async function runViewer(args) {
 
 module.exports = {
   getViewerHelp,
+  getViewerServerPath,
   parseViewerArgs,
   runViewer
 };

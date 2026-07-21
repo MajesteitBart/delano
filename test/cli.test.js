@@ -340,7 +340,7 @@ test("coordination state migrates once and is shared across linked worktrees", a
   assert.equal(fs.readFileSync(fromLinked, "utf8"), sharedBefore);
 });
 
-test("validate guards dirty linked-worktree project state and supports explicit override", () => {
+test("validate reports dirty provenance normally and enforces release cleanliness equally across checkout roles", () => {
   const repo = createTempGitDelanoRepo();
   for (const directory of ["context", "registry"]) fs.mkdirSync(path.join(repo, ".project", directory), { recursive: true });
   fs.writeFileSync(path.join(repo, ".project", "registry", "linear-map.json"), "{}\n");
@@ -355,16 +355,34 @@ test("validate guards dirty linked-worktree project state and supports explicit 
   execFileSync("git", ["add", "."], { cwd: repo });
   execFileSync("git", ["commit", "-m", "validation fixture"], { cwd: repo, stdio: "ignore" });
 
+  const cleanPrimary = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate"], { cwd: repo, encoding: "utf8" });
+  assert.match(cleanPrimary.stdout, /Primary worktree \.project state is clean/);
+  fs.writeFileSync(path.join(repo, ".project", "dirty.md"), "dirty\n");
+  const dirtyPrimary = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate"], { cwd: repo, encoding: "utf8" });
+  assert.match(dirtyPrimary.stdout, /Primary worktree has uncommitted \.project changes; normal validation continues with dirty provenance/);
+  assert.doesNotMatch(dirtyPrimary.stdout, /release validation requires/);
+  const releasePrimary = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate", "--release"], { cwd: repo, encoding: "utf8" });
+  assert.match(releasePrimary.stdout, /Primary worktree has uncommitted \.project changes; release validation requires a clean checkout/);
+  const allowedPrimary = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate", "--release", "--allow-worktree-state"], { cwd: repo, encoding: "utf8" });
+  assert.match(allowedPrimary.stdout, /Primary worktree has uncommitted \.project changes; release cleanliness override allowed/);
+  fs.rmSync(path.join(repo, ".project", "dirty.md"));
+
   const linked = path.join(path.dirname(repo), `${path.basename(repo)} validation-linked`);
   execFileSync("git", ["worktree", "add", "-b", "validation-fixture", linked], { cwd: repo, stdio: "ignore" });
+  const cleanLinked = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate"], { cwd: linked, encoding: "utf8" });
+  assert.match(cleanLinked.stdout, /Linked worktree \.project state is clean/);
   fs.writeFileSync(path.join(linked, ".project", "dirty.md"), "dirty\n");
-  const denied = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate"], { cwd: linked, encoding: "utf8" });
-  assert.notEqual(denied.status, 0);
-  assert.match(denied.stdout + denied.stderr, /Linked worktree has uncommitted \.project changes/);
+  const dirtyLinked = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate"], { cwd: linked, encoding: "utf8" });
+  assert.match(dirtyLinked.stdout, /Linked worktree has uncommitted \.project changes; normal validation continues with dirty provenance/);
+  assert.doesNotMatch(dirtyLinked.stdout, /release validation requires/);
+  const releaseLinked = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate", "--release"], { cwd: linked, encoding: "utf8" });
+  assert.match(releaseLinked.stdout, /Linked worktree has uncommitted \.project changes; release validation requires a clean checkout/);
+  const allowedLinked = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate", "--release", "--allow-worktree-state"], { cwd: linked, encoding: "utf8" });
+  assert.match(allowedLinked.stdout, /Linked worktree has uncommitted \.project changes; release cleanliness override allowed/);
 
-  const allowed = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate", "--allow-worktree-state"], { cwd: linked, encoding: "utf8" });
-  assert.match(allowed.stdout, /allowed by --allow-worktree-state/);
-  assert.doesNotMatch(allowed.stdout + allowed.stderr, /commit\/stash them or rerun/);
+  const validationHelp = spawnSync(process.execPath, [path.join(process.cwd(), "bin", "delano.js"), "validate", "--help"], { cwd: linked, encoding: "utf8" });
+  assert.match(validationHelp.stdout, /require clean \.project state in any checkout/);
+  assert.doesNotMatch(validationHelp.stdout, /canonical branch|main|master/i);
 });
 
 test("state creation commands render project artifacts from templates", () => {

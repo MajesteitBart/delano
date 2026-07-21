@@ -38,7 +38,8 @@ function createWrapperCommand(scriptName, options = {}) {
         lines.push(
           "",
           "Validation options:",
-          "  --allow-worktree-state  Permit uncommitted .project changes in a linked worktree."
+          "  --release               Include package checks and require clean .project state in any checkout.",
+          "  --allow-worktree-state  Explicitly override release cleanliness for uncommitted .project changes."
         );
       }
 

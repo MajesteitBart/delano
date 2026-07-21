@@ -47,9 +47,9 @@ Use `delano --help` and `delano <command> --help` for live command help.
 
 | Command | Purpose | Writes |
 | --- | --- | --- |
-| `delano install` | Install the approved runtime payload into a repo. | `.agents/`, `.project/`, `.delano/`, `HANDBOOK.md`, selected allowlist files |
+| `delano install` | Install the approved runtime payload into a repo. | `.agents/`, `.project/`, `HANDBOOK.md`, selected allowlist files; no repository-local Viewer runtime |
 | `delano onboarding` | Review repo-root agent instructions with explicit approval. | Nothing by default |
-| `delano viewer` | Start the guarded local review UI for `.project`. | `.project/viewer/annotations.json`; canonical markdown only through explicit preview/apply |
+| `delano viewer` | Start the package-owned guarded review UI for the selected worktree. | Local drafts; explicit `.project/reviews/*.md` publication; canonical markdown only through guarded preview/apply |
 | `delano context` | List and read `.project/context` as a safe context pack. | Nothing |
 | `delano repos` | List or forget machine-local repository registrations used by the viewer. | `~/.delano/repositories.json` (or `$DELANO_HOME/repositories.json`) |
 | `delano worktrees` | List fresh Git-reported worktrees and `.project` health for a repository. | Nothing |

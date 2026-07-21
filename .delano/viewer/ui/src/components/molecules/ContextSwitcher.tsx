@@ -337,9 +337,9 @@ function ContextDetails({ inventory }: { inventory: ViewerContextInventory }) {
               : "No uncommitted .project changes"}
           </dd>
         </dl>
-        {!active.writable && (
+        {active.risk.indicators.length > 0 && (
           <p className="border-t pt-2 text-xs text-muted-foreground">
-            {active.writeDisabledReason}
+            Context risk: {active.risk.indicators.join(", ")}. Capabilities are enforced independently.
           </p>
         )}
       </PopoverContent>

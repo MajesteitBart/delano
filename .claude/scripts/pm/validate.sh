@@ -126,23 +126,31 @@ echo "================="
 
 primary_worktree="$(git worktree list --porcelain 2>/dev/null | awk '/^worktree / {sub(/^worktree /, ""); print; exit}')"
 current_worktree="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+worktree_label="Primary"
 if [[ -n "$primary_worktree" ]]; then
   primary_worktree="$(cd "$primary_worktree" 2>/dev/null && pwd -P || printf '%s' "$primary_worktree")"
   current_worktree="$(cd "$current_worktree" 2>/dev/null && pwd -P || printf '%s' "$current_worktree")"
   if [[ "$current_worktree" != "$primary_worktree" ]]; then
-    project_changes="$(git status --porcelain=v1 --untracked-files=all -- .project 2>/dev/null || true)"
-    if [[ -n "$project_changes" ]]; then
-      if [[ "$allow_worktree_state" == true ]]; then
-        echo "Linked-worktree .project changes allowed by --allow-worktree-state"
-        warnings=$((warnings + 1))
-      else
-        echo "Linked worktree has uncommitted .project changes; commit/stash them or rerun with --allow-worktree-state"
-        errors=$((errors + 1))
-      fi
-    else
-      echo "Linked worktree .project state is clean"
-    fi
+    worktree_label="Linked"
   fi
+fi
+
+project_changes="$(git status --porcelain=v1 --untracked-files=all -- .project 2>/dev/null || true)"
+if [[ -n "$project_changes" ]]; then
+  if [[ "$release_checks" == true ]]; then
+    if [[ "$allow_worktree_state" == true ]]; then
+      echo "$worktree_label worktree has uncommitted .project changes; release cleanliness override allowed by --allow-worktree-state"
+      warnings=$((warnings + 1))
+    else
+      echo "$worktree_label worktree has uncommitted .project changes; release validation requires a clean checkout or --allow-worktree-state"
+      errors=$((errors + 1))
+    fi
+  else
+    echo "$worktree_label worktree has uncommitted .project changes; normal validation continues with dirty provenance"
+    warnings=$((warnings + 1))
+  fi
+else
+  echo "$worktree_label worktree .project state is clean"
 fi
 
 if [[ -f ".agents/leases/active-leases.json" ]]; then

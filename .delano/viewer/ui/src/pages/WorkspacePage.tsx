@@ -17,6 +17,7 @@ import {
 } from "@/components/molecules/DataTable"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Empty,
   EmptyDescription,
@@ -68,6 +69,10 @@ const WORKSPACE_COPY: Record<
     description:
       "Review comments captured across every indexed project document.",
   },
+  "workspace-reviews": {
+    title: "Reviews",
+    description: "Published review artifacts shared through the selected branch.",
+  },
   "workspace-validation": {
     title: "Validation",
     description: "Contract documents included in the viewer index.",
@@ -98,6 +103,34 @@ export function WorkspacePage({
   const [annotations, setAnnotations] = useState<Annotation[]>([])
   const [annotationsLoading, setAnnotationsLoading] = useState(false)
   const [annotationsError, setAnnotationsError] = useState("")
+  const [migrationConfirmed, setMigrationConfirmed] = useState(false)
+  const [migrationBusy, setMigrationBusy] = useState(false)
+  const [migrationStatus, setMigrationStatus] = useState("")
+  const [migrationError, setMigrationError] = useState("")
+
+  const migrateLegacyReviews = async () => {
+    setMigrationBusy(true)
+    setMigrationStatus("")
+    setMigrationError("")
+    try {
+      const report = await requestJson<{
+        migrated: unknown[]
+        existing: unknown[]
+        ambiguous: unknown[]
+        applyAudit: unknown[]
+      }>("/api/reviews/migrate", {
+        method: "POST",
+        body: JSON.stringify({ confirm: true }),
+      })
+      setMigrationStatus(
+        `Migrated ${report.migrated.length}, already present ${report.existing.length}, ambiguous ${report.ambiguous.length}, audit receipts ${report.applyAudit.length}. Legacy files were retained.`
+      )
+    } catch (error) {
+      setMigrationError(messageFromError(error))
+    } finally {
+      setMigrationBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (view !== "workspace-annotations") return
@@ -168,6 +201,37 @@ export function WorkspacePage({
           loading={annotationsLoading}
           onOpenDoc={onOpenDoc}
         />
+      )}
+      {view === "workspace-reviews" && (
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-wrap items-center gap-4 border-y py-3">
+            <Checkbox
+              id="confirm-legacy-review-migration"
+              checked={migrationConfirmed}
+              onCheckedChange={(value) => setMigrationConfirmed(value === true)}
+            />
+            <label
+              htmlFor="confirm-legacy-review-migration"
+              className="min-w-64 flex-1 text-xs leading-5 text-muted-foreground"
+            >
+              Import legacy annotations into tracked reviews. Source annotations and handovers remain unchanged; apply audit data stays in local Git receipts.
+            </label>
+            <Button
+              variant="outline"
+              disabled={!migrationConfirmed || migrationBusy}
+              onClick={() => void migrateLegacyReviews()}
+            >
+              {migrationBusy ? "Migrating…" : "Migrate legacy reviews"}
+            </Button>
+          </div>
+          {migrationStatus && <p className="text-sm text-muted-foreground" role="status">{migrationStatus}</p>}
+          {migrationError && <p className="text-sm text-destructive" role="alert">{migrationError}</p>}
+          <DocTable
+            docs={workspace.reviews}
+            emptyTitle="No published reviews"
+            onOpenDoc={onOpenDoc}
+          />
+        </div>
       )}
       {view === "workspace-validation" && (
         <DocTable

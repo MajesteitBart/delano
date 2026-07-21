@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "canonical_artifact": "valid/canonical-committed-open.md",
+  "hash_cases": [
+    {
+      "name": "lf",
+      "input": "# Spec\n\nLine one\nLine two\n",
+      "expected": "2c5f77eb166429bf28e91f91235c6236a8a1dc649ee492a714cd27f06bc1dce8"
+    },
+    {
+      "name": "crlf",
+      "input": "# Spec\r\n\r\nLine one\r\nLine two\r\n",
+      "expected": "2c5f77eb166429bf28e91f91235c6236a8a1dc649ee492a714cd27f06bc1dce8"
+    },
+    {
+      "name": "cr",
+      "input": "# Spec\r\rLine one\rLine two\r",
+      "expected": "2c5f77eb166429bf28e91f91235c6236a8a1dc649ee492a714cd27f06bc1dce8"
+    },
+    {
+      "name": "bom-crlf",
+      "input": "﻿# Spec\r\n\r\nLine one\r\nLine two\r\n",
+      "expected": "2c5f77eb166429bf28e91f91235c6236a8a1dc649ee492a714cd27f06bc1dce8"
+    },
+    {
+      "name": "no-final-newline-is-preserved",
+      "input": "No trailing newline",
+      "expected": "71deb246ddb3461880cb378f39073ee2dbae43b144a8d392e2bedb2cd0117fd1"
+    }
+  ],
+  "review_cases": [
+    {
+      "name": "committed-open-exact",
+      "kind": "valid",
+      "patch": {},
+      "current_content": "# Spec\n\nLine one\nLine two\n",
+      "expected_freshness": "exact",
+      "expected_anchor_state": "exact",
+      "expected_open_count": 1
+    },
+    {
+      "name": "uncommitted-open-exact",
+      "kind": "valid",
+      "patch": {
+        "review_id": "review-20260716T120100Z-uncommitted-fixture",
+        "source": {
+          "content_state": "uncommitted",
+          "commit": null,
+          "blob": null
+        }
+      },
+      "current_content": "# Spec\n\nLine one\nLine two\n",
+      "expected_freshness": "exact",
+      "expected_anchor_state": "exact",
+      "expected_open_count": 1
+    },
+    {
+      "name": "stale-with-unique-reanchor",
+      "kind": "valid",
+      "patch": {
+        "review_id": "review-20260716T120200Z-stale-fixture"
+      },
+      "current_content": "# Spec\n\nLine one changed\nLine two\n",
+      "expected_freshness": "stale",
+      "expected_anchor_state": "reanchored",
+      "expected_open_count": 1
+    },
+    {
+      "name": "resolved",
+      "kind": "valid",
+      "patch": {
+        "review_id": "review-20260716T120300Z-resolved-fixture",
+        "status": "resolved",
+        "findings": [
+          {
+            "id": "F-001",
+            "kind": "issue",
+            "severity": "major",
+            "status": "resolved",
+            "quote": "Line two",
+            "anchor": {
+              "state": "exact",
+              "line_start": 4,
+              "line_end": 4,
+              "start_offset": 16,
+              "end_offset": 24,
+              "block_id": "b4"
+            },
+            "labels": [
+              "contract"
+            ],
+            "thread": [
+              {
+                "id": "M-001",
+                "created_at": "2026-07-16T12:00:00Z",
+                "author_display_name": "Reviewer",
+                "body": "Clarify the expected behavior."
+              }
+            ],
+            "resolution": {
+              "resolved_at": "2026-07-16T12:03:00Z",
+              "resolved_by_display_name": "Maintainer",
+              "summary": "The behavior is now explicit."
+            }
+          }
+        ]
+      },
+      "current_content": "# Spec\n\nLine one\nLine two\n",
+      "expected_freshness": "exact",
+      "expected_anchor_state": "exact",
+      "expected_open_count": 0
+    },
+    {
+      "name": "archived-excludes-open-count",
+      "kind": "valid",
+      "patch": {
+        "review_id": "review-20260716T120400Z-archived-fixture",
+        "status": "archived"
+      },
+      "current_content": "# Spec\n\nLine one\nLine two\n",
+      "expected_freshness": "exact",
+      "expected_anchor_state": "exact",
+      "expected_open_count": 0
+    },
+    {
+      "name": "reject-posix-absolute-source",
+      "kind": "invalid",
+      "patch": {
+        "source": {
+          "path": "PATH_LEAK_TOKEN(home::reviewer::repo::.project::spec.md)"
+        }
+      },
+      "expected_error": "source.path"
+    },
+    {
+      "name": "reject-windows-absolute-source",
+      "kind": "invalid",
+      "patch": {
+        "source": {
+          "path": "PATH_LEAK_TOKEN(windows-drive::reviewer::repo::.project::spec.md)"
+        }
+      },
+      "expected_error": "source.path"
+    },
+    {
+      "name": "reject-worktree-local-source",
+      "kind": "invalid",
+      "patch": {
+        "source": {
+          "path": ".git/worktrees/feature/.project/spec.md"
+        }
+      },
+      "expected_error": "source.path"
+    },
+    {
+      "name": "reject-source-traversal",
+      "kind": "invalid",
+      "patch": {
+        "source": {
+          "path": ".project/../outside.md"
+        }
+      },
+      "expected_error": "source.path"
+    },
+    {
+      "name": "reject-absolute-path-in-thread",
+      "kind": "invalid",
+      "patch": {
+        "findings": [
+          {
+            "id": "F-001",
+            "kind": "issue",
+            "severity": "major",
+            "status": "open",
+            "quote": "Line two",
+            "anchor": {
+              "state": "exact",
+              "line_start": 4,
+              "line_end": 4,
+              "start_offset": 16,
+              "end_offset": 24,
+              "block_id": "b4"
+            },
+            "labels": [],
+            "thread": [
+              {
+                "id": "M-001",
+                "created_at": "2026-07-16T12:00:00Z",
+                "body": "PATH_LEAK_TOKEN(windows-drive::reviewer::repo)"
+              }
+            ],
+            "resolution": null
+          }
+        ]
+      },
+      "expected_error": "privacy"
+    },
+    {
+      "name": "reject-unsupported-author-data",
+      "kind": "invalid",
+      "patch": {
+        "author_email": "reviewer@example.test"
+      },
+      "expected_error": "unsupported field"
+    }
+  ]
+}
