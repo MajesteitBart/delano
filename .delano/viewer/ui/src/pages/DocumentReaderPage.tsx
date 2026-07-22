@@ -643,7 +643,7 @@ export function DocumentReaderPage({
                   <Button
                     variant="outline"
                     size="default"
-                    disabled={lifecycleBusy || !reviewFindings.some((finding) => finding.status === "open")}
+                    disabled={lifecycleBusy || !canPublishReview || !reviewFindings.some((finding) => finding.status === "open")}
                     onClick={() => void updateReviewLifecycle("resolve")}
                   >
                     <CheckCircle2Icon data-icon="inline-start" />
@@ -652,7 +652,7 @@ export function DocumentReaderPage({
                   <Button
                     variant="outline"
                     size="default"
-                    disabled={lifecycleBusy || doc.status === "archived"}
+                    disabled={lifecycleBusy || !canPublishReview || doc.status === "archived"}
                     onClick={() => void updateReviewLifecycle("archive")}
                   >
                     <ArchiveIcon data-icon="inline-start" />
@@ -811,6 +811,7 @@ export function DocumentReaderPage({
         publishError={annotationError}
         publishStatus={publishStatus}
         publishEnabled={canPublishReview}
+        writable={canReview}
       />
       {popover && (
         <AnnotationPopover

@@ -1,5 +1,5 @@
 import { BookOpenCheckIcon, PencilIcon, SendIcon, XIcon } from "lucide-react"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { AnnotationRow } from "@/components/organisms/AnnotationRow"
 import { Badge } from "@/components/ui/badge"
@@ -29,6 +29,7 @@ export function ReviewDraftPanel({
   publishStatus,
   publishEnabled,
   selectedIds,
+  writable,
 }: {
   annotations: Annotation[]
   doc: ViewerDoc
@@ -43,11 +44,22 @@ export function ReviewDraftPanel({
   publishStatus: string
   publishEnabled: boolean
   selectedIds: string[]
+  writable: boolean
 }) {
   const [confirmed, setConfirmed] = useState(false)
   const selected = annotations.filter((annotation) =>
     selectedIds.includes(annotation.id)
   )
+
+  useEffect(() => {
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) setConfirmed(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [doc.path, open])
 
   return (
     <aside
@@ -111,10 +123,14 @@ export function ReviewDraftPanel({
                   key={annotation.id}
                   annotation={annotation}
                   selected={selectedIds.includes(annotation.id)}
-                  stale={!quoteInMarkdown(annotation.quote, doc.markdown)}
+                  stale={
+                    !annotation.anchor?.highlightSource &&
+                    !quoteInMarkdown(annotation.quote, doc.markdown)
+                  }
                   onToggle={() => onToggleSelected(annotation.id)}
                   onUpdate={(patch) => onUpdate(annotation.id, patch)}
                   onDelete={() => onDelete(annotation.id)}
+                  writable={writable}
                 />
               ))}
             </div>

@@ -75,18 +75,16 @@ export function publicationFindings(
   annotations: Annotation[],
   sourceMarkdown: string
 ) {
-  const normalized = sourceMarkdown
-    .replace(/^\uFEFF/, "")
-    .replace(/\r\n/g, "\n")
-    .replace(/\r/g, "\n")
+  const normalized = normalizeReviewText(sourceMarkdown)
   return annotations.map((annotation) => {
-    const first = normalized.indexOf(annotation.quote)
-    const unique = first >= 0 && normalized.indexOf(annotation.quote, first + 1) < 0
+    const quote = normalizeReviewText(annotation.quote)
+    const first = normalized.indexOf(quote)
+    const unique = first >= 0 && normalized.indexOf(quote, first + 1) < 0
     const lineStart = unique
       ? normalized.slice(0, first).split("\n").length
       : null
     const lineEnd = unique
-      ? lineStart! + annotation.quote.split(/\r?\n/).length - 1
+      ? lineStart! + quote.split("\n").length - 1
       : null
     const kind = annotation.type === "question"
       ? "question"
@@ -96,7 +94,7 @@ export function publicationFindings(
     return {
       kind,
       severity: annotation.type === "verify" ? "major" : "note",
-      quote: annotation.quote,
+      quote,
       comment: annotation.comment,
       labels: annotation.labels ?? [],
       anchor: {
@@ -104,9 +102,16 @@ export function publicationFindings(
         line_start: lineStart,
         line_end: lineEnd,
         start_offset: unique ? first : null,
-        end_offset: unique ? first + annotation.quote.length : null,
+        end_offset: unique ? first + quote.length : null,
         block_id: annotation.anchor?.blockId ?? null,
       },
     }
   })
+}
+
+function normalizeReviewText(value: string) {
+  return value
+    .replace(/^\uFEFF/, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
 }

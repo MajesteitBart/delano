@@ -590,6 +590,40 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
   });
   assert.equal(privatePath.status, 422, privatePath.raw);
   assert.match(privatePath.json.error, /machine-local path/i);
+
+  fs.writeFileSync(fixture.specPath, "# Demo\r\n\r\nA prefix.\r\nRepository review backend.\r\n", "utf8");
+  const normalizedSourceReview = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
+  assert.equal(normalizedSourceReview.status, 200, normalizedSourceReview.raw);
+  const normalizedQuote = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: normalizedSourceReview.json.runtime.currentContentHash,
+      sessionSlug: "normalized-quote",
+      confirmUncommitted: true,
+      findings: [{
+        ...finding,
+        quote: "A prefix.\r\nRepository review backend.",
+        anchor: {
+          state: "exact",
+          line_start: 3,
+          line_end: 4,
+          start_offset: 8,
+          end_offset: 44,
+          block_id: "b3"
+        }
+      }]
+    }
+  });
+  assert.equal(normalizedQuote.status, 201, normalizedQuote.raw);
+  assert.equal(normalizedQuote.json.review.findings[0].quote, "A prefix.\nRepository review backend.");
+  assert.equal(normalizedQuote.json.runtime.findings[0].anchorState, "exact");
+
+  const invalidTrackedMarkdown = fs.readFileSync(reviewFile, "utf8").replace('"schema_version": 1', '"schema_version": 2');
+  fs.writeFileSync(reviewFile, invalidTrackedMarkdown, "utf8");
+  const invalidTracked = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
+  assert.equal(invalidTracked.status, 422, invalidTracked.raw);
+  assert.match(invalidTracked.json.error, /schema_version is invalid/i);
 });
 
 test("viewer rejects a review directory symlink that escapes the selected project", async (t) => {

@@ -279,6 +279,14 @@ assert.deepEqual(
     },
   }
 )
+const normalizedQuoteFinding = reviewDrafts.publicationFindings(
+  [{ ...storedDraft[0], quote: "first\r\nsecond" }],
+  "# Demo\r\n\r\nfirst\r\nsecond\r\n"
+)[0]
+assert.equal(normalizedQuoteFinding.quote, "first\nsecond")
+assert.equal(normalizedQuoteFinding.anchor.state, "exact")
+assert.equal(normalizedQuoteFinding.anchor.line_start, 3)
+assert.equal(normalizedQuoteFinding.anchor.line_end, 4)
 reviewDrafts.writeReviewDraft(storage, draftKey, [])
 assert.equal(storage.getItem(draftKey), null)
 

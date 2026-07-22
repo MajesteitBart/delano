@@ -429,7 +429,8 @@
         "quote": {
           "type": "string",
           "minLength": 0,
-          "maxLength": 20000
+          "maxLength": 20000,
+          "description": "Source excerpt normalized with the same UTF-8 BOM removal and CRLF/CR-to-LF rules as source.content_hash. Empty only for an unanchored global comment."
         },
         "anchor": {
           "$ref": "#/$defs/anchor"

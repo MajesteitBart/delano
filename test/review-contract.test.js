@@ -60,6 +60,10 @@ test("only unanchored findings may omit a source quote", () => {
   const exact = structuredClone(unanchored);
   exact.findings[0].anchor = structuredClone(canonical.frontmatter.findings[0].anchor);
   assert.ok(validateReview(exact).some((error) => error.includes("quote")));
+
+  const nonCanonical = structuredClone(exact);
+  nonCanonical.findings[0].quote = "Line\r\ntwo";
+  assert.ok(validateReview(nonCanonical).some((error) => error.includes("quote")));
 });
 
 test("review fixtures cover committed, uncommitted, stale, resolved, archived, and privacy-invalid cases", () => {
@@ -108,7 +112,7 @@ function validateReview(review) {
     if (findingIds.has(finding.id)) errors.push(`duplicate finding ${finding.id}`);
     findingIds.add(finding.id);
     if (!schema.$defs.finding.properties.status.enum.includes(finding.status)) errors.push(`finding status ${finding.id}`);
-    if (typeof finding.quote !== "string" || finding.quote.length > 20000 || (finding.anchor?.state !== "unanchored" && finding.quote.length === 0)) {
+    if (typeof finding.quote !== "string" || finding.quote.length > 20000 || finding.quote !== normalizeSource(finding.quote) || (finding.anchor?.state !== "unanchored" && finding.quote.length === 0)) {
       errors.push(`finding quote ${finding.id}`);
     }
     if (finding.status === "open" && finding.resolution !== null) errors.push(`open resolution ${finding.id}`);

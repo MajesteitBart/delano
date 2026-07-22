@@ -112,12 +112,20 @@ test("annotations are gated behind explicit Review mode", () => {
     /onClick=\{reviewMode \? handleClick : undefined\}/
   )
   assert.match(markdownArticleSource, /if \(!reviewMode\) return/)
+  assert.match(readerSource, /writable=\{canReview\}/)
+  assert.match(
+    readerSource,
+    /disabled=\{lifecycleBusy \|\| !canPublishReview \|\|/
+  )
 })
 
 test("closed review drafts are inert and empty selection publishes nothing", () => {
   assert.match(reviewDraftSource, /inert=\{!open \? true : undefined\}/)
   assert.match(reviewDraftSource, /const selected = annotations\.filter/)
   assert.doesNotMatch(reviewDraftSource, /selectedIds\.length[\s\S]*: annotations/)
+  assert.match(reviewDraftSource, /\[doc\.path, open\]/)
+  assert.match(reviewDraftSource, /!annotation\.anchor\?\.highlightSource/)
+  assert.match(reviewDraftSource, /writable=\{writable\}/)
 })
 
 test("Review drawer does not reserve document width", () => {

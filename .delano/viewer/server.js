@@ -721,6 +721,10 @@ function normalizeSourceText(file) {
   return decoded.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 }
 
+function normalizeReviewQuote(value) {
+  return String(value ?? '').replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+}
+
 function normalizedContentHash(file) {
   return sha256(normalizeSourceText(file));
 }
@@ -764,65 +768,110 @@ function schemaAllowsOnly(value, definition, label, errors) {
   }
 }
 
+function isRecord(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function validDateTime(value) {
+  return typeof value === 'string' && Number.isFinite(Date.parse(value));
+}
+
+function validDisplayName(value) {
+  return typeof value === 'string' && value.length >= 1 && value.length <= 100 && !/[@\r\n]/.test(value);
+}
+
+function validGitObjectId(value) {
+  return typeof value === 'string' && /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(value);
+}
+
 function reviewValidationErrors(review, schema = loadReviewSchema()) {
   const errors = [];
+  if (!isRecord(review)) return ['review must be an object'];
   schemaAllowsOnly(review, schema, 'review', errors);
+  if (review.schema_version !== schema.properties.schema_version.const) errors.push('review.schema_version is invalid');
   if (!schema.properties.status.enum.includes(review?.status)) errors.push('review.status is invalid');
   if (!new RegExp(schema.properties.review_id.pattern).test(review?.review_id || '')) errors.push('review.review_id is invalid');
-  if (!review?.name || String(review.name).length > schema.properties.name.maxLength) errors.push('review.name is invalid');
-  if (!Number.isFinite(Date.parse(review?.created_at || '')) || !Number.isFinite(Date.parse(review?.updated_at || ''))) errors.push('review timestamps are invalid');
-  if (review?.author_display_name && (review.author_display_name.includes('@') || review.author_display_name.length > 100)) errors.push('review author display name is invalid');
+  if (typeof review.name !== 'string' || review.name.length < 1 || review.name.length > schema.properties.name.maxLength) errors.push('review.name is invalid');
+  if (!validDateTime(review.created_at) || !validDateTime(review.updated_at)) errors.push('review timestamps are invalid');
+  if ('author_display_name' in review && !validDisplayName(review.author_display_name)) errors.push('review author display name is invalid');
 
   const sourceDef = schema.$defs.source;
-  schemaAllowsOnly(review?.source, sourceDef, 'review.source', errors);
-  if (!new RegExp(schema.$defs.repositoryProjectPath.pattern).test(review?.source?.path || '')) errors.push('review.source.path is invalid');
-  if (!['committed', 'uncommitted'].includes(review?.source?.content_state)) errors.push('review.source.content_state is invalid');
-  if (review?.source?.hash_algorithm !== sourceDef.properties.hash_algorithm.const) errors.push('review.source.hash_algorithm is invalid');
-  if (!new RegExp(schema.$defs.contentHash.pattern).test(review?.source?.content_hash || '')) errors.push('review.source.content_hash is invalid');
-  if (review?.source?.content_state === 'uncommitted' && (review.source.commit !== null || review.source.blob !== null)) errors.push('uncommitted review source cannot contain Git objects');
-  if (review?.source?.content_state === 'committed' && !/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(review.source.commit || '')) errors.push('committed review source requires a commit');
+  schemaAllowsOnly(review.source, sourceDef, 'review.source', errors);
+  if (isRecord(review.source)) {
+    const branch = review.source.branch_at_creation;
+    if (!new RegExp(schema.$defs.repositoryProjectPath.pattern).test(review.source.path || '')) errors.push('review.source.path is invalid');
+    if (branch !== null && (typeof branch !== 'string' || branch.length < 1 || branch.length > 255 || !/^(?![A-Za-z]:)(?!\/)(?!.*\\).+$/.test(branch))) errors.push('review.source.branch_at_creation is invalid');
+    if (!sourceDef.properties.content_state.enum.includes(review.source.content_state)) errors.push('review.source.content_state is invalid');
+    if (review.source.commit !== null && !validGitObjectId(review.source.commit)) errors.push('review.source.commit is invalid');
+    if (review.source.blob !== null && !validGitObjectId(review.source.blob)) errors.push('review.source.blob is invalid');
+    if (review.source.hash_algorithm !== sourceDef.properties.hash_algorithm.const) errors.push('review.source.hash_algorithm is invalid');
+    if (!new RegExp(schema.$defs.contentHash.pattern).test(review.source.content_hash || '')) errors.push('review.source.content_hash is invalid');
+    if (review.source.content_state === 'uncommitted' && (review.source.commit !== null || review.source.blob !== null)) errors.push('uncommitted review source cannot contain Git objects');
+    if (review.source.content_state === 'committed' && !validGitObjectId(review.source.commit)) errors.push('committed review source requires a commit');
+  }
 
-  if (!Array.isArray(review?.findings) || review.findings.length < 1 || review.findings.length > 500) {
+  if (!Array.isArray(review.findings) || review.findings.length < 1 || review.findings.length > schema.properties.findings.maxItems) {
     errors.push('review.findings must contain 1-500 findings');
     return errors;
   }
   const findingIds = new Set();
   for (const finding of review.findings) {
+    if (!isRecord(finding)) {
+      errors.push('review finding must be an object');
+      continue;
+    }
     schemaAllowsOnly(finding, schema.$defs.finding, `finding ${finding?.id || '?'}`, errors);
-    if (!/^F-[0-9]{3,}$/.test(finding?.id || '') || findingIds.has(finding.id)) errors.push(`finding id ${finding?.id || '?'} is invalid or duplicated`);
-    findingIds.add(finding?.id);
-    if (!schema.$defs.finding.properties.kind.enum.includes(finding?.kind)) errors.push(`finding ${finding?.id} kind is invalid`);
-    if (!schema.$defs.finding.properties.severity.enum.includes(finding?.severity)) errors.push(`finding ${finding?.id} severity is invalid`);
-    if (!schema.$defs.finding.properties.status.enum.includes(finding?.status)) errors.push(`finding ${finding?.id} status is invalid`);
+    if (!new RegExp(schema.$defs.finding.properties.id.pattern).test(finding.id || '') || findingIds.has(finding.id)) errors.push(`finding id ${finding.id || '?'} is invalid or duplicated`);
+    findingIds.add(finding.id);
+    if (!schema.$defs.finding.properties.kind.enum.includes(finding.kind)) errors.push(`finding ${finding.id} kind is invalid`);
+    if (!schema.$defs.finding.properties.severity.enum.includes(finding.severity)) errors.push(`finding ${finding.id} severity is invalid`);
+    if (!schema.$defs.finding.properties.status.enum.includes(finding.status)) errors.push(`finding ${finding.id} status is invalid`);
     if (
-      typeof finding?.quote !== 'string'
+      typeof finding.quote !== 'string'
       || finding.quote.length > 20000
-      || (finding?.anchor?.state !== 'unanchored' && finding.quote.length === 0)
-    ) errors.push(`finding ${finding?.id} quote is invalid`);
-    schemaAllowsOnly(finding?.anchor, schema.$defs.anchor, `finding ${finding?.id}.anchor`, errors);
-    if (!schema.$defs.anchor.properties.state.enum.includes(finding?.anchor?.state)) errors.push(`finding ${finding?.id} anchor state is invalid`);
-    if (finding?.anchor?.state === 'unanchored') {
+      || finding.quote !== normalizeReviewQuote(finding.quote)
+      || (finding.anchor?.state !== 'unanchored' && finding.quote.length === 0)
+    ) errors.push(`finding ${finding.id} quote is invalid`);
+    schemaAllowsOnly(finding.anchor, schema.$defs.anchor, `finding ${finding.id}.anchor`, errors);
+    if (!schema.$defs.anchor.properties.state.enum.includes(finding.anchor?.state)) errors.push(`finding ${finding.id} anchor state is invalid`);
+    if (finding.anchor?.state === 'unanchored') {
       for (const field of ['line_start', 'line_end', 'start_offset', 'end_offset']) if (finding.anchor[field] !== null) errors.push(`finding ${finding.id} unanchored range must be null`);
     } else {
-      for (const field of ['line_start', 'line_end']) if (!Number.isInteger(finding?.anchor?.[field]) || finding.anchor[field] < 1) errors.push(`finding ${finding.id} ${field} is invalid`);
-      for (const field of ['start_offset', 'end_offset']) if (!Number.isInteger(finding?.anchor?.[field]) || finding.anchor[field] < 0) errors.push(`finding ${finding.id} ${field} is invalid`);
+      for (const field of ['line_start', 'line_end']) if (!Number.isInteger(finding.anchor?.[field]) || finding.anchor[field] < 1) errors.push(`finding ${finding.id} ${field} is invalid`);
+      for (const field of ['start_offset', 'end_offset']) if (!Number.isInteger(finding.anchor?.[field]) || finding.anchor[field] < 0) errors.push(`finding ${finding.id} ${field} is invalid`);
     }
-    if (!Array.isArray(finding?.labels) || new Set(finding.labels).size !== finding.labels.length) errors.push(`finding ${finding?.id} labels are invalid`);
-    if (!Array.isArray(finding?.thread) || finding.thread.length < 1) errors.push(`finding ${finding?.id} thread is required`);
+    if (finding.anchor?.block_id !== null && finding.anchor?.block_id !== undefined && (typeof finding.anchor.block_id !== 'string' || finding.anchor.block_id.length > 100)) errors.push(`finding ${finding.id} block_id is invalid`);
+    if (!Array.isArray(finding.labels) || finding.labels.length > 20 || new Set(finding.labels).size !== finding.labels.length || finding.labels.some((label) => typeof label !== 'string' || label.length < 1 || label.length > 50)) errors.push(`finding ${finding.id} labels are invalid`);
+    if (!Array.isArray(finding.thread) || finding.thread.length < 1 || finding.thread.length > 200) errors.push(`finding ${finding.id} thread is required`);
     const messageIds = new Set();
-    for (const message of finding?.thread || []) {
-      schemaAllowsOnly(message, schema.$defs.message, `finding ${finding?.id} message`, errors);
-      if (!/^M-[0-9]{3,}$/.test(message?.id || '') || messageIds.has(message.id)) errors.push(`finding ${finding?.id} message id is invalid or duplicated`);
-      messageIds.add(message?.id);
-      if (!message?.body || String(message.body).length > 20000 || !Number.isFinite(Date.parse(message?.created_at || ''))) errors.push(`finding ${finding?.id} message is invalid`);
+    for (const message of finding.thread || []) {
+      if (!isRecord(message)) {
+        errors.push(`finding ${finding.id} message must be an object`);
+        continue;
+      }
+      schemaAllowsOnly(message, schema.$defs.message, `finding ${finding.id} message`, errors);
+      if (!new RegExp(schema.$defs.message.properties.id.pattern).test(message.id || '') || messageIds.has(message.id)) errors.push(`finding ${finding.id} message id is invalid or duplicated`);
+      messageIds.add(message.id);
+      if (typeof message.body !== 'string' || message.body.length < 1 || message.body.length > 20000 || !validDateTime(message.created_at)) errors.push(`finding ${finding.id} message is invalid`);
+      if ('author_display_name' in message && !validDisplayName(message.author_display_name)) errors.push(`finding ${finding.id} message author is invalid`);
     }
     if (finding.status === 'open' && finding.resolution !== null) errors.push(`finding ${finding.id} open resolution must be null`);
     if (finding.status !== 'open') {
       schemaAllowsOnly(finding.resolution, schema.$defs.resolution, `finding ${finding.id}.resolution`, errors);
-      if (!finding.resolution?.summary || !Number.isFinite(Date.parse(finding.resolution?.resolved_at || ''))) errors.push(`finding ${finding.id} resolution is invalid`);
+      if (!isRecord(finding.resolution) || typeof finding.resolution.summary !== 'string' || finding.resolution.summary.length < 1 || finding.resolution.summary.length > 20000 || !validDateTime(finding.resolution.resolved_at)) errors.push(`finding ${finding.id} resolution is invalid`);
+      if (isRecord(finding.resolution) && 'resolved_by_display_name' in finding.resolution && !validDisplayName(finding.resolution.resolved_by_display_name)) errors.push(`finding ${finding.id} resolver is invalid`);
     }
   }
-  const openCount = review.findings.filter((finding) => finding.status === 'open').length;
+  if ('migration' in review) {
+    const migration = review.migration;
+    schemaAllowsOnly(migration, schema.$defs.migration, 'review.migration', errors);
+    if (isRecord(migration)) {
+      if (!schema.$defs.migration.properties.source_kind.enum.includes(migration.source_kind)) errors.push('review.migration.source_kind is invalid');
+      if (!Array.isArray(migration.legacy_ids) || migration.legacy_ids.length < 1 || new Set(migration.legacy_ids).size !== migration.legacy_ids.length || migration.legacy_ids.some((id) => typeof id !== 'string' || id.length < 1 || id.length > 200)) errors.push('review.migration.legacy_ids are invalid');
+      if ('warnings' in migration && (!Array.isArray(migration.warnings) || migration.warnings.some((warning) => typeof warning !== 'string' || warning.length < 1 || warning.length > 500))) errors.push('review.migration.warnings are invalid');
+    }
+  }
+  const openCount = review.findings.filter((finding) => finding?.status === 'open').length;
   if (review.status === 'open' && openCount === 0) errors.push('open review requires an open finding');
   if (review.status === 'resolved' && openCount > 0) errors.push('resolved review cannot contain open findings');
   return errors;
@@ -1623,7 +1672,7 @@ function normalizePublishedFindings(input, now, schema, defaultAuthor) {
     const state = anchorInput.state == null ? 'unanchored' : String(anchorInput.state);
     if (!schema.$defs.anchor.properties.state.enum.includes(state)) throw new HttpRequestError(`finding ${index + 1} anchor state is invalid.`, 400);
     const anchored = state !== 'unanchored';
-    const quote = sanitizeString(raw.quote, 20000, `finding ${index + 1} quote`, anchored);
+    const quote = normalizeReviewQuote(sanitizeString(raw.quote, 20000, `finding ${index + 1} quote`, anchored));
     const integer = (value, minimum, field) => {
       if (!Number.isInteger(value) || value < minimum) throw new HttpRequestError(`finding ${index + 1} ${field} is invalid.`, 400);
       return value;
@@ -1699,7 +1748,7 @@ function reviewTimestampId(dateValue) {
 }
 
 function legacyFindingAnchor(annotation, sourceText) {
-  const quote = String(annotation.quote || '').trim();
+  const quote = normalizeReviewQuote(annotation.quote).trim();
   const first = quote ? sourceText.indexOf(quote) : -1;
   const unique = first >= 0 && sourceText.indexOf(quote, first + 1) < 0;
   if (!unique) {
@@ -1741,7 +1790,7 @@ function stableLegacyReview(source, annotations) {
       kind: schema.$defs.finding.properties.kind.enum.includes(annotation.type) ? annotation.type : 'comment',
       severity: 'note',
       status: resolved ? 'resolved' : 'open',
-      quote: sanitizeString(annotation.quote, 20000, `legacy annotation ${annotation.id} quote`, annotation.type !== 'global-comment'),
+      quote: normalizeReviewQuote(sanitizeString(annotation.quote, 20000, `legacy annotation ${annotation.id} quote`, annotation.type !== 'global-comment')),
       anchor: legacyFindingAnchor(annotation, sourceText),
       labels: sanitizeLabels(annotation.labels).slice(0, 20),
       thread: [{
