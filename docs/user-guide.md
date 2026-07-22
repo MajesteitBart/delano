@@ -139,7 +139,7 @@ delano install --exclude project-context,project-projects,project-registry --for
 
 Use `delano install --interactive` when you want the CLI to show presets instead of remembering flags. The menu includes update-safe runtime refresh, skills plus project templates, full install or repair, and custom category selection.
 
-Supported install categories are `agent-runtime`, `codex-hooks`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`.
+Supported install categories are `agent-runtime`, `codex-hooks`, `skills`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`. The Viewer is executed from the active npm package and is not copied into the target repository.
 
 ## Dependencies
 
@@ -207,7 +207,7 @@ bash .agents/scripts/pm/import-spec-kit.sh <slug> <source-md> [--name <project-n
 bash .agents/scripts/pm/research.sh <project-slug> <research-slug> [--title <title>] [--question <question>] [--json]
 ```
 
-`delano viewer` serves the selected repository's `.project` files on `http://127.0.0.1:3977` by default. It can store selected-text annotations in `.project/viewer/annotations.json`, hand selected annotations over to a coding agent (Codex or Claude Code) via generated handover files, and apply markdown changes only through explicit preview/apply checks. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.
+`delano viewer` serves the selected worktree's `.project` files on `http://127.0.0.1:3977` by default. Draft findings stay local until explicit publication creates a tracked `.project/reviews/*.md` artifact; publication never commits or pushes. Fresh registered primary and linked worktrees use the same server-derived capabilities, while stale context is rejected without checkout fallback. Agent handovers launch in the selected worktree and reference the contract or published review directly. Markdown changes remain behind explicit preview/apply, containment, fresh-context, and current-hash checks. Set `DELANO_VIEWER_PORT` or `PORT` to choose another port.
 
 `delano context` is the agent-friendly way to inspect `.project/context` before implementation work:
 

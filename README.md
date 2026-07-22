@@ -77,13 +77,13 @@ A skill is not a prompt trick. It's a contract: trigger context, required inputs
 
 `delano viewer` opens a local, guarded review surface at `127.0.0.1`. It reads your `.project` files and shows specs, plans, workstreams, tasks, and their dependencies as one navigable dossier.
 
-Select any text and annotate it: a comment, a question, a verify request. Then hand the bundle to an agent with one click. The viewer writes a handover file and opens the agent with the exact feedback, scoped to the exact contract. The same button works for dispatch: point at a task, choose start or review, and the agent gets the contract file, the acceptance criteria, and the instruction to record evidence before closing.
+Select any text and draft a finding locally: a comment, a question, or a verify request. Nothing enters Git until you explicitly publish a review. Publication writes one human-readable, schema-valid artifact under `.project/reviews/`; it never commits, pushes, or posts remotely. The same handover menu can dispatch a task or workstream, or send a published review directly to an agent in the selected worktree.
 
 <p align="center">
   <img src="marketing/real/handover-menu.png" alt="The send-to menu in the viewer: ChatGPT, Codex, Claude Code, Claude, or a custom agent, send for review, or copy a handover command" width="380">
 </p>
 
-The viewer never edits canonical files behind your back. Annotations live in their own store (`.project/viewer/annotations.json`), and markdown changes require a diff preview and explicit confirmation. Searchable repository/worktree controls can inspect registered local repositories and divergent linked `.project` state, while linked worktrees remain read-only. The all-status Tasks view filters with raw options from the canonical task schema. It's a reading room, not a control panel.
+The viewer never edits canonical files behind your back. Draft findings stay in browser-local storage; published reviews are branch-local Git artifacts, and markdown changes require a diff preview, current hash, fresh selected context, and explicit confirmation. Searchable repository/worktree controls expose risk and provenance separately from server-derived `dispatch`, `review`, `publishReview`, and `applyContract` capabilities, so a fresh registered linked worktree has the same guarded actions as a primary checkout. The all-status Tasks view filters with raw options from canonical schemas.
 
 It defaults to `http://127.0.0.1:3977`; set `DELANO_VIEWER_PORT` or `PORT` to use another port. The viewer client is built from `.delano/viewer/ui` with the shadcn CLI and real shadcn/Radix primitives. When changing viewer UI, run `npm --prefix .delano/viewer/ui run build` before `npm run build:assets`.
 
@@ -153,14 +153,14 @@ The wrapper commands call the PM scripts under `.agents/scripts/pm/`, which you 
 - it can narrow updates with `--only`, `--exclude`, `--no-project-state`, and `--interactive` presets
 - it never touches unrelated files or repo-root Git config such as `.gitignore` and `.gitattributes`
 
-Install categories are `agent-runtime`, `codex-hooks`, `skills`, `viewer`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`. For an update-safe refresh that preserves repo-owned project state:
+Install categories are `agent-runtime`, `codex-hooks`, `skills`, `project-context`, `project-templates`, `project-registry`, `project-projects`, `handbook`, and `legacy-installer`. For an update-safe refresh that preserves repo-owned project state:
 
 ```bash
 delano install --only skills,project-templates --force --yes
 delano install --no-project-state --force --yes
 ```
 
-The base payload includes `.delano/` (the guarded viewer) and `.codex/hooks.json`, a Codex `SessionStart` hook that injects compact open-project context when Codex hooks are enabled. Existing hook configs are merged, not replaced. Codex hook activation stays manual: enable `[features] hooks = true` in `~/.codex/config.toml` (or `codex --enable hooks`), trust the repo's `.codex/` layer, and approve the hook when Codex asks. Top-level adapter entry docs (`AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, `PI.md`) are intentionally excluded and remain opt-in.
+The npm package contains the guarded Viewer, but the repository install payload does not copy `.delano/viewer`; `delano viewer` always executes the active package-owned server and assets. Existing repository-local Viewer copies are inert legacy files. Delano neither executes nor deletes them, so cleanup must be explicit and modification-aware. The base payload includes `.codex/hooks.json`, a Codex `SessionStart` hook that injects compact open-project context when Codex hooks are enabled. Existing hook configs are merged, not replaced. Codex hook activation stays manual: enable `[features] hooks = true` in `~/.codex/config.toml` (or `codex --enable hooks`), trust the repo's `.codex/` layer, and approve the hook when Codex asks. Top-level adapter entry docs (`AGENTS.md`, `CLAUDE.md`, `CODEX.md`, `OPENCODE.md`, `PI.md`) are intentionally excluded and remain opt-in.
 
 The installable `.project/context/` pack is seeded from generic templates during packaging; replace it with your repo's reality, and start with `delano onboarding`.
 
@@ -169,10 +169,10 @@ The installable `.project/context/` pack is seeded from generic templates during
 | Surface | Role |
 | --- | --- |
 | `HANDBOOK.md` | Canonical operating model |
-| `.project/` | File-backed delivery contracts: specs, plans, workstreams, tasks, decisions, updates, evidence |
+| `.project/` | File-backed delivery contracts and tracked published reviews |
 | `.agents/` | Shared runtime: scripts, rules, hooks, skills, adapters |
 | `.claude/` | Compatibility mirror of `.agents/`, not a second runtime |
-| `.delano/` | Guarded local viewer for inspecting, annotating, and reviewing `.project` state |
+| `.delano/` | Package-owned guarded Viewer source and compiled assets in the Delano repository/package |
 | `docs/delano-brandbook.html` | Brand book for the Delano visual language |
 
 Requirements: `node` 18 or newer, `bash`, `git`, and `python3` (or compatible `python` / `py`). The CLI does not bundle its own shell or Python runtime.
@@ -184,6 +184,8 @@ This package is deliberately narrow:
 - npm is the distribution surface; wrapper commands stay thin
 - `.project` remains repo-owned after install; `.project/projects/` and `.project/registry/` should normally be excluded from forced refreshes
 - `.agents` remains the runtime surface
+- the active npm package owns the executable Viewer; consuming repositories do not need a `.delano/viewer` copy
+- review drafts and machine-local launch receipts stay local; only explicit publication creates `.project/reviews/*.md`
 - remote GitHub/Linear writes stay outside the default flow; sync tooling is dry-run and repair-plan oriented unless an operator explicitly approves an apply-capable workflow
 - `install-delano.sh` remains available as the legacy bridge installer
 

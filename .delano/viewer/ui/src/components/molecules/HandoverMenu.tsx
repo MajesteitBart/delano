@@ -30,14 +30,20 @@ export type DispatchInfo = {
 }
 
 export function HandoverMenu({
-  disabled = false,
+  dispatchEnabled = true,
+  reviewEnabled = true,
+  expectedSourceHash,
+  primaryIntent = "start",
   sourcePath,
   size = "sm",
   variant = "button",
   onDispatched,
   onStatus,
 }: {
-  disabled?: boolean
+  dispatchEnabled?: boolean
+  reviewEnabled?: boolean
+  expectedSourceHash?: string
+  primaryIntent?: HandoverIntent
   sourcePath: string
   size?: "default" | "sm"
   variant?: "button" | "icon"
@@ -47,6 +53,7 @@ export function HandoverMenu({
   const [busy, setBusy] = useState(false)
   const [agent, setAgent] = useHandoverAgent()
   const reviewLabel = `Send to ${agentLabel(agent)} for review`
+  const primaryEnabled = primaryIntent === "review" ? reviewEnabled : dispatchEnabled
 
   const run = async (intent: HandoverIntent, action?: HandoverAction) => {
     setBusy(true)
@@ -56,6 +63,7 @@ export function HandoverMenu({
         agent,
         action: action ?? defaultActionFor(agent),
         intent,
+        expectedSourceHash,
       })
       onStatus?.(result.message, "info")
       onDispatched?.({
@@ -78,16 +86,17 @@ export function HandoverMenu({
     <AgentSplitButton
       agent={agent}
       busy={busy}
-      disabled={disabled}
-      menuDisabled={disabled || busy}
+      disabled={!primaryEnabled}
+      menuDisabled={(!dispatchEnabled && !reviewEnabled) || busy}
       size={size}
       variant={variant}
       onAgentChange={setAgent}
-      onSend={() => void run("start")}
+      onSend={() => void run(primaryIntent)}
       menuFooter={
         <DropdownMenuGroup>
           <DropdownMenuItem
             className="min-h-9 px-2 py-2 whitespace-nowrap"
+            disabled={!reviewEnabled}
             onClick={() => void run("review")}
           >
             <ScanSearchIcon className="text-muted-foreground" />
@@ -100,6 +109,7 @@ export function HandoverMenu({
           </DropdownMenuItem>
           <DropdownMenuItem
             className="min-h-9 px-2 py-2 whitespace-nowrap"
+            disabled={!dispatchEnabled}
             onClick={() => void run("start", "command")}
           >
             <ClipboardIcon className="text-muted-foreground" />
@@ -107,6 +117,7 @@ export function HandoverMenu({
           </DropdownMenuItem>
           <DropdownMenuItem
             className="min-h-9 px-2 py-2 whitespace-nowrap"
+            disabled={!reviewEnabled}
             onClick={() => void run("review", "command")}
           >
             <ClipboardIcon className="text-muted-foreground" />

@@ -326,12 +326,14 @@ export function ProjectWorkstreamsPage({
   docs,
   onOpenDoc,
   project,
-  writable = true,
+  dispatchEnabled = true,
+  reviewEnabled = true,
 }: {
   docs: Map<string, DocMeta>
   onOpenDoc: (path: string) => void
   project: ProjectIndex | null
-  writable?: boolean
+  dispatchEnabled?: boolean
+  reviewEnabled?: boolean
 }) {
   const workstreams = project?.outline?.workstreams ?? []
   const [notice, setNotice] = useState<{
@@ -346,6 +348,7 @@ export function ProjectWorkstreamsPage({
       openTasks: taskDocs.filter((doc) => isOpenTaskStatus(doc.status)).length,
       taskCount: taskDocs.length,
       workstream,
+      baselineHash: docs.get(workstream.path)?.baselineHash,
     }
   })
   const columns: ColumnDef<(typeof rows)[number]>[] = [
@@ -414,7 +417,9 @@ export function ProjectWorkstreamsPage({
       header: () => <span className="sr-only">Agent</span>,
       cell: ({ row }) => (
         <HandoverMenu
-          disabled={!writable}
+          dispatchEnabled={dispatchEnabled}
+          reviewEnabled={reviewEnabled}
+          expectedSourceHash={row.original.baselineHash}
           sourcePath={row.original.workstream.path}
           variant="icon"
           onStatus={(message, tone) => setNotice({ message, tone })}
@@ -457,12 +462,14 @@ export function ProjectTasksPage({
   docs,
   onOpenDoc,
   project,
-  writable = true,
+  dispatchEnabled = true,
+  reviewEnabled = true,
 }: {
   docs: Map<string, DocMeta>
   onOpenDoc: (path: string) => void
   project: ProjectIndex | null
-  writable?: boolean
+  dispatchEnabled?: boolean
+  reviewEnabled?: boolean
 }) {
   const tasks = project ? projectTaskDocs(project, docs) : []
   const [notice, setNotice] = useState<{
@@ -488,7 +495,8 @@ export function ProjectTasksPage({
           docs={tasks}
           onOpenDoc={onOpenDoc}
           onHandoverStatus={(message, tone) => setNotice({ message, tone })}
-          writable={writable}
+          dispatchEnabled={dispatchEnabled}
+          reviewEnabled={reviewEnabled}
         />
       )}
     </section>
@@ -552,12 +560,14 @@ function DocumentTable({
   docs,
   onOpenDoc,
   onHandoverStatus,
-  writable = true,
+  dispatchEnabled = true,
+  reviewEnabled = true,
 }: {
   docs: DocMeta[]
   onOpenDoc: (path: string) => void
   onHandoverStatus?: (message: string, tone: "info" | "error") => void
-  writable?: boolean
+  dispatchEnabled?: boolean
+  reviewEnabled?: boolean
 }) {
   const showAgentColumn =
     Boolean(onHandoverStatus) &&
@@ -644,7 +654,9 @@ function DocumentTable({
       cell: ({ row }) =>
         row.original.role === "task" || row.original.role === "workstream" ? (
           <HandoverMenu
-            disabled={!writable}
+            dispatchEnabled={dispatchEnabled}
+            reviewEnabled={reviewEnabled}
+            expectedSourceHash={row.original.baselineHash}
             sourcePath={row.original.path}
             variant="icon"
             onStatus={onHandoverStatus}

@@ -115,6 +115,37 @@ function requestRaw(requestUrl, options = {}) {
   });
 }
 
+function beginStreamingJson(requestUrl, body) {
+  const parsed = new URL(requestUrl);
+  const serialized = JSON.stringify(body);
+  let request;
+  const response = new Promise((resolve, reject) => {
+    request = http.request({
+      hostname: parsed.hostname,
+      port: parsed.port,
+      path: `${parsed.pathname}${parsed.search}`,
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "content-length": Buffer.byteLength(serialized)
+      }
+    }, (incoming) => {
+      let raw = "";
+      incoming.setEncoding("utf8");
+      incoming.on("data", (chunk) => { raw += chunk; });
+      incoming.on("end", () => resolve({ status: incoming.statusCode, json: JSON.parse(raw), raw }));
+    });
+    request.on("error", reject);
+    request.write(serialized.slice(0, 1));
+  });
+  return {
+    response,
+    finish() {
+      request.end(serialized.slice(1));
+    }
+  };
+}
+
 async function startViewerForRepo(t, repo, environment = {}) {
   const serverPath = path.join(__dirname, "..", ".delano", "viewer", "server.js");
   const port = await getOpenPort();
@@ -165,12 +196,27 @@ test("viewer switches only across registered Git contexts and isolates root-scop
   const firstRegistration = registerRepository(first.repo, registryOptions);
   const secondRegistration = registerRepository(second.repo, registryOptions);
   const baseUrl = await startViewerForRepo(t, first.repo, { DELANO_HOME: home });
+  const linkedBaseUrl = await startViewerForRepo(t, linked, { DELANO_HOME: home });
+  const linkedLaunchContext = await readJson(`${linkedBaseUrl}/api/context`);
+  assert.equal(linkedLaunchContext.active.worktree.role, "linked");
+  assert.equal(
+    fs.realpathSync.native(linkedLaunchContext.active.worktree.path).toLowerCase(),
+    fs.realpathSync.native(linked).toLowerCase()
+  );
+  assert.equal(linkedLaunchContext.active.capabilities.dispatch, true);
 
   const inventory = await readJson(`${baseUrl}/api/context`);
   assert.equal(inventory.repositories.length, 2);
   assert.equal(inventory.active.repository.id, firstRegistration.entry.id);
   assert.equal(inventory.active.worktree.role, "primary");
-  assert.equal(inventory.active.writable, true);
+  assert.deepEqual(inventory.active.capabilities, {
+    dispatch: true,
+    review: true,
+    publishReview: true,
+    applyContract: true
+  });
+  assert.equal(inventory.active.risk.level, "elevated");
+  assert.ok(inventory.active.risk.indicators.includes("dirty_project_state"));
   const firstInventory = inventory.repositories.find((repository) => repository.id === firstRegistration.entry.id);
   assert.equal(firstInventory.worktrees.length, 2);
   assert.equal(firstInventory.worktrees[1].projectState.status, "diverged");
@@ -193,7 +239,7 @@ test("viewer switches only across registered Git contexts and isolates root-scop
   );
   assert.match((await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`)).markdown, /Repository A primary/);
 
-  const annotation = await requestJson(`${baseUrl}/api/annotations`, {
+  const linkedAnnotation = await requestJson(`${baseUrl}/api/annotations`, {
     method: "POST",
     body: {
       sourcePath: "projects/demo/spec.md",
@@ -202,7 +248,8 @@ test("viewer switches only across registered Git contexts and isolates root-scop
       anchor: { start: 8, end: 29 }
     }
   });
-  assert.equal(annotation.status, 201, annotation.raw);
+  assert.equal(linkedAnnotation.status, 405, linkedAnnotation.raw);
+  assert.match(linkedAnnotation.json.error, /read-only/i);
   const oldStream = await connectSse(`${baseUrl}/api/events`);
   const oldStreamClosed = new Promise((resolve) => {
     const timeout = setTimeout(() => resolve(false), 5000);
@@ -240,20 +287,97 @@ test("viewer switches only across registered Git contexts and isolates root-scop
     body: { repositoryId: refreshedFirst.id, worktreeId: refreshedFirst.worktrees[1].id }
   });
   assert.equal(switchedLinked.status, 200, switchedLinked.raw);
-  assert.equal(switchedLinked.json.context.writable, false);
+  assert.deepEqual(
+    switchedLinked.json.context.capabilities,
+    inventory.active.capabilities,
+    JSON.stringify(switchedLinked.json.context.capabilityDenials)
+  );
+  assert.equal(switchedLinked.json.context.capabilityDenials.dispatch, null);
   assert.equal(switchedLinked.json.context.worktree.role, "linked");
   assert.equal(switchedLinked.json.context.worktree.projectState.diverged, true);
-  assert.match((await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`)).markdown, /Repository A linked/);
+  assert.ok(switchedLinked.json.context.risk.indicators.includes("linked_worktree"));
+  const dirtinessProbe = path.join(linked, ".project", "viewer-risk-probe.md");
+  fs.writeFileSync(dirtinessProbe, "# Risk probe\n", "utf8");
+  const refreshedRisk = await readJson(`${baseUrl}/api/context`);
+  assert.equal(refreshedRisk.active.worktree.projectState.dirty, true);
+  assert.ok(refreshedRisk.active.risk.indicators.includes("dirty_project_state"));
+  fs.rmSync(dirtinessProbe);
+  const linkedDoc = await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
+  assert.match(linkedDoc.markdown, /Repository A linked/);
 
-  for (const [endpoint, body] of [
-    ["/api/annotations", { sourcePath: "projects/demo/spec.md", quote: "Repository A linked.", comment: "blocked", anchor: { start: 8, end: 28 } }],
-    ["/api/apply", { sourcePath: "projects/demo/spec.md", replacementMarkdown: "# blocked", expectedHash: "unused", confirm: true }],
-    ["/api/handover", { sourcePath: "projects/demo/spec.md", intent: "start", agent: "codex" }]
-  ]) {
-    const rejected = await requestJson(`${baseUrl}${endpoint}`, { method: "POST", body });
-    assert.equal(rejected.status, 403, `${endpoint}: ${rejected.raw}`);
-    assert.match(rejected.json.error, /writes are disabled.*linked worktree/i);
+  for (const intent of ["start", "review"]) {
+    const dispatched = await requestJson(`${baseUrl}/api/handover`, {
+      method: "POST",
+      body: {
+        sourcePath: "projects/demo/spec.md",
+        expectedSourceHash: linkedDoc.baseline.hash,
+        intent,
+        agent: "codex"
+      }
+    });
+    assert.equal(dispatched.status, 200, dispatched.raw);
+    assert.equal(dispatched.json.intent, intent);
+    assert.match(dispatched.json.command, /Repository|review|document|spec/i);
   }
+
+  const annotation = await requestJson(`${baseUrl}/api/annotations`, {
+    method: "POST",
+    body: { sourcePath: "projects/demo/spec.md", quote: "Repository A linked.", comment: "linked review", anchor: { start: 8, end: 28 } }
+  });
+  assert.equal(annotation.status, 405, annotation.raw);
+  assert.match(annotation.json.error, /read-only/i);
+
+  const racing = beginStreamingJson(`${baseUrl}/api/handover`, {
+    sourcePath: "projects/demo/spec.md",
+    expectedSourceHash: linkedDoc.baseline.hash,
+    intent: "start",
+    agent: "codex"
+  });
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  const switchedDuringRequest = await requestJson(`${baseUrl}/api/context`, {
+    method: "POST",
+    body: { repositoryId: secondRepository.id, worktreeId: secondRepository.worktrees[0].id }
+  });
+  assert.equal(switchedDuringRequest.status, 200, switchedDuringRequest.raw);
+  racing.finish();
+  const staleRace = await racing.response;
+  assert.equal(staleRace.status, 409, staleRace.raw);
+  assert.match(staleRace.json.error, /context changed/i);
+
+  const switchedBack = await requestJson(`${baseUrl}/api/context`, {
+    method: "POST",
+    body: { repositoryId: refreshedFirst.id, worktreeId: refreshedFirst.worktrees[1].id }
+  });
+  assert.equal(switchedBack.status, 200, switchedBack.raw);
+  fs.writeFileSync(path.join(linked, ".project", "projects", "demo", "spec.md"), "# Demo\n\nRepository A linked and changed.\n", "utf8");
+  const staleSource = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: {
+      sourcePath: "projects/demo/spec.md",
+      expectedSourceHash: linkedDoc.baseline.hash,
+      intent: "start",
+      agent: "codex"
+    }
+  });
+  assert.equal(staleSource.status, 409, staleSource.raw);
+  assert.match(staleSource.json.error, /source changed/i);
+
+  fs.writeFileSync(path.join(linked, ".project", "projects", "demo", "spec.md"), linkedDoc.markdown, "utf8");
+  fs.writeFileSync(path.join(linked, "head-change.txt"), "advance HEAD\n", "utf8");
+  spawnSync("git", ["add", "head-change.txt"], { cwd: linked });
+  const headCommit = spawnSync("git", ["commit", "-m", "advance linked head"], { cwd: linked, encoding: "utf8" });
+  assert.equal(headCommit.status, 0, headCommit.stderr || headCommit.stdout);
+  const staleHead = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: {
+      sourcePath: "projects/demo/spec.md",
+      expectedSourceHash: linkedDoc.baseline.hash,
+      intent: "start",
+      agent: "codex"
+    }
+  });
+  assert.equal(staleHead.status, 409, staleHead.raw);
+  assert.match(staleHead.json.error, /HEAD changed/i);
 });
 
 test("viewer snippets use the first regular paragraph and mark truncation", async (t) => {
@@ -289,6 +413,470 @@ test("viewer snippets use the first regular paragraph and mark truncation", asyn
   assert.doesNotMatch(spec.snippet, /Spec: Demo|Executive Summary|second paragraph/);
   assert.equal(plan.snippet, "A short regular paragraph.");
   assert.equal(plan.snippet.endsWith("…"), false);
+});
+
+test("viewer publishes, indexes, resolves, archives, and freshness-checks tracked reviews", { timeout: 15000 }, async (t) => {
+  const fixture = createGitViewerRepo("delano-viewer-reviews-", "Repository review backend.");
+  t.after(() => fs.rmSync(fixture.repo, { recursive: true, force: true }));
+  const baseUrl = await startViewerForRepo(t, fixture.repo);
+  const headBefore = spawnSync("git", ["rev-parse", "HEAD"], { cwd: fixture.repo, encoding: "utf8" }).stdout.trim();
+  const sourceDoc = await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
+  const finding = {
+    kind: "issue",
+    severity: "major",
+    quote: "Repository review backend.",
+    comment: "Clarify the backend contract.",
+    anchor: {
+      state: "exact",
+      line_start: 3,
+      line_end: 3,
+      start_offset: 8,
+      end_offset: 34,
+      block_id: "b3"
+    },
+    labels: ["contract"]
+  };
+  const publishBody = {
+    sourcePath: "projects/demo/spec.md",
+    expectedContentHash: sourceDoc.baseline.hash,
+    sessionSlug: "backend-test",
+    authorDisplayName: "Reviewer",
+    findings: [finding]
+  };
+  const invalidAnchor = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      sessionSlug: "invalid-anchor",
+      findings: [{ ...finding, anchor: { ...finding.anchor, start_offset: 9, end_offset: 35 } }]
+    }
+  });
+  assert.equal(invalidAnchor.status, 400, invalidAnchor.raw);
+  assert.match(invalidAnchor.json.error, /anchor does not match the normalized review source/i);
+  const published = await requestJson(`${baseUrl}/api/reviews`, { method: "POST", body: publishBody });
+  assert.equal(published.status, 201, published.raw);
+  assert.equal(published.json.review.source.content_state, "committed");
+  assert.equal(published.json.review.source.commit, headBefore);
+  assert.equal(published.json.runtime.freshness, "exact");
+  assert.match(published.json.path, /^\.project\/reviews\/review-.*-backend-test\.md$/);
+  const reviewFile = path.join(fixture.repo, published.json.path);
+  assert.equal(fs.existsSync(reviewFile), true);
+  const reviewMarkdown = fs.readFileSync(reviewFile, "utf8");
+  assert.doesNotMatch(reviewMarkdown, /[A-Za-z]:[\\/]|file:\/\//i);
+  assert.equal(spawnSync("git", ["rev-parse", "HEAD"], { cwd: fixture.repo, encoding: "utf8" }).stdout.trim(), headBefore);
+  const reviewHandover = await requestJson(`${baseUrl}/api/handover`, {
+    method: "POST",
+    body: {
+      sourcePath: published.json.path.replace(/^\.project\//, ""),
+      intent: "review",
+      agent: "codex"
+    }
+  });
+  assert.equal(reviewHandover.status, 200, reviewHandover.raw);
+  assert.equal(reviewHandover.json.file, published.json.path);
+  assert.match(reviewHandover.json.prompt, new RegExp(published.json.path.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.equal(fs.existsSync(path.join(fixture.repo, ".project", "viewer", "handovers")), false);
+
+  const concurrentBody = { ...publishBody, sessionSlug: "concurrent-test" };
+  const concurrent = await Promise.all([
+    requestJson(`${baseUrl}/api/reviews`, { method: "POST", body: concurrentBody }),
+    requestJson(`${baseUrl}/api/reviews`, { method: "POST", body: concurrentBody })
+  ]);
+  assert.ok(concurrent.every((result) => result.status === 201 || result.status === 409));
+  const concurrentPaths = concurrent
+    .filter((result) => result.status === 201)
+    .map((result) => result.json.path);
+  assert.ok(concurrentPaths.length >= 1);
+  assert.equal(new Set(concurrentPaths).size, concurrentPaths.length);
+
+  const index = await readJson(`${baseUrl}/api/index`);
+  const reviewSchema = JSON.parse(fs.readFileSync(path.join(fixture.repo, ".agents", "schemas", "artifacts", "review.schema.json"), "utf8"));
+  assert.deepEqual(index.reviewOptions.status, reviewSchema.properties.status.enum);
+  assert.deepEqual(index.reviewOptions.severity, reviewSchema.$defs.finding.properties.severity.enum);
+  assert.equal(index.docs.find((doc) => doc.path === published.json.path.replace(/^\.project\//, "")).role, "review");
+  assert.equal(index.reviewSummary.open, 1 + concurrentPaths.length);
+  assert.equal(index.reviewSummary.openFindings, 1 + concurrentPaths.length);
+
+  const whitespaceQuote = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      sessionSlug: "whitespace-quote",
+      findings: [{
+        ...finding,
+        quote: " review ",
+        anchor: { ...finding.anchor, start_offset: 18, end_offset: 26 }
+      }]
+    }
+  });
+  assert.equal(whitespaceQuote.status, 201, whitespaceQuote.raw);
+  assert.equal(whitespaceQuote.json.review.findings[0].quote, " review ");
+
+  const reviewApplyDocument = await readJson(
+    `${baseUrl}/api/doc?path=${encodeURIComponent(published.json.path.replace(/^\.project\//, ""))}`
+  );
+  const rejectedReviewApply = await requestJson(`${baseUrl}/api/apply`, {
+    method: "POST",
+    body: {
+      sourcePath: published.json.path.replace(/^\.project\//, ""),
+      expectedHash: reviewApplyDocument.baseline.hash,
+      replacementMarkdown: reviewApplyDocument.markdown,
+      confirm: true
+    }
+  });
+  assert.equal(rejectedReviewApply.status, 400, rejectedReviewApply.raw);
+  assert.match(rejectedReviewApply.json.error, /review lifecycle endpoint/i);
+
+  fs.writeFileSync(fixture.specPath, "# Demo\n\nA prefix. Repository review backend.\n", "utf8");
+  const stale = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
+  assert.equal(stale.status, 200, stale.raw);
+  assert.equal(stale.json.runtime.freshness, "stale");
+  assert.equal(stale.json.runtime.findings[0].anchorState, "reanchored");
+  const reviewDocument = await readJson(
+    `${baseUrl}/api/doc?path=${encodeURIComponent(published.json.path.replace(/^\.project\//, ""))}`
+  );
+  assert.equal(reviewDocument.role, "review");
+  assert.equal(reviewDocument.reviewRuntime.freshness, "stale");
+  assert.equal(reviewDocument.reviewRuntime.findings[0].anchorState, "reanchored");
+  assert.match(reviewDocument.body, /Source content:/);
+  assert.match(reviewDocument.body, /Clarify the backend contract\./);
+  const reanchoredFinding = {
+    ...finding,
+    anchor: { ...finding.anchor, start_offset: 18, end_offset: 44 }
+  };
+
+  const rejectedUncommitted = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: { ...publishBody, expectedContentHash: stale.json.runtime.currentContentHash, sessionSlug: "uncommitted-rejected", findings: [reanchoredFinding] }
+  });
+  assert.equal(rejectedUncommitted.status, 409, rejectedUncommitted.raw);
+  assert.match(rejectedUncommitted.json.error, /confirmUncommitted:true/);
+  const publishedUncommitted = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: stale.json.runtime.currentContentHash,
+      sessionSlug: "uncommitted-confirmed",
+      confirmUncommitted: true,
+      findings: [reanchoredFinding]
+    }
+  });
+  assert.equal(publishedUncommitted.status, 201, publishedUncommitted.raw);
+  assert.equal(publishedUncommitted.json.review.source.commit, null);
+  assert.equal(publishedUncommitted.json.review.source.blob, null);
+  assert.match(fs.readFileSync(path.join(fixture.repo, publishedUncommitted.json.path), "utf8"), /published from uncommitted source content/i);
+
+  const resolved = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "PATCH",
+    body: {
+      reviewId: published.json.review.review_id,
+      findingId: "F-001",
+      findingStatus: "resolved",
+      resolutionSummary: "The contract is explicit.",
+      resolvedByDisplayName: "Maintainer"
+    }
+  });
+  assert.equal(resolved.status, 200, resolved.raw);
+  assert.equal(resolved.json.review.status, "resolved");
+  assert.equal(resolved.json.review.findings[0].resolution.summary, "The contract is explicit.");
+  assert.equal(resolved.json.path, published.json.path);
+  const archived = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "PATCH",
+    body: { reviewId: published.json.review.review_id, status: "archived" }
+  });
+  assert.equal(archived.status, 200, archived.raw);
+  assert.equal(archived.json.review.status, "archived");
+  assert.equal(archived.json.path, published.json.path);
+
+  const malformed = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: stale.json.runtime.currentContentHash,
+      sessionSlug: "malformed-rejected",
+      confirmUncommitted: true,
+      findings: [{ ...reanchoredFinding, severity: "catastrophic" }]
+    }
+  });
+  assert.equal(malformed.status, 400, malformed.raw);
+  const malformedThread = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: stale.json.runtime.currentContentHash,
+      sessionSlug: "malformed-thread-rejected",
+      confirmUncommitted: true,
+      findings: [{ ...reanchoredFinding, thread: [null] }]
+    }
+  });
+  assert.equal(malformedThread.status, 400, malformedThread.raw);
+  assert.match(malformedThread.json.error, /message 1 must be an object/i);
+  const oversizedThread = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: stale.json.runtime.currentContentHash,
+      sessionSlug: "oversized-thread-rejected",
+      confirmUncommitted: true,
+      findings: [{ ...reanchoredFinding, thread: Array.from({ length: 201 }, () => ({ body: "Message" })) }]
+    }
+  });
+  assert.equal(oversizedThread.status, 400, oversizedThread.raw);
+  assert.match(oversizedThread.json.error, /at most 200 messages/i);
+  const oversized = await requestRaw(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    rawBody: "x".repeat(512 * 1024 + 1)
+  });
+  assert.equal(oversized.status, 413, oversized.raw);
+
+  const privatePath = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: stale.json.runtime.currentContentHash,
+      sessionSlug: "privacy-rejected",
+      confirmUncommitted: true,
+      findings: [{ ...reanchoredFinding, comment: "See C:\\Users\\reviewer\\notes.txt" }]
+    }
+  });
+  assert.equal(privatePath.status, 422, privatePath.raw);
+  assert.match(privatePath.json.error, /machine-local path/i);
+
+  fs.writeFileSync(fixture.specPath, "# Demo\r\n\r\nA prefix.\r\nRepository review backend.\r\n", "utf8");
+  const normalizedSourceReview = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
+  assert.equal(normalizedSourceReview.status, 200, normalizedSourceReview.raw);
+  const normalizedQuote = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: normalizedSourceReview.json.runtime.currentContentHash,
+      sessionSlug: "normalized-quote",
+      confirmUncommitted: true,
+      findings: [{
+        ...finding,
+        quote: "A prefix.\r\nRepository review backend.",
+        anchor: {
+          state: "exact",
+          line_start: 3,
+          line_end: 4,
+          start_offset: 8,
+          end_offset: 44,
+          block_id: "b3"
+        }
+      }]
+    }
+  });
+  assert.equal(normalizedQuote.status, 201, normalizedQuote.raw);
+  assert.equal(normalizedQuote.json.review.findings[0].quote, "A prefix.\nRepository review backend.");
+  assert.equal(normalizedQuote.json.runtime.findings[0].anchorState, "exact");
+
+  const maximumSlug = "a".repeat(63);
+  const maximumReviewId = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: normalizedSourceReview.json.runtime.currentContentHash,
+      sessionSlug: maximumSlug,
+      confirmUncommitted: true,
+      findings: normalizedQuote.json.review.findings
+    }
+  });
+  assert.equal(maximumReviewId.status, 201, maximumReviewId.raw);
+  assert.equal(maximumReviewId.json.review.review_id.length, 87);
+
+  const invalidTrackedMarkdown = fs.readFileSync(reviewFile, "utf8").replace('"schema_version": 1', '"schema_version": 2');
+  fs.writeFileSync(reviewFile, invalidTrackedMarkdown, "utf8");
+  const invalidTracked = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
+  assert.equal(invalidTracked.status, 422, invalidTracked.raw);
+  assert.match(invalidTracked.json.error, /schema_version is invalid/i);
+  const invalidTimestampMarkdown = reviewMarkdown.replace(/"created_at": "[^"]+"/, '"created_at": "January 1, 2020"');
+  fs.writeFileSync(reviewFile, invalidTimestampMarkdown, "utf8");
+  const invalidTimestamp = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
+  assert.equal(invalidTimestamp.status, 422, invalidTimestamp.raw);
+  assert.match(invalidTimestamp.json.error, /timestamps are invalid/i);
+  const invalidLeapSecondMarkdown = reviewMarkdown.replace(/"created_at": "[^"]+"/, '"created_at": "2026-07-22T11:16:60Z"');
+  fs.writeFileSync(reviewFile, invalidLeapSecondMarkdown, "utf8");
+  const invalidLeapSecond = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
+  assert.equal(invalidLeapSecond.status, 422, invalidLeapSecond.raw);
+  assert.match(invalidLeapSecond.json.error, /timestamps are invalid/i);
+});
+
+test("viewer rejects a review directory symlink that escapes the selected project", async (t) => {
+  const fixture = createGitViewerRepo("delano-viewer-review-symlink-", "Symlink containment source.");
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "delano-viewer-review-outside-"));
+  t.after(() => {
+    fs.rmSync(fixture.repo, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+  fs.symlinkSync(outside, path.join(fixture.repo, ".project", "reviews"), process.platform === "win32" ? "junction" : "dir");
+  const baseUrl = await startViewerForRepo(t, fixture.repo);
+  const listed = await requestJson(`${baseUrl}/api/reviews`);
+  assert.equal(listed.status, 400, listed.raw);
+  assert.match(listed.json.error, /not contained in the selected \.project directory/i);
+  const sourceDoc = await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
+  const response = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      sourcePath: "projects/demo/spec.md",
+      expectedContentHash: sourceDoc.baseline.hash,
+      sessionSlug: "escape-rejected",
+      findings: [{
+        kind: "comment",
+        severity: "note",
+        quote: "Symlink containment source.",
+        comment: "Keep the review inside the selected project.",
+        anchor: { state: "unanchored", line_start: null, line_end: null, start_offset: null, end_offset: null, block_id: null }
+      }]
+    }
+  });
+  assert.equal(response.status, 400, response.raw);
+  assert.match(response.json.error, /not contained in the selected \.project directory/i);
+  assert.deepEqual(fs.readdirSync(outside), []);
+});
+
+test("viewer migrates legacy review evidence explicitly, idempotently, and non-destructively", async (t) => {
+  const fixture = createGitViewerRepo("delano-viewer-review-migration-", "Legacy review source.");
+  const viewerDir = path.join(fixture.repo, ".project", "viewer");
+  const handoverDir = path.join(viewerDir, "handovers");
+  fs.mkdirSync(handoverDir, { recursive: true });
+  const legacyPath = path.join(viewerDir, "annotations.json");
+  const legacy = {
+    version: 1,
+    annotations: [
+      {
+        id: "legacy-open",
+        sourcePath: "projects/demo/spec.md",
+        type: "question",
+        quote: "Legacy review source.",
+        comment: "Explain the legacy behavior.",
+        labels: ["migration"],
+        status: "open",
+        createdAt: "2026-07-16T10:00:00Z",
+        updatedAt: "2026-07-16T10:01:00Z",
+        anchor: { lineStart: 3, blockId: "b3" },
+        author: { name: "Reviewer" }
+      },
+      {
+        id: "legacy-resolved",
+        sourcePath: "projects/demo/spec.md",
+        type: "comment",
+        quote: "Legacy review source.",
+        comment: "This was resolved already.",
+        labels: [],
+        status: "resolved",
+        createdAt: "2026-07-16T10:02:00Z",
+        updatedAt: "2026-07-16T10:03:00Z"
+      },
+      {
+        id: "legacy-global",
+        sourcePath: "projects/demo/spec.md",
+        type: "global-comment",
+        quote: "",
+        comment: "This comment applies to the whole document.",
+        labels: ["migration"],
+        status: "open",
+        createdAt: "2026-07-16T10:04:00Z",
+        updatedAt: "2026-07-16T10:04:30Z",
+        author: { name: "reviewer@example.test" }
+      },
+      {
+        id: "missing-source",
+        sourcePath: "projects/demo/missing.md",
+        quote: "Missing",
+        comment: "Cannot map this.",
+        status: "open"
+      },
+      {
+        id: "conflict",
+        sourcePath: "projects/demo/spec.md",
+        quote: "Legacy review source.",
+        comment: "First duplicate.",
+        status: "open"
+      },
+      {
+        id: "conflict",
+        sourcePath: "projects/demo/spec.md",
+        quote: "Legacy review source.",
+        comment: "Different duplicate.",
+        status: "open"
+      }
+    ],
+    applyAudit: [
+      {
+        id: "audit-safe",
+        sourcePath: "projects/demo/spec.md",
+        appliedAt: "2026-07-16T10:05:00Z",
+        outcome: "applied"
+      },
+      { id: "audit-unsafe", sourcePath: "../outside.md", outcome: "rejected" }
+    ]
+  };
+  fs.writeFileSync(legacyPath, `${JSON.stringify(legacy, null, 2)}\n`, "utf8");
+  fs.writeFileSync(path.join(handoverDir, "handover-legacy.md"), "# Legacy handover\n", "utf8");
+  const originalLegacy = fs.readFileSync(legacyPath, "utf8");
+  t.after(() => fs.rmSync(fixture.repo, { recursive: true, force: true }));
+  const baseUrl = await startViewerForRepo(t, fixture.repo);
+
+  const unconfirmed = await requestJson(`${baseUrl}/api/reviews/migrate`, { method: "POST", body: {} });
+  assert.equal(unconfirmed.status, 400, unconfirmed.raw);
+  const first = await requestJson(`${baseUrl}/api/reviews/migrate`, { method: "POST", body: { confirm: true } });
+  assert.equal(first.status, 200, first.raw);
+  assert.equal(first.json.migrated.length, 1);
+  assert.ok(first.json.ambiguous.some((item) => item.id === "missing-source"));
+  assert.ok(first.json.ambiguous.some((item) => item.id === "conflict"));
+  assert.ok(first.json.ambiguous.some((item) => item.id === "audit-unsafe"));
+  assert.equal(first.json.applyAudit.length, 1);
+  assert.deepEqual(first.json.handovers, [{ name: "handover-legacy.md", status: "retained-legacy-evidence" }]);
+  assert.equal(fs.readFileSync(legacyPath, "utf8"), originalLegacy);
+  assert.equal(fs.existsSync(path.join(handoverDir, "handover-legacy.md")), true);
+  const migratedText = fs.readFileSync(path.join(fixture.repo, first.json.migrated[0].path), "utf8");
+  assert.match(migratedText, /legacy-open/);
+  assert.match(migratedText, /legacy-resolved/);
+  assert.match(migratedText, /legacy-global/);
+  assert.match(migratedText, /No source quote; global comment/);
+  assert.match(migratedText, /This comment applies to the whole document/);
+  assert.doesNotMatch(migratedText, /reviewer@example\.test/);
+  assert.doesNotMatch(migratedText, /[A-Za-z]:[\\/]|file:\/\//i);
+
+  const commonDir = spawnSync("git", ["rev-parse", "--git-common-dir"], { cwd: fixture.repo, encoding: "utf8" }).stdout.trim();
+  const receiptRoot = path.join(path.resolve(fixture.repo, commonDir), "delano", "review-migration");
+  const receipts = fs.readdirSync(receiptRoot);
+  assert.equal(receipts.length, 1);
+  const receipt = JSON.parse(fs.readFileSync(path.join(receiptRoot, receipts[0]), "utf8"));
+  assert.equal(receipt.target, ".project/projects/demo/spec.md");
+  assert.doesNotMatch(JSON.stringify(receipt), /[A-Za-z]:[\\/]|file:\/\//i);
+
+  const second = await requestJson(`${baseUrl}/api/reviews/migrate`, { method: "POST", body: { confirm: true } });
+  assert.equal(second.status, 200, second.raw);
+  assert.equal(second.json.migrated.length, 0);
+  assert.equal(second.json.existing.length, 1);
+  assert.equal(reviewFilesOnDisk(fixture.repo).length, 1);
+  assert.equal(fs.readFileSync(legacyPath, "utf8"), originalLegacy);
+
+  fs.writeFileSync(fixture.specPath, "# Demo\n\nChanged legacy review source.\n", "utf8");
+  const staleMigrated = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(first.json.migrated[0].reviewId)}`);
+  assert.equal(staleMigrated.status, 200, staleMigrated.raw);
+  const globalIndex = staleMigrated.json.review.findings.findIndex((finding) => finding.quote === "");
+  assert.ok(globalIndex >= 0);
+  assert.equal(staleMigrated.json.runtime.findings[globalIndex].anchorState, "unanchored");
+});
+
+test("viewer legacy migration reports empty and corrupt stores without destructive writes", async (t) => {
+  const fixture = createGitViewerRepo("delano-viewer-review-migration-errors-", "Migration error source.");
+  t.after(() => fs.rmSync(fixture.repo, { recursive: true, force: true }));
+  const baseUrl = await startViewerForRepo(t, fixture.repo);
+  const empty = await requestJson(`${baseUrl}/api/reviews/migrate`, { method: "POST", body: { confirm: true } });
+  assert.equal(empty.status, 200, empty.raw);
+  assert.deepEqual(empty.json.migrated, []);
+  const viewerDir = path.join(fixture.repo, ".project", "viewer");
+  fs.mkdirSync(viewerDir, { recursive: true });
+  const storePath = path.join(viewerDir, "annotations.json");
+  fs.writeFileSync(storePath, "{not-json", "utf8");
+  const corrupt = await requestJson(`${baseUrl}/api/reviews/migrate`, { method: "POST", body: { confirm: true } });
+  assert.equal(corrupt.status, 200, corrupt.raw);
+  assert.match(corrupt.json.ambiguous[0].reason, /malformed/i);
+  assert.equal(fs.readFileSync(storePath, "utf8"), "{not-json");
+  assert.equal(reviewFilesOnDisk(fixture.repo).length, 0);
 });
 
 test("viewer launches T3 Code handovers through the t3code CLI", async (t) => {
@@ -419,6 +1007,10 @@ function createGitViewerRepo(prefix, body, options = {}) {
       path.join(__dirname, "..", ".agents", "schemas", "artifacts", "task.schema.json"),
       path.join(schemaDir, "task.schema.json")
     );
+    fs.copyFileSync(
+      path.join(__dirname, "..", ".agents", "schemas", "artifacts", "review.schema.json"),
+      path.join(schemaDir, "review.schema.json")
+    );
   }
   spawnSync("git", ["init"], { cwd: fixture.repo, stdio: "ignore" });
   spawnSync("git", ["config", "user.email", "viewer@example.invalid"], { cwd: fixture.repo });
@@ -427,6 +1019,12 @@ function createGitViewerRepo(prefix, body, options = {}) {
   const committed = spawnSync("git", ["commit", "-m", "viewer fixture"], { cwd: fixture.repo, encoding: "utf8" });
   assert.equal(committed.status, 0, committed.stderr || committed.stdout);
   return fixture;
+}
+
+function reviewFilesOnDisk(repo) {
+  const directory = path.join(repo, ".project", "reviews");
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory).filter((name) => name.endsWith(".md"));
 }
 
 function connectSse(requestUrl) {
@@ -575,121 +1173,53 @@ test("viewer server starts on the next port when the requested port is occupied"
   assert.equal(index.projects.find((project) => project.slug === "context").contextPack.root, ".project/context");
 });
 
-test("viewer annotation API validates paths and supports CRUD/export", async (t) => {
+test("viewer legacy annotation API is read-only while preserving list and export", async (t) => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), "delano-viewer-annotations-"));
   const projectDir = path.join(repo, ".project", "projects", "demo");
+  const viewerDir = path.join(repo, ".project", "viewer");
   fs.mkdirSync(projectDir, { recursive: true });
   fs.mkdirSync(path.join(repo, ".project", "context"), { recursive: true });
+  fs.mkdirSync(viewerDir, { recursive: true });
   fs.writeFileSync(path.join(repo, ".project", "context", "README.md"), "# Context\n", "utf8");
-  fs.writeFileSync(path.join(projectDir, "spec.md"), [
-    "---",
-    "name: Demo",
-    "status: active",
-    "---",
-    "",
-    "# Demo",
-    "",
-    "Review this paragraph before implementation.",
-    ""
-  ].join("\n"), "utf8");
-
-  const serverPath = path.join(__dirname, "..", ".delano", "viewer", "server.js");
-  const port = await getOpenPort();
-  const child = spawn(process.execPath, [serverPath], {
-    cwd: path.join(__dirname, ".."),
-    env: {
-      ...process.env,
-      DELANO_VIEWER_ROOT: repo,
-      DELANO_VIEWER_PORT: String(port)
-    },
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-
-  t.after(() => {
-    if (!child.killed) child.kill();
-  });
-
-  const output = await waitForViewer(child);
-  const match = output.match(/http:\/\/127\.0\.0\.1:(\d+)/);
-  assert.ok(match, output);
-  const baseUrl = `http://127.0.0.1:${match[1]}`;
-
-  const created = await requestJson(`${baseUrl}/api/annotations`, {
-    method: "POST",
-    body: {
+  fs.writeFileSync(path.join(projectDir, "spec.md"), "# Demo\n\nReview this paragraph before implementation.\n", "utf8");
+  fs.writeFileSync(path.join(viewerDir, "annotations.json"), `${JSON.stringify({
+    version: 1,
+    annotations: [{
+      id: "legacy-annotation-1",
       sourcePath: "projects/demo/spec.md",
+      repoPath: ".project/projects/demo/spec.md",
       quote: "Review this paragraph",
       comment: "Clarify the implementation scope.",
       type: "clarify",
       labels: ["clarify"],
-      anchor: {
-        blockId: "b8",
-        lineStart: 8,
-        highlightSource: {
-          startMeta: { parentTagName: "P", parentIndex: 0, textOffset: 0 },
-          endMeta: { parentTagName: "P", parentIndex: 0, textOffset: 21 },
-          text: "Review this paragraph ",
-          id: "test-highlight-1"
-        }
-      },
+      anchor: { lineStart: 3 },
+      status: "open",
+      createdAt: "2026-07-16T10:00:00Z",
+      updatedAt: "2026-07-16T10:00:00Z",
       author: { name: "test" }
-    }
-  });
-  assert.equal(created.status, 201);
-  assert.equal(created.json.annotation.repoPath, ".project/projects/demo/spec.md");
-  assert.equal(created.json.annotation.comment, "Clarify the implementation scope.");
-  assert.equal(created.json.annotation.anchor.highlightSource.id, "test-highlight-1");
-  assert.equal(created.json.annotation.anchor.highlightSource.startMeta.parentTagName, "P");
+    }],
+    applyAudit: []
+  }, null, 2)}\n`, "utf8");
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
 
+  const baseUrl = await startViewerForRepo(t, repo);
   const listed = await requestJson(`${baseUrl}/api/annotations?path=projects%2Fdemo%2Fspec.md`);
-  assert.equal(listed.status, 200);
+  assert.equal(listed.status, 200, listed.raw);
   assert.equal(listed.json.annotations.length, 1);
-
-  const allAnnotations = await requestJson(`${baseUrl}/api/annotations`);
-  assert.equal(allAnnotations.status, 200);
-  assert.equal(allAnnotations.json.annotations.length, 1);
-  assert.equal(allAnnotations.json.sourcePath, null);
-
-  const index = await requestJson(`${baseUrl}/api/index`);
-  assert.equal(index.status, 200);
-  assert.equal(index.json.annotationSummary.total, 1);
-  assert.equal(index.json.annotationSummary.open, 1);
-  assert.equal(index.json.annotationSummary.bySource[0].sourcePath, "projects/demo/spec.md");
-
-  const doc = await requestJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
-  assert.equal(doc.status, 200);
-  assert.equal(doc.json.path, "projects/demo/spec.md");
-
-  const updated = await requestJson(`${baseUrl}/api/annotations?id=${created.json.annotation.id}`, {
-    method: "PATCH",
-    body: { comment: "Clarify the implementation scope and acceptance evidence." }
-  });
-  assert.equal(updated.status, 200);
-  assert.match(updated.json.annotation.comment, /acceptance evidence/);
-
   const exported = await requestJson(`${baseUrl}/api/annotations/export?path=projects%2Fdemo%2Fspec.md`);
-  assert.equal(exported.status, 200);
-  assert.match(exported.json.markdown, /Delano Viewer Annotations/);
-  assert.match(exported.json.markdown, /delano context read --profile implementation/);
+  assert.equal(exported.status, 200, exported.raw);
   assert.equal(exported.json.json.annotations.length, 1);
-  assert.equal(exported.json.json.annotations[0].anchor.highlightSource.text, "Review this paragraph ");
+  assert.match(exported.json.markdown, /Delano Viewer Annotations/);
 
-  const rejected = await requestJson(`${baseUrl}/api/annotations`, {
-    method: "POST",
-    body: {
-      sourcePath: "../outside.md",
-      quote: "bad",
-      comment: "bad"
-    }
-  });
-  assert.equal(rejected.status, 400);
-  assert.match(rejected.json.error, /sourcePath/);
-
-  const deleted = await requestJson(`${baseUrl}/api/annotations?id=${created.json.annotation.id}`, {
-    method: "DELETE"
-  });
-  assert.equal(deleted.status, 200);
-  assert.equal(deleted.json.deleted, 1);
+  for (const method of ["POST", "PATCH", "DELETE"]) {
+    const rejected = await requestJson(`${baseUrl}/api/annotations?id=legacy-annotation-1`, {
+      method,
+      body: method === "DELETE" ? undefined : { sourcePath: "projects/demo/spec.md" }
+    });
+    assert.equal(rejected.status, 405, rejected.raw);
+    assert.match(rejected.json.error, /read-only/i);
+  }
+  assert.equal(JSON.parse(fs.readFileSync(path.join(viewerDir, "annotations.json"), "utf8")).annotations.length, 1);
 });
 
 test("viewer apply API previews diffs and rejects stale baselines", async (t) => {
@@ -781,6 +1311,58 @@ test("viewer write endpoints classify malformed and oversized request bodies", a
   });
   assert.equal(oversized.status, 413);
   assert.match(JSON.parse(oversized.raw).error, /too large/);
+});
+
+test("viewer guarded apply uses identical safety checks in a selected linked worktree", async (t) => {
+  const fixture = createGitViewerRepo("delano-viewer-linked-apply-", "Linked apply source.");
+  const linked = path.join(path.dirname(fixture.repo), `${path.basename(fixture.repo)} linked-apply`);
+  const added = spawnSync("git", ["worktree", "add", "-b", "linked-apply", linked], { cwd: fixture.repo, encoding: "utf8" });
+  assert.equal(added.status, 0, added.stderr || added.stdout);
+  t.after(() => fs.rmSync(fixture.repo, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(linked, { recursive: true, force: true }));
+  const baseUrl = await startViewerForRepo(t, linked);
+  const context = await readJson(`${baseUrl}/api/context`);
+  assert.equal(context.active.worktree.role, "linked");
+  assert.equal(context.active.capabilities.applyContract, true);
+  const doc = await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
+  const replacementMarkdown = doc.markdown.replace("Linked apply source.", "Linked apply completed.");
+
+  const unconfirmed = await requestJson(`${baseUrl}/api/apply`, {
+    method: "POST",
+    body: {
+      sourcePath: "projects/demo/spec.md",
+      expectedHash: doc.baseline.hash,
+      replacementMarkdown
+    }
+  });
+  assert.equal(unconfirmed.status, 400, unconfirmed.raw);
+  assert.match(unconfirmed.json.error, /confirm:true/);
+  const applied = await requestJson(`${baseUrl}/api/apply`, {
+    method: "POST",
+    body: {
+      sourcePath: "projects/demo/spec.md",
+      expectedHash: doc.baseline.hash,
+      replacementMarkdown,
+      confirm: true
+    }
+  });
+  assert.equal(applied.status, 200, applied.raw);
+  assert.match(fs.readFileSync(path.join(linked, ".project", "projects", "demo", "spec.md"), "utf8"), /Linked apply completed/);
+  const audit = JSON.parse(fs.readFileSync(path.join(linked, ".project", "viewer", "annotations.json"), "utf8"));
+  assert.equal(audit.applyAudit.length, 1);
+  assert.equal(audit.applyAudit[0].sourcePath, "projects/demo/spec.md");
+
+  const stale = await requestJson(`${baseUrl}/api/apply`, {
+    method: "POST",
+    body: {
+      sourcePath: "projects/demo/spec.md",
+      expectedHash: doc.baseline.hash,
+      replacementMarkdown: `${replacementMarkdown}\nStale overwrite.\n`,
+      confirm: true
+    }
+  });
+  assert.equal(stale.status, 409, stale.raw);
+  assert.match(stale.json.error, /baseline does not match expectedHash/);
 });
 
 test("viewer annotation store parse errors fail fast without overwriting state", async (t) => {
@@ -885,6 +1467,26 @@ test("viewer handover API writes a handover file and returns agent commands", as
   const original = "# Demo\n\nReview this paragraph before implementation.\n";
   fs.writeFileSync(specPath, original, "utf8");
   fs.writeFileSync(path.join(projectDir, "spec$(touch pwned).md"), "# Demo\n\nShell metacharacters stay inert.\n", "utf8");
+  const viewerDir = path.join(repo, ".project", "viewer");
+  fs.mkdirSync(viewerDir, { recursive: true });
+  fs.writeFileSync(path.join(viewerDir, "annotations.json"), `${JSON.stringify({
+    version: 1,
+    annotations: [{
+      id: "legacy-handover-annotation",
+      sourcePath: "projects/demo/spec.md",
+      repoPath: ".project/projects/demo/spec.md",
+      quote: "Review this paragraph",
+      comment: "Clarify implementation scope.",
+      type: "comment",
+      labels: [],
+      anchor: { lineStart: 3 },
+      status: "open",
+      createdAt: "2026-07-16T10:00:00Z",
+      updatedAt: "2026-07-16T10:00:00Z",
+      author: { name: "Reviewer" }
+    }],
+    applyAudit: []
+  }, null, 2)}\n`, "utf8");
   fs.mkdirSync(path.join(projectDir, "tasks"), { recursive: true });
   fs.writeFileSync(
     path.join(projectDir, "tasks", "T-001-demo-task.md"),
@@ -913,18 +1515,7 @@ test("viewer handover API writes a handover file and returns agent commands", as
   assert.ok(match, output);
   const baseUrl = `http://127.0.0.1:${match[1]}`;
 
-  const created = await requestJson(`${baseUrl}/api/annotations`, {
-    method: "POST",
-    body: {
-      sourcePath: "projects/demo/spec.md",
-      quote: "Review this paragraph",
-      comment: "Clarify implementation scope.",
-      type: "comment",
-      anchor: { lineStart: 3 }
-    }
-  });
-  assert.equal(created.status, 201);
-  const annotationId = created.json.annotation.id;
+  const annotationId = "legacy-handover-annotation";
 
   const handover = await requestJson(`${baseUrl}/api/handover`, {
     method: "POST",
@@ -1050,8 +1641,8 @@ test("viewer handover API writes a handover file and returns agent commands", as
   assert.equal(reviewWork.status, 200);
   assert.equal(reviewWork.json.intent, "review");
   assert.match(reviewWork.json.prompt, /^Review the delivered work for the Delano document/);
-  assert.match(reviewWork.json.prompt, /Reviewer annotations are in \.project\/viewer\/handovers\//);
-  assert.ok(reviewWork.json.file, "review with annotations should write a handover file");
+  assert.doesNotMatch(reviewWork.json.prompt, /Reviewer annotations are in \.project\/viewer\/handovers\//);
+  assert.equal(reviewWork.json.file, null, "review dispatch should not generate canonical handover Markdown");
 
   const reviewNoFeedback = await requestJson(`${baseUrl}/api/handover`, {
     method: "POST",

@@ -74,6 +74,7 @@ const dataTable = loadSourceModule("@/lib/data-table")
 const navigation = loadSourceModule("@/lib/domain/navigation")
 const pagination = loadSourceModule("@/lib/domain/pagination")
 const projectDashboard = loadSourceModule("@/lib/domain/project-dashboard")
+const reviewDrafts = loadSourceModule("@/lib/domain/review-drafts")
 const status = loadSourceModule("@/lib/domain/status")
 const workspaceModel = loadSourceModule("@/lib/domain/workspace-model")
 const markdown = loadSourceModule("@/lib/markdown/renderMarkdown")
@@ -212,8 +213,82 @@ assert.equal(
 assert.notEqual(status.statusLabel("in-progress"), "in-progress")
 assert.deepEqual(
   navigation.WORKSPACE_NAV.map((item) => item.label),
-  ["Projects", "Tasks", "Context pack", "Annotations", "Warnings", "Blockers"]
+  ["Projects", "Tasks", "Context pack", "Reviews", "Annotations", "Warnings", "Blockers"]
 )
+
+const draftStorage = new Map()
+const storage = {
+  getItem: (key) => draftStorage.get(key) ?? null,
+  setItem: (key, value) => draftStorage.set(key, value),
+  removeItem: (key) => draftStorage.delete(key),
+}
+const draftKey = reviewDrafts.reviewDraftKey("repo", "worktree", "projects/demo/spec.md")
+reviewDrafts.writeReviewDraft(storage, draftKey, [
+  {
+    id: "draft-1",
+    quote: "unique quote",
+    comment: "Clarify this.",
+    type: "question",
+    labels: [],
+    anchor: { blockId: "b3" },
+  },
+])
+const storedDraft = reviewDrafts.readReviewDraft(storage, draftKey)
+assert.equal(storedDraft.length, 1)
+storedDraft[0].baseline = { hash: "current-hash" }
+assert.equal(
+  reviewDrafts.publicationContentHash(storedDraft, "current-hash"),
+  "current-hash"
+)
+assert.throws(
+  () => reviewDrafts.publicationContentHash(storedDraft, "different-hash"),
+  /different source content/
+)
+assert.deepEqual(
+  reviewDrafts.removePublishedFindings(
+    [storedDraft[0], { ...storedDraft[0], id: "draft-2" }],
+    [storedDraft[0]]
+  ).map((finding) => finding.id),
+  ["draft-2"]
+)
+assert.equal(
+  reviewDrafts.removePublishedFindings(
+    [{ ...storedDraft[0], comment: "Edited while publishing" }],
+    [storedDraft[0]]
+  ).length,
+  1
+)
+assert.deepEqual(
+  reviewDrafts.publicationFindings(
+    reviewDrafts.readReviewDraft(storage, draftKey),
+    "# Demo\n\nunique quote\n"
+  )[0],
+  {
+    kind: "question",
+    severity: "note",
+    quote: "unique quote",
+    comment: "Clarify this.",
+    labels: [],
+    anchor: {
+      state: "exact",
+      line_start: 3,
+      line_end: 3,
+      start_offset: 8,
+      end_offset: 20,
+      block_id: "b3",
+    },
+  }
+)
+const normalizedQuoteFinding = reviewDrafts.publicationFindings(
+  [{ ...storedDraft[0], quote: "first\r\nsecond" }],
+  "# Demo\r\n\r\nfirst\r\nsecond\r\n"
+)[0]
+assert.equal(normalizedQuoteFinding.quote, "first\nsecond")
+assert.equal(normalizedQuoteFinding.anchor.state, "exact")
+assert.equal(normalizedQuoteFinding.anchor.line_start, 3)
+assert.equal(normalizedQuoteFinding.anchor.line_end, 4)
+reviewDrafts.writeReviewDraft(storage, draftKey, [])
+assert.equal(storage.getItem(draftKey), null)
 
 const navigationIndex = {
   context: {
@@ -464,6 +539,14 @@ assert.deepEqual(
       open: 1,
       storePath: ".project/viewer/annotations.json",
     },
+    reviewSummary: {
+      root: ".project/reviews",
+      total: 1,
+      open: 1,
+      openFindings: 1,
+      reviews: [],
+      warnings: [],
+    },
     contextPack: { files: [{ path: "context/a.md", title: "A" }] },
     projects: [
       {
@@ -518,6 +601,12 @@ assert.deepEqual(
         role: "task",
         project: "demo",
       },
+      {
+        path: "reviews/review.md",
+        title: "Review",
+        status: "open",
+        role: "review",
+      },
     ],
   }),
   {
@@ -526,10 +615,20 @@ assert.deepEqual(
     tasks: 4,
     progress: 1,
     annotations: 1,
-    validation: 7,
+    reviews: 1,
+    validation: 8,
     warnings: 0,
     blockers: 1,
   }
+)
+assert.equal(
+  workspaceModel.sidebarCounts({
+    repo: "demo",
+    generatedAt: "2026-06-30T00:00:00Z",
+    docs: [{ path: "reviews/resolved.md", title: "Resolved", role: "review" }],
+    projects: [],
+  }).reviews,
+  0
 )
 assert.equal(workspaceModel.isOpenTaskStatus("planned"), true)
 assert.equal(workspaceModel.isOpenTaskStatus("ready"), true)

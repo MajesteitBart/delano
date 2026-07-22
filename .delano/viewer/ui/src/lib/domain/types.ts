@@ -10,6 +10,10 @@ export type DocMeta = {
   taskId?: string | null
   updated?: string
   snippet?: string
+  baselineHash?: string
+  reviewId?: string | null
+  sourcePath?: string | null
+  openFindingCount?: number | null
   frontmatter?: Record<string, unknown>
 }
 
@@ -53,6 +57,31 @@ export type ViewerIndex = {
       repoPath: string
       count: number
       updatedAt?: string | null
+    }>
+  }
+  reviewOptions?: {
+    status: string[]
+    findingStatus: string[]
+    kind: string[]
+    severity: string[]
+    anchorState: string[]
+    hashAlgorithm: string
+  } | null
+  reviewSummary?: {
+    root: string
+    total: number
+    open: number
+    openFindings: number
+    warnings: string[]
+    reviews: Array<{
+      reviewId: string
+      path: string
+      name: string
+      status: string
+      sourcePath: string
+      openFindings: number
+      freshness: "exact" | "stale" | "unavailable"
+      updatedAt: string
     }>
   }
   contextPack?: {
@@ -106,8 +135,24 @@ export type ViewerContext = {
   repository: Pick<ViewerRepository, "id" | "name" | "primaryPath">
   worktree: ViewerWorktree
   projectRoot: string
-  writable: boolean
-  writeDisabledReason?: string | null
+  risk: {
+    level: "normal" | "elevated"
+    indicators: string[]
+  }
+  capabilities: ViewerCapabilities
+  capabilityDenials: Record<keyof ViewerCapabilities, ViewerCapabilityDenial | null>
+}
+
+export type ViewerCapabilities = {
+  dispatch: boolean
+  review: boolean
+  publishReview: boolean
+  applyContract: boolean
+}
+
+export type ViewerCapabilityDenial = {
+  code: string
+  message: string
 }
 
 export type ViewerContextInventory = {
@@ -125,6 +170,15 @@ export type ViewerDoc = DocMeta & {
   markdown: string
   body: string
   baseline?: Baseline
+  contentHash?: string
+  reviewRuntime?: {
+    freshness: "exact" | "stale" | "unavailable"
+    currentContentHash: string | null
+    findings: Array<{
+      id: string
+      anchorState: "exact" | "reanchored" | "unanchored"
+    }>
+  } | null
 }
 
 export type Annotation = {

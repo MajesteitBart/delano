@@ -44,6 +44,7 @@ const WORKSPACE_ICONS: Record<WorkspaceView, LucideIcon> = {
   "workspace-tasks": ListChecksIcon,
   "workspace-progress": TrendingUpIcon,
   "workspace-annotations": MessageSquareTextIcon,
+  "workspace-reviews": MessageSquareTextIcon,
   "workspace-validation": CheckCircle2Icon,
   "workspace-warnings": ShieldAlertIcon,
   "workspace-blockers": XIcon,

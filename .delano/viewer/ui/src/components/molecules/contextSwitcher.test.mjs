@@ -58,8 +58,9 @@ test("context switching resets root-scoped UI state and persists a versioned sel
   assert.match(liveHookSource, /\[generation\]/)
 })
 
-test("linked worktree mutations are disabled with explanatory copy", () => {
-  assert.match(readerSource, /Linked worktree · read-only/)
-  assert.match(readerSource, /disabled=\{!writable\}/)
-  assert.match(readerSource, /if \(!writable\) return false/)
+test("review drafting and publication use separate selected-context capabilities", () => {
+  assert.match(readerSource, /const canReview = capabilities\.review/)
+  assert.match(readerSource, /const canPublishReview = capabilities\.publishReview/)
+  assert.match(readerSource, /if \(!reviewMode \|\| !canReview\) return false/)
+  assert.match(readerSource, /publishEnabled=\{canPublishReview\}/)
 })

@@ -7,6 +7,7 @@ export type WorkspaceView =
   | "workspace-tasks"
   | "workspace-progress"
   | "workspace-annotations"
+  | "workspace-reviews"
   | "workspace-validation"
   | "workspace-warnings"
   | "workspace-blockers"
@@ -29,6 +30,7 @@ export const WORKSPACE_NAV: Array<{
     | "tasks"
     | "progress"
     | "annotations"
+    | "reviews"
     | "validation"
     | "warnings"
     | "blockers"
@@ -36,6 +38,7 @@ export const WORKSPACE_NAV: Array<{
   { view: "workspace-projects", label: "Projects", countKey: "projects" },
   { view: "workspace-tasks", label: "Tasks", countKey: "tasks" },
   { view: "workspace-context", label: "Context pack", countKey: "context" },
+  { view: "workspace-reviews", label: "Reviews", countKey: "reviews" },
   {
     view: "workspace-annotations",
     label: "Annotations",

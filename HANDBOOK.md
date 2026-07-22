@@ -550,7 +550,7 @@ Native package/runtime commands:
 |---|---|---|
 | `delano onboarding` | approval-first review of repo agent instructions | none by default |
 | `delano install` | install or refresh the approved runtime payload | allowlisted runtime/package files |
-| `delano viewer` | launch the read-only local `.project` UI | nothing |
+| `delano viewer` | launch the package-owned guarded UI for a selected registered worktree | local drafts; explicit `.project/reviews/*.md` publication; guarded canonical apply |
 | `delano project` | create, show, and patch project contracts | `.project/projects/<slug>/` |
 | `delano workstream` | add, show, and patch workstream contracts | `workstreams/*.md` |
 | `delano task` | add and patch task contracts with scoped lifecycle rollups | `tasks/*.md` and parent rollups |
@@ -571,6 +571,17 @@ Use the native state commands for template-backed contract creation and lifecycl
 
 `delano project create` and `delano task add` accept `--mode <0-4|slug>` to set the operating mode (default `feature`; tasks and workstreams inherit the project mode when their own flag is omitted). `delano project create` also accepts `--probe-rationale <text>` to record the probe decision. `delano validate` runs the contracts-only gate; pass `--release` to include package payload drift.
 
+#### Viewer, review, and package boundary
+
+- `[enforced]` The selected fresh registered worktree is the Viewer data, write, and agent-launch root. Primary/linked identity is provenance and risk, not permission; the server exposes and enforces `dispatch`, `review`, `publishReview`, and `applyContract` capabilities.
+- `[enforced]` Every Viewer launch or write revalidates selected repository/worktree identity, branch or detached state, context generation, containment, and the relevant source hash. Stale, switched, unavailable, or deleted contexts fail without falling back to another checkout.
+- `[enforced]` Unpublished findings remain machine-local. Explicit publication writes one schema-valid Markdown artifact under `.project/reviews/`, and the Viewer never commits, pushes, opens a PR, or posts remotely.
+- `[enforced]` Published review freshness follows normalized source content (`sha256-utf8-lf-v1`), not unrelated HEAD movement. Tracked review provenance is repository-relative and excludes absolute paths, worktree identifiers, and launch receipts.
+- `[enforced]` Legacy `.project/viewer/annotations.json` and generated handovers are noncanonical migration inputs. Migration is explicit, idempotent, non-destructive, and reports ambiguous evidence.
+- `[enforced]` Guarded canonical apply requires capability, containment, a current expected hash, fresh selected context, preview, and explicit confirmation in both primary and linked worktrees.
+- `[enforced]` The npm package owns the executable Viewer server and compiled assets. The repository install payload contains no `.delano/viewer`; existing local copies are inert and are never executed or automatically deleted.
+- `[enforced]` Normal validation reports dirty `.project` provenance consistently across checkout roles. Release validation applies one cleanliness rule to primary and linked worktrees, subject only to the explicit supported override.
+
 ### 8.3 Current runtime foundation
 
 The package adds enforceable local runtime surfaces around the handbook process:
@@ -580,7 +591,7 @@ The package adds enforceable local runtime surfaces around the handbook process:
 - **Evidence expectations**: done tasks need checked acceptance criteria plus implementation or validation evidence. v0.2 evidence mapping remains markdown-based; full criterion-to-ledger instance validation is a later maturity gate.
 - **Dry-run sync**: GitHub and Linear sync surfaces inspect, classify drift, and produce repair plans without remote mutation unless a future explicit apply gate is approved.
 - **Lease semantics**: multi-agent work uses leases with conflict zones, lifecycle state, and handoff summaries. Conflict checks must run before overlapping work proceeds.
-- **Release gates**: plain `bash .agents/scripts/pm/validate.sh` is the contracts-only gate and must pass on a fresh clone without built assets. The local release baseline is `npm run build:assets`, `bash .agents/scripts/pm/validate.sh --release` (adds package/manifest drift), and `npm test`. Formal CI publishing, enterprise state-machine orchestration, and non-mocked Linear behavior remain later maturity gates.
+- **Release gates**: plain `bash .agents/scripts/pm/validate.sh` is the contracts-only gate and must pass on a fresh clone without built assets. The local release baseline is `npm run build:assets`, `bash .agents/scripts/pm/validate.sh --release` (adds package/manifest drift and checkout-neutral release cleanliness), and `npm test`. Formal CI publishing, enterprise state-machine orchestration, and non-mocked Linear behavior remain later maturity gates.
 
 ### 8.4 Skill contract standard
 

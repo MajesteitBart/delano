@@ -6,8 +6,8 @@ const readerSource = readFileSync(
   new URL("../../pages/DocumentReaderPage.tsx", import.meta.url),
   "utf8"
 )
-const drawerSource = readFileSync(
-  new URL("./AnnotationDrawer.tsx", import.meta.url),
+const reviewDraftSource = readFileSync(
+  new URL("./ReviewDraftPanel.tsx", import.meta.url),
   "utf8"
 )
 const metadataSource = readFileSync(
@@ -78,26 +78,24 @@ test("task title precedes collapsed details without duplicating the markdown hea
   )
 })
 
-test("review drawer is a single annotation surface with existing actions", () => {
-  assert.doesNotMatch(drawerSource, /<Tabs|TabsContent|TabsList|TabsTrigger/)
-  assert.doesNotMatch(drawerSource, /DocumentMetaFields|>Details</)
-  assert.match(drawerSource, /onClick=\{onRefresh\}/)
+test("review draft panel is the single annotation surface", () => {
+  assert.doesNotMatch(reviewDraftSource, /<Tabs|TabsContent|TabsList|TabsTrigger/)
+  assert.doesNotMatch(reviewDraftSource, /DocumentMetaFields|>Details</)
   assert.match(
-    drawerSource,
+    reviewDraftSource,
     /onToggle=\{\(\) => onToggleSelected\(annotation\.id\)\}/
   )
   assert.match(
-    drawerSource,
+    reviewDraftSource,
     /onUpdate=\{\(patch\) => onUpdate\(annotation\.id, patch\)\}/
   )
-  assert.match(drawerSource, /onDelete=\{\(\) => onDelete\(annotation\.id\)\}/)
-  assert.match(drawerSource, /exportAnnotations\("copy"\)/)
-  assert.match(drawerSource, /<AgentSplitButton/)
+  assert.match(reviewDraftSource, /onDelete=\{\(\) => onDelete\(annotation\.id\)\}/)
+  assert.match(reviewDraftSource, /onClick=\{\(\) => onPublish\(selected\)\}/)
 })
 
 test("annotations are gated behind explicit Review mode", () => {
   assert.doesNotMatch(readerSource, /setReviewOpen\(items\.length > 0\)/)
-  assert.match(readerSource, /annotationEnabled=\{reviewMode && writable\}/)
+  assert.match(readerSource, /annotationEnabled=\{reviewMode && canReview\}/)
   assert.match(readerSource, /reviewMode=\{reviewMode\}/)
   assert.match(
     markdownArticleSource,
@@ -108,10 +106,34 @@ test("annotations are gated behind explicit Review mode", () => {
     /onClick=\{reviewMode \? handleClick : undefined\}/
   )
   assert.match(markdownArticleSource, /if \(!reviewMode\) return/)
+  assert.match(readerSource, /writable=\{canReview\}/)
+  assert.match(
+    readerSource,
+    /disabled=\{lifecycleBusy \|\| !canPublishReview \|\|/
+  )
 })
 
-test("Review drawer does not reserve document width", () => {
+test("closed review drafts are inert and empty selection publishes nothing", () => {
+  assert.match(reviewDraftSource, /inert=\{!open \? true : undefined\}/)
+  assert.match(reviewDraftSource, /const selected = annotations\.filter/)
+  assert.doesNotMatch(reviewDraftSource, /selectedIds\.length[\s\S]*: annotations/)
+  assert.match(reviewDraftSource, /\[doc\.path, open\]/)
+  assert.match(reviewDraftSource, /!annotation\.anchor\?\.highlightSource/)
+  assert.match(reviewDraftSource, /writable=\{writable\}/)
+})
+
+test("review publication completion stays scoped to its originating draft", () => {
+  assert.match(readerSource, /const originDraftKey = localDraftKey/)
+  assert.match(readerSource, /readReviewDraft\(window\.localStorage, originDraftKey\)/)
+  assert.match(readerSource, /writeReviewDraft\(window\.localStorage, originDraftKey, remainingDraft\)/)
+  assert.match(
+    readerSource,
+    /activeDraftKeyRef\.current === originDraftKey && publishRequestRef\.current === requestId/
+  )
+})
+
+test("Review draft panel does not reserve document width", () => {
   assert.doesNotMatch(readerSource, /pr-\[416px\]/)
   assert.doesNotMatch(readerSource, /transition-\[padding\]/)
-  assert.match(drawerSource, /fixed inset-y-0 right-0/)
+  assert.match(reviewDraftSource, /fixed inset-y-0 right-0/)
 })

@@ -41,11 +41,7 @@ test("npm pack excludes repo root Git config files from the payload", () => {
   assert.ok(packedPaths.has(".delano/viewer/public/delano-logo.svg"));
   assert.ok(packedPaths.has(".delano/viewer/public/favicon.png"));
   assert.ok(packedPaths.has(".delano/viewer/public/explorer.svg"));
-  assert.ok(packedPaths.has("assets/payload/.delano/viewer/server.js"));
-  assert.ok(packedPaths.has("assets/payload/.delano/viewer/public/assets/index.css"));
-  assert.ok(packedPaths.has("assets/payload/.delano/viewer/public/assets/viewer.js"));
-  assert.ok(packedPaths.has("assets/payload/.delano/viewer/public/favicon.png"));
-  assert.ok(packedPaths.has("assets/payload/.delano/viewer/public/vscode.svg"));
+  assert.ok(![...packedPaths].some((packedPath) => packedPath.startsWith("assets/payload/.delano/")));
 
   const tarballPath = path.join(repoRoot, packInfo.filename);
   if (fs.existsSync(tarballPath)) {
@@ -94,33 +90,7 @@ test("build:assets stages generic context templates instead of Delano repo conte
     "onboarding",
     "SKILL.md"
   );
-  const stagedViewerIconPath = path.join(
-    repoRoot,
-    "assets",
-    "payload",
-    ".delano",
-    "viewer",
-    "public",
-    "vscode.svg"
-  );
-  const stagedViewerLogoPath = path.join(
-    repoRoot,
-    "assets",
-    "payload",
-    ".delano",
-    "viewer",
-    "public",
-    "delano-logo.svg"
-  );
-  const stagedViewerFaviconPath = path.join(
-    repoRoot,
-    "assets",
-    "payload",
-    ".delano",
-    "viewer",
-    "public",
-    "favicon.png"
-  );
+  const stagedViewerPath = path.join(repoRoot, "assets", "payload", ".delano", "viewer");
 
   const liveContext = fs.readFileSync(liveContextPath, "utf8");
   const stagedContext = fs.readFileSync(stagedContextPath, "utf8");
@@ -129,9 +99,85 @@ test("build:assets stages generic context templates instead of Delano repo conte
   assert.doesNotMatch(stagedContext, /Delano is both the product and the reference repository/);
   assert.match(stagedContext, /<describe the product or operational problem this repository exists to solve>/);
   assert.equal(fs.existsSync(stagedOnboardingSkillPath), true);
-  assert.equal(fs.existsSync(stagedViewerIconPath), true);
-  assert.equal(fs.existsSync(stagedViewerLogoPath), true);
-  assert.equal(fs.existsSync(stagedViewerFaviconPath), true);
+  assert.equal(fs.existsSync(stagedViewerPath), false);
+});
+
+test("full and update-safe installs omit Viewer files and preserve legacy local copies", (t) => {
+  const buildResult = spawnSync(process.execPath, ["scripts/build-npm-assets.mjs"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+  assert.equal(buildResult.status, 0, buildResult.stderr || buildResult.stdout);
+
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "delano-package-boundary-"));
+  t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
+  const fullTarget = path.join(tempRoot, "full");
+  const updateTarget = path.join(tempRoot, "update-safe");
+  const cliPath = path.join(repoRoot, "bin", "delano.js");
+
+  for (const [target, args] of [
+    [fullTarget, ["install", "--target", fullTarget, "--yes"]],
+    [updateTarget, ["install", "--target", updateTarget, "--no-project-state", "--force", "--yes"]]
+  ]) {
+    const installResult = spawnSync(process.execPath, [cliPath, ...args], {
+      cwd: repoRoot,
+      encoding: "utf8"
+    });
+    assert.equal(installResult.status, 0, installResult.stderr || installResult.stdout);
+    assert.equal(fs.existsSync(path.join(target, ".delano", "viewer")), false);
+  }
+
+  const legacyFile = path.join(updateTarget, ".delano", "viewer", "custom.js");
+  fs.mkdirSync(path.dirname(legacyFile), { recursive: true });
+  fs.writeFileSync(legacyFile, "// locally modified legacy viewer\n", "utf8");
+
+  const refreshResult = spawnSync(process.execPath, [
+    cliPath,
+    "install",
+    "--target",
+    updateTarget,
+    "--no-project-state",
+    "--force",
+    "--yes"
+  ], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+  assert.equal(refreshResult.status, 0, refreshResult.stderr || refreshResult.stdout);
+  assert.equal(fs.readFileSync(legacyFile, "utf8"), "// locally modified legacy viewer\n");
+});
+
+test("a packed CLI resolves the package-owned Viewer instead of a repository-local copy", (t) => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "delano-packed-viewer-"));
+  t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));
+
+  const packCommand = process.platform === "win32"
+    ? ["/d", "/s", "/c", `npm pack --json --pack-destination ${tempRoot}`]
+    : ["-lc", `npm pack --json --pack-destination "${tempRoot}"`];
+  const packResult = spawnSync(shellCommand, packCommand, { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(packResult.status, 0, packResult.stderr || packResult.stdout);
+  const packMatch = packResult.stdout.trim().match(/(\[\s*\{[\s\S]*\}\s*\])\s*$/);
+  assert.ok(packMatch, "npm pack output did not include JSON metadata");
+  const tarballPath = path.join(tempRoot, JSON.parse(packMatch[1])[0].filename);
+
+  const installRoot = path.join(tempRoot, "installed");
+  const installCommand = process.platform === "win32"
+    ? ["/d", "/s", "/c", `npm install --prefix ${installRoot} ${tarballPath} --ignore-scripts --no-audit --no-fund`]
+    : ["-lc", `npm install --prefix "${installRoot}" "${tarballPath}" --ignore-scripts --no-audit --no-fund`];
+  const installResult = spawnSync(shellCommand, installCommand, { cwd: repoRoot, encoding: "utf8" });
+  assert.equal(installResult.status, 0, installResult.stderr || installResult.stdout);
+
+  const packageRoot = path.join(installRoot, "node_modules", "@bvdm", "delano");
+  const targetRoot = path.join(tempRoot, "consumer");
+  const legacyServer = path.join(targetRoot, ".delano", "viewer", "server.js");
+  fs.mkdirSync(path.dirname(legacyServer), { recursive: true });
+  fs.writeFileSync(legacyServer, "throw new Error('legacy viewer must stay inert')\n", "utf8");
+
+  const { getViewerServerPath } = require(path.join(packageRoot, "src", "cli", "commands", "viewer.js"));
+  const resolvedServer = getViewerServerPath();
+  assert.equal(resolvedServer, path.join(packageRoot, ".delano", "viewer", "server.js"));
+  assert.equal(fs.existsSync(resolvedServer), true);
+  assert.notEqual(resolvedServer, legacyServer);
 });
 test("package manifest and generated payload stay in sync", () => {
   const checkResult = spawnSync(process.execPath, ["scripts/check-package-manifest-drift.mjs"], {
@@ -219,6 +265,7 @@ test("agent entry docs keep operational handoff guidance", () => {
   assert.match(checkResult.stdout, /Agent entry doc check passed/);
 });
 test("artifact scope contract matches current project artifacts", () => {
+  const checkerSource = fs.readFileSync(path.join(repoRoot, "scripts", "check-artifact-scope.mjs"), "utf8");
   const checkResult = spawnSync(process.execPath, ["scripts/check-artifact-scope.mjs"], {
     cwd: repoRoot,
     encoding: "utf8"
@@ -226,6 +273,10 @@ test("artifact scope contract matches current project artifacts", () => {
 
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Artifact scope check passed/);
+  assert.match(checkerSource, /checkCurrentArtifacts\("review", "\.project\/reviews\/\*\.md"/);
+  assert.match(checkerSource, /JSON\.parse\(block\)/);
+  assert.match(checkerSource, /validateJsonSchema\(frontmatter, schema, schema\)/);
+  assert.match(checkerSource, /Number\(secondText\) <= 59/);
 });
 
 
