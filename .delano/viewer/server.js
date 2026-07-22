@@ -1690,7 +1690,7 @@ function normalizePublishedFindings(input, now, schema, defaultAuthor, sourceTex
     const state = anchorInput.state == null ? 'unanchored' : String(anchorInput.state);
     if (!schema.$defs.anchor.properties.state.enum.includes(state)) throw new HttpRequestError(`finding ${index + 1} anchor state is invalid.`, 400);
     const anchored = state !== 'unanchored';
-    const quote = normalizeReviewQuote(sanitizeString(raw.quote, 20000, `finding ${index + 1} quote`, anchored));
+    const quote = normalizeReviewQuote(sanitizeRawString(raw.quote, 20000, `finding ${index + 1} quote`, anchored));
     const integer = (value, minimum, field) => {
       if (!Number.isInteger(value) || value < minimum) throw new HttpRequestError(`finding ${index + 1} ${field} is invalid.`, 400);
       return value;
@@ -1782,7 +1782,7 @@ function reviewTimestampId(dateValue) {
 }
 
 function legacyFindingAnchor(annotation, sourceText) {
-  const quote = normalizeReviewQuote(annotation.quote).trim();
+  const quote = normalizeReviewQuote(annotation.quote);
   const first = quote ? sourceText.indexOf(quote) : -1;
   const unique = first >= 0 && sourceText.indexOf(quote, first + 1) < 0;
   if (!unique) {
@@ -1824,7 +1824,7 @@ function stableLegacyReview(source, annotations) {
       kind: schema.$defs.finding.properties.kind.enum.includes(annotation.type) ? annotation.type : 'comment',
       severity: 'note',
       status: resolved ? 'resolved' : 'open',
-      quote: normalizeReviewQuote(sanitizeString(annotation.quote, 20000, `legacy annotation ${annotation.id} quote`, annotation.type !== 'global-comment')),
+      quote: normalizeReviewQuote(sanitizeRawString(annotation.quote, 20000, `legacy annotation ${annotation.id} quote`, annotation.type !== 'global-comment')),
       anchor: legacyFindingAnchor(annotation, sourceText),
       labels: sanitizeLabels(annotation.labels).slice(0, 20),
       thread: [{
@@ -2647,6 +2647,9 @@ async function handleApplyPreview(req, res, shouldWrite) {
   else ensureRequestContext(req);
   const source = resolveProjectMarkdownPath(payload.sourcePath);
   if (!source) return sendError(res, 400, 'sourcePath must point at a known .project markdown document.');
+  if (shouldWrite && artifactRoleFor(source.rel) === 'review') {
+    return sendError(res, 400, 'Review artifacts must be updated through the review lifecycle endpoint.');
+  }
   const replacementMarkdown = String(payload.replacementMarkdown ?? '');
   if (!replacementMarkdown.trim()) return sendError(res, 400, 'replacementMarkdown is required.');
   const current = readText(source.file);

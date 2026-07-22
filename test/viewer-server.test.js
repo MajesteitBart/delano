@@ -497,6 +497,36 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
   assert.equal(index.reviewSummary.open, 1 + concurrentPaths.length);
   assert.equal(index.reviewSummary.openFindings, 1 + concurrentPaths.length);
 
+  const whitespaceQuote = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      sessionSlug: "whitespace-quote",
+      findings: [{
+        ...finding,
+        quote: " review ",
+        anchor: { ...finding.anchor, start_offset: 18, end_offset: 26 }
+      }]
+    }
+  });
+  assert.equal(whitespaceQuote.status, 201, whitespaceQuote.raw);
+  assert.equal(whitespaceQuote.json.review.findings[0].quote, " review ");
+
+  const reviewApplyDocument = await readJson(
+    `${baseUrl}/api/doc?path=${encodeURIComponent(published.json.path.replace(/^\.project\//, ""))}`
+  );
+  const rejectedReviewApply = await requestJson(`${baseUrl}/api/apply`, {
+    method: "POST",
+    body: {
+      sourcePath: published.json.path.replace(/^\.project\//, ""),
+      expectedHash: reviewApplyDocument.baseline.hash,
+      replacementMarkdown: reviewApplyDocument.markdown,
+      confirm: true
+    }
+  });
+  assert.equal(rejectedReviewApply.status, 400, rejectedReviewApply.raw);
+  assert.match(rejectedReviewApply.json.error, /review lifecycle endpoint/i);
+
   fs.writeFileSync(fixture.specPath, "# Demo\n\nA prefix. Repository review backend.\n", "utf8");
   const stale = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
   assert.equal(stale.status, 200, stale.raw);

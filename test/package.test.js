@@ -272,6 +272,7 @@ test("artifact scope contract matches current project artifacts", () => {
   assert.match(checkResult.stdout, /Artifact scope check passed/);
   assert.match(checkerSource, /checkCurrentArtifacts\("review", "\.project\/reviews\/\*\.md"/);
   assert.match(checkerSource, /JSON\.parse\(block\)/);
+  assert.match(checkerSource, /validateJsonSchema\(frontmatter, schema, schema\)/);
 });
 
 
