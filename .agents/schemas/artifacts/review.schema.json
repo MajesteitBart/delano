@@ -428,7 +428,7 @@
         },
         "quote": {
           "type": "string",
-          "minLength": 1,
+          "minLength": 0,
           "maxLength": 20000
         },
         "anchor": {
@@ -486,6 +486,35 @@
             "properties": {
               "resolution": {
                 "$ref": "#/$defs/resolution"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "anchor": {
+                "properties": {
+                  "state": {
+                    "enum": [
+                      "exact",
+                      "reanchored"
+                    ]
+                  }
+                },
+                "required": [
+                  "state"
+                ]
+              }
+            },
+            "required": [
+              "anchor"
+            ]
+          },
+          "then": {
+            "properties": {
+              "quote": {
+                "minLength": 1
               }
             }
           }

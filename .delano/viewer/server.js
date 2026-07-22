@@ -794,7 +794,11 @@ function reviewValidationErrors(review, schema = loadReviewSchema()) {
     if (!schema.$defs.finding.properties.kind.enum.includes(finding?.kind)) errors.push(`finding ${finding?.id} kind is invalid`);
     if (!schema.$defs.finding.properties.severity.enum.includes(finding?.severity)) errors.push(`finding ${finding?.id} severity is invalid`);
     if (!schema.$defs.finding.properties.status.enum.includes(finding?.status)) errors.push(`finding ${finding?.id} status is invalid`);
-    if (!finding?.quote || String(finding.quote).length > 20000) errors.push(`finding ${finding?.id} quote is invalid`);
+    if (
+      typeof finding?.quote !== 'string'
+      || finding.quote.length > 20000
+      || (finding?.anchor?.state !== 'unanchored' && finding.quote.length === 0)
+    ) errors.push(`finding ${finding?.id} quote is invalid`);
     schemaAllowsOnly(finding?.anchor, schema.$defs.anchor, `finding ${finding?.id}.anchor`, errors);
     if (!schema.$defs.anchor.properties.state.enum.includes(finding?.anchor?.state)) errors.push(`finding ${finding?.id} anchor state is invalid`);
     if (finding?.anchor?.state === 'unanchored') {
@@ -842,7 +846,10 @@ function reviewBody(review) {
     lines.push('> [!WARNING]', '> This review was published from uncommitted source content; `source.commit` is null.', '');
   }
   for (const finding of findings) {
-    lines.push(`## ${finding.id} · ${finding.severity} · ${finding.status}`, '', `> ${String(finding.quote).replace(/\n/g, '\n> ')}`, '');
+    const quoteBlock = finding.quote
+      ? `> ${String(finding.quote).replace(/\n/g, '\n> ')}`
+      : '> _(No source quote; global comment.)_';
+    lines.push(`## ${finding.id} · ${finding.severity} · ${finding.status}`, '', quoteBlock, '');
     const firstMessage = [...finding.thread].sort((a, b) => a.id.localeCompare(b.id))[0];
     lines.push(firstMessage.body, '', '### Thread', '');
     for (const message of [...finding.thread].sort((a, b) => a.id.localeCompare(b.id))) {
@@ -1541,6 +1548,7 @@ function runtimeReviewState(review) {
   const freshness = currentContentHash === review.source.content_hash ? 'exact' : 'stale';
   const findings = review.findings.map((finding) => {
     if (freshness === 'exact') return { id: finding.id, anchorState: finding.anchor.state };
+    if (!finding.quote) return { id: finding.id, anchorState: 'unanchored' };
     let count = 0;
     let offset = 0;
     while ((offset = content.indexOf(finding.quote, offset)) >= 0) {
@@ -1603,11 +1611,11 @@ function normalizePublishedFindings(input, now, schema, defaultAuthor) {
     if (!schema.$defs.finding.properties.status.enum.includes(status)) throw new HttpRequestError(`finding ${index + 1} status is invalid.`, 400);
     if (!schema.$defs.finding.properties.kind.enum.includes(kind)) throw new HttpRequestError(`finding ${index + 1} kind is invalid.`, 400);
     if (!schema.$defs.finding.properties.severity.enum.includes(severity)) throw new HttpRequestError(`finding ${index + 1} severity is invalid.`, 400);
-    const quote = sanitizeString(raw.quote, 20000, `finding ${index + 1} quote`, true);
     const anchorInput = raw.anchor && typeof raw.anchor === 'object' ? raw.anchor : {};
     const state = anchorInput.state == null ? 'unanchored' : String(anchorInput.state);
     if (!schema.$defs.anchor.properties.state.enum.includes(state)) throw new HttpRequestError(`finding ${index + 1} anchor state is invalid.`, 400);
     const anchored = state !== 'unanchored';
+    const quote = sanitizeString(raw.quote, 20000, `finding ${index + 1} quote`, anchored);
     const integer = (value, minimum, field) => {
       if (!Number.isInteger(value) || value < minimum) throw new HttpRequestError(`finding ${index + 1} ${field} is invalid.`, 400);
       return value;
@@ -1725,7 +1733,7 @@ function stableLegacyReview(source, annotations) {
       kind: schema.$defs.finding.properties.kind.enum.includes(annotation.type) ? annotation.type : 'comment',
       severity: 'note',
       status: resolved ? 'resolved' : 'open',
-      quote: sanitizeString(annotation.quote, 20000, `legacy annotation ${annotation.id} quote`, true),
+      quote: sanitizeString(annotation.quote, 20000, `legacy annotation ${annotation.id} quote`, annotation.type !== 'global-comment'),
       anchor: legacyFindingAnchor(annotation, sourceText),
       labels: sanitizeLabels(annotation.labels).slice(0, 20),
       thread: [{

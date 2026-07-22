@@ -595,11 +595,11 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
 test("viewer rejects a review directory symlink that escapes the selected project", async (t) => {
   const fixture = createGitViewerRepo("delano-viewer-review-symlink-", "Symlink containment source.");
   const outside = fs.mkdtempSync(path.join(os.tmpdir(), "delano-viewer-review-outside-"));
-  fs.symlinkSync(outside, path.join(fixture.repo, ".project", "reviews"), "dir");
   t.after(() => {
     fs.rmSync(fixture.repo, { recursive: true, force: true });
     fs.rmSync(outside, { recursive: true, force: true });
   });
+  fs.symlinkSync(outside, path.join(fixture.repo, ".project", "reviews"), process.platform === "win32" ? "junction" : "dir");
   const baseUrl = await startViewerForRepo(t, fixture.repo);
   const sourceDoc = await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
   const response = await requestJson(`${baseUrl}/api/reviews`, {
@@ -656,6 +656,17 @@ test("viewer migrates legacy review evidence explicitly, idempotently, and non-d
         updatedAt: "2026-07-16T10:03:00Z"
       },
       {
+        id: "legacy-global",
+        sourcePath: "projects/demo/spec.md",
+        type: "global-comment",
+        quote: "",
+        comment: "This comment applies to the whole document.",
+        labels: ["migration"],
+        status: "open",
+        createdAt: "2026-07-16T10:04:00Z",
+        updatedAt: "2026-07-16T10:04:30Z"
+      },
+      {
         id: "missing-source",
         sourcePath: "projects/demo/missing.md",
         quote: "Missing",
@@ -708,6 +719,9 @@ test("viewer migrates legacy review evidence explicitly, idempotently, and non-d
   const migratedText = fs.readFileSync(path.join(fixture.repo, first.json.migrated[0].path), "utf8");
   assert.match(migratedText, /legacy-open/);
   assert.match(migratedText, /legacy-resolved/);
+  assert.match(migratedText, /legacy-global/);
+  assert.match(migratedText, /No source quote; global comment/);
+  assert.match(migratedText, /This comment applies to the whole document/);
   assert.doesNotMatch(migratedText, /[A-Za-z]:[\\/]|file:\/\//i);
 
   const commonDir = spawnSync("git", ["rev-parse", "--git-common-dir"], { cwd: fixture.repo, encoding: "utf8" }).stdout.trim();

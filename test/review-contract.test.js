@@ -44,6 +44,24 @@ test("sha256-utf8-lf-v1 has cross-platform line-ending fixtures", () => {
   assert.equal(normalizeSource("\uFEFFa\r\nb\rc"), "a\nb\nc");
 });
 
+test("only unanchored findings may omit a source quote", () => {
+  const unanchored = structuredClone(canonical.frontmatter);
+  unanchored.findings[0].quote = "";
+  unanchored.findings[0].anchor = {
+    state: "unanchored",
+    line_start: null,
+    line_end: null,
+    start_offset: null,
+    end_offset: null,
+    block_id: null
+  };
+  assert.deepEqual(validateReview(unanchored), []);
+
+  const exact = structuredClone(unanchored);
+  exact.findings[0].anchor = structuredClone(canonical.frontmatter.findings[0].anchor);
+  assert.ok(validateReview(exact).some((error) => error.includes("quote")));
+});
+
 test("review fixtures cover committed, uncommitted, stale, resolved, archived, and privacy-invalid cases", () => {
   const seen = new Set();
   for (const fixture of manifest.review_cases) {
@@ -90,6 +108,9 @@ function validateReview(review) {
     if (findingIds.has(finding.id)) errors.push(`duplicate finding ${finding.id}`);
     findingIds.add(finding.id);
     if (!schema.$defs.finding.properties.status.enum.includes(finding.status)) errors.push(`finding status ${finding.id}`);
+    if (typeof finding.quote !== "string" || finding.quote.length > 20000 || (finding.anchor?.state !== "unanchored" && finding.quote.length === 0)) {
+      errors.push(`finding quote ${finding.id}`);
+    }
     if (finding.status === "open" && finding.resolution !== null) errors.push(`open resolution ${finding.id}`);
     if (finding.status !== "open" && !finding.resolution) errors.push(`missing resolution ${finding.id}`);
     const messageIds = new Set();
@@ -117,6 +138,7 @@ function normalizedHash(value) {
 
 function resolveAnchorState(finding, currentContent, freshness) {
   if (freshness === "exact") return finding.anchor.state === "unanchored" ? "unanchored" : "exact";
+  if (!finding.quote) return "unanchored";
   const normalized = normalizeSource(currentContent);
   let count = 0;
   let cursor = 0;
