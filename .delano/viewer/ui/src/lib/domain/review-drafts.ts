@@ -39,6 +39,38 @@ export function writeReviewDraft(
   storage.setItem(key, JSON.stringify(findings))
 }
 
+export function publicationContentHash(
+  annotations: Annotation[],
+  currentContentHash?: string | null
+) {
+  if (!currentContentHash) {
+    throw new Error("Review source has no publishable content hash.")
+  }
+  if (
+    annotations.some(
+      (annotation) => annotation.baseline?.hash !== currentContentHash
+    )
+  ) {
+    throw new Error(
+      "Selected findings were drafted against different source content. Refresh or publish matching findings separately."
+    )
+  }
+  return currentContentHash
+}
+
+export function removePublishedFindings(
+  current: Annotation[],
+  published: Annotation[]
+) {
+  const publishedSnapshots = new Map(
+    published.map((annotation) => [annotation.id, JSON.stringify(annotation)])
+  )
+  return current.filter(
+    (annotation) =>
+      publishedSnapshots.get(annotation.id) !== JSON.stringify(annotation)
+  )
+}
+
 export function publicationFindings(
   annotations: Annotation[],
   sourceMarkdown: string

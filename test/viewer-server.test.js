@@ -248,7 +248,8 @@ test("viewer switches only across registered Git contexts and isolates root-scop
       anchor: { start: 8, end: 29 }
     }
   });
-  assert.equal(linkedAnnotation.status, 201, linkedAnnotation.raw);
+  assert.equal(linkedAnnotation.status, 405, linkedAnnotation.raw);
+  assert.match(linkedAnnotation.json.error, /read-only/i);
   const oldStream = await connectSse(`${baseUrl}/api/events`);
   const oldStreamClosed = new Promise((resolve) => {
     const timeout = setTimeout(() => resolve(false), 5000);
@@ -317,7 +318,8 @@ test("viewer switches only across registered Git contexts and isolates root-scop
     method: "POST",
     body: { sourcePath: "projects/demo/spec.md", quote: "Repository A linked.", comment: "linked review", anchor: { start: 8, end: 28 } }
   });
-  assert.equal(annotation.status, 201, annotation.raw);
+  assert.equal(annotation.status, 405, annotation.raw);
+  assert.match(annotation.json.error, /read-only/i);
 
   const racing = beginStreamingJson(`${baseUrl}/api/handover`, {
     sourcePath: "projects/demo/spec.md",
@@ -546,6 +548,30 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
     }
   });
   assert.equal(malformed.status, 400, malformed.raw);
+  const malformedThread = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: stale.json.runtime.currentContentHash,
+      sessionSlug: "malformed-thread-rejected",
+      confirmUncommitted: true,
+      findings: [{ ...finding, thread: [null] }]
+    }
+  });
+  assert.equal(malformedThread.status, 400, malformedThread.raw);
+  assert.match(malformedThread.json.error, /message 1 must be an object/i);
+  const oversizedThread = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: stale.json.runtime.currentContentHash,
+      sessionSlug: "oversized-thread-rejected",
+      confirmUncommitted: true,
+      findings: [{ ...finding, thread: Array.from({ length: 201 }, () => ({ body: "Message" })) }]
+    }
+  });
+  assert.equal(oversizedThread.status, 400, oversizedThread.raw);
+  assert.match(oversizedThread.json.error, /at most 200 messages/i);
   const oversized = await requestRaw(`${baseUrl}/api/reviews`, {
     method: "POST",
     rawBody: "x".repeat(512 * 1024 + 1)
@@ -564,6 +590,36 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
   });
   assert.equal(privatePath.status, 422, privatePath.raw);
   assert.match(privatePath.json.error, /machine-local path/i);
+});
+
+test("viewer rejects a review directory symlink that escapes the selected project", async (t) => {
+  const fixture = createGitViewerRepo("delano-viewer-review-symlink-", "Symlink containment source.");
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "delano-viewer-review-outside-"));
+  fs.symlinkSync(outside, path.join(fixture.repo, ".project", "reviews"), "dir");
+  t.after(() => {
+    fs.rmSync(fixture.repo, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  });
+  const baseUrl = await startViewerForRepo(t, fixture.repo);
+  const sourceDoc = await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
+  const response = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      sourcePath: "projects/demo/spec.md",
+      expectedContentHash: sourceDoc.baseline.hash,
+      sessionSlug: "escape-rejected",
+      findings: [{
+        kind: "comment",
+        severity: "note",
+        quote: "Symlink containment source.",
+        comment: "Keep the review inside the selected project.",
+        anchor: { state: "unanchored", line_start: null, line_end: null, start_offset: null, end_offset: null, block_id: null }
+      }]
+    }
+  });
+  assert.equal(response.status, 400, response.raw);
+  assert.match(response.json.error, /not contained in the selected \.project directory/i);
+  assert.deepEqual(fs.readdirSync(outside), []);
 });
 
 test("viewer migrates legacy review evidence explicitly, idempotently, and non-destructively", async (t) => {
@@ -982,121 +1038,53 @@ test("viewer server starts on the next port when the requested port is occupied"
   assert.equal(index.projects.find((project) => project.slug === "context").contextPack.root, ".project/context");
 });
 
-test("viewer annotation API validates paths and supports CRUD/export", async (t) => {
+test("viewer legacy annotation API is read-only while preserving list and export", async (t) => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), "delano-viewer-annotations-"));
   const projectDir = path.join(repo, ".project", "projects", "demo");
+  const viewerDir = path.join(repo, ".project", "viewer");
   fs.mkdirSync(projectDir, { recursive: true });
   fs.mkdirSync(path.join(repo, ".project", "context"), { recursive: true });
+  fs.mkdirSync(viewerDir, { recursive: true });
   fs.writeFileSync(path.join(repo, ".project", "context", "README.md"), "# Context\n", "utf8");
-  fs.writeFileSync(path.join(projectDir, "spec.md"), [
-    "---",
-    "name: Demo",
-    "status: active",
-    "---",
-    "",
-    "# Demo",
-    "",
-    "Review this paragraph before implementation.",
-    ""
-  ].join("\n"), "utf8");
-
-  const serverPath = path.join(__dirname, "..", ".delano", "viewer", "server.js");
-  const port = await getOpenPort();
-  const child = spawn(process.execPath, [serverPath], {
-    cwd: path.join(__dirname, ".."),
-    env: {
-      ...process.env,
-      DELANO_VIEWER_ROOT: repo,
-      DELANO_VIEWER_PORT: String(port)
-    },
-    stdio: ["ignore", "pipe", "pipe"]
-  });
-
-  t.after(() => {
-    if (!child.killed) child.kill();
-  });
-
-  const output = await waitForViewer(child);
-  const match = output.match(/http:\/\/127\.0\.0\.1:(\d+)/);
-  assert.ok(match, output);
-  const baseUrl = `http://127.0.0.1:${match[1]}`;
-
-  const created = await requestJson(`${baseUrl}/api/annotations`, {
-    method: "POST",
-    body: {
+  fs.writeFileSync(path.join(projectDir, "spec.md"), "# Demo\n\nReview this paragraph before implementation.\n", "utf8");
+  fs.writeFileSync(path.join(viewerDir, "annotations.json"), `${JSON.stringify({
+    version: 1,
+    annotations: [{
+      id: "legacy-annotation-1",
       sourcePath: "projects/demo/spec.md",
+      repoPath: ".project/projects/demo/spec.md",
       quote: "Review this paragraph",
       comment: "Clarify the implementation scope.",
       type: "clarify",
       labels: ["clarify"],
-      anchor: {
-        blockId: "b8",
-        lineStart: 8,
-        highlightSource: {
-          startMeta: { parentTagName: "P", parentIndex: 0, textOffset: 0 },
-          endMeta: { parentTagName: "P", parentIndex: 0, textOffset: 21 },
-          text: "Review this paragraph ",
-          id: "test-highlight-1"
-        }
-      },
+      anchor: { lineStart: 3 },
+      status: "open",
+      createdAt: "2026-07-16T10:00:00Z",
+      updatedAt: "2026-07-16T10:00:00Z",
       author: { name: "test" }
-    }
-  });
-  assert.equal(created.status, 201);
-  assert.equal(created.json.annotation.repoPath, ".project/projects/demo/spec.md");
-  assert.equal(created.json.annotation.comment, "Clarify the implementation scope.");
-  assert.equal(created.json.annotation.anchor.highlightSource.id, "test-highlight-1");
-  assert.equal(created.json.annotation.anchor.highlightSource.startMeta.parentTagName, "P");
+    }],
+    applyAudit: []
+  }, null, 2)}\n`, "utf8");
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
 
+  const baseUrl = await startViewerForRepo(t, repo);
   const listed = await requestJson(`${baseUrl}/api/annotations?path=projects%2Fdemo%2Fspec.md`);
-  assert.equal(listed.status, 200);
+  assert.equal(listed.status, 200, listed.raw);
   assert.equal(listed.json.annotations.length, 1);
-
-  const allAnnotations = await requestJson(`${baseUrl}/api/annotations`);
-  assert.equal(allAnnotations.status, 200);
-  assert.equal(allAnnotations.json.annotations.length, 1);
-  assert.equal(allAnnotations.json.sourcePath, null);
-
-  const index = await requestJson(`${baseUrl}/api/index`);
-  assert.equal(index.status, 200);
-  assert.equal(index.json.annotationSummary.total, 1);
-  assert.equal(index.json.annotationSummary.open, 1);
-  assert.equal(index.json.annotationSummary.bySource[0].sourcePath, "projects/demo/spec.md");
-
-  const doc = await requestJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
-  assert.equal(doc.status, 200);
-  assert.equal(doc.json.path, "projects/demo/spec.md");
-
-  const updated = await requestJson(`${baseUrl}/api/annotations?id=${created.json.annotation.id}`, {
-    method: "PATCH",
-    body: { comment: "Clarify the implementation scope and acceptance evidence." }
-  });
-  assert.equal(updated.status, 200);
-  assert.match(updated.json.annotation.comment, /acceptance evidence/);
-
   const exported = await requestJson(`${baseUrl}/api/annotations/export?path=projects%2Fdemo%2Fspec.md`);
-  assert.equal(exported.status, 200);
-  assert.match(exported.json.markdown, /Delano Viewer Annotations/);
-  assert.match(exported.json.markdown, /delano context read --profile implementation/);
+  assert.equal(exported.status, 200, exported.raw);
   assert.equal(exported.json.json.annotations.length, 1);
-  assert.equal(exported.json.json.annotations[0].anchor.highlightSource.text, "Review this paragraph ");
+  assert.match(exported.json.markdown, /Delano Viewer Annotations/);
 
-  const rejected = await requestJson(`${baseUrl}/api/annotations`, {
-    method: "POST",
-    body: {
-      sourcePath: "../outside.md",
-      quote: "bad",
-      comment: "bad"
-    }
-  });
-  assert.equal(rejected.status, 400);
-  assert.match(rejected.json.error, /sourcePath/);
-
-  const deleted = await requestJson(`${baseUrl}/api/annotations?id=${created.json.annotation.id}`, {
-    method: "DELETE"
-  });
-  assert.equal(deleted.status, 200);
-  assert.equal(deleted.json.deleted, 1);
+  for (const method of ["POST", "PATCH", "DELETE"]) {
+    const rejected = await requestJson(`${baseUrl}/api/annotations?id=legacy-annotation-1`, {
+      method,
+      body: method === "DELETE" ? undefined : { sourcePath: "projects/demo/spec.md" }
+    });
+    assert.equal(rejected.status, 405, rejected.raw);
+    assert.match(rejected.json.error, /read-only/i);
+  }
+  assert.equal(JSON.parse(fs.readFileSync(path.join(viewerDir, "annotations.json"), "utf8")).annotations.length, 1);
 });
 
 test("viewer apply API previews diffs and rejects stale baselines", async (t) => {
@@ -1344,6 +1332,26 @@ test("viewer handover API writes a handover file and returns agent commands", as
   const original = "# Demo\n\nReview this paragraph before implementation.\n";
   fs.writeFileSync(specPath, original, "utf8");
   fs.writeFileSync(path.join(projectDir, "spec$(touch pwned).md"), "# Demo\n\nShell metacharacters stay inert.\n", "utf8");
+  const viewerDir = path.join(repo, ".project", "viewer");
+  fs.mkdirSync(viewerDir, { recursive: true });
+  fs.writeFileSync(path.join(viewerDir, "annotations.json"), `${JSON.stringify({
+    version: 1,
+    annotations: [{
+      id: "legacy-handover-annotation",
+      sourcePath: "projects/demo/spec.md",
+      repoPath: ".project/projects/demo/spec.md",
+      quote: "Review this paragraph",
+      comment: "Clarify implementation scope.",
+      type: "comment",
+      labels: [],
+      anchor: { lineStart: 3 },
+      status: "open",
+      createdAt: "2026-07-16T10:00:00Z",
+      updatedAt: "2026-07-16T10:00:00Z",
+      author: { name: "Reviewer" }
+    }],
+    applyAudit: []
+  }, null, 2)}\n`, "utf8");
   fs.mkdirSync(path.join(projectDir, "tasks"), { recursive: true });
   fs.writeFileSync(
     path.join(projectDir, "tasks", "T-001-demo-task.md"),
@@ -1372,18 +1380,7 @@ test("viewer handover API writes a handover file and returns agent commands", as
   assert.ok(match, output);
   const baseUrl = `http://127.0.0.1:${match[1]}`;
 
-  const created = await requestJson(`${baseUrl}/api/annotations`, {
-    method: "POST",
-    body: {
-      sourcePath: "projects/demo/spec.md",
-      quote: "Review this paragraph",
-      comment: "Clarify implementation scope.",
-      type: "comment",
-      anchor: { lineStart: 3 }
-    }
-  });
-  assert.equal(created.status, 201);
-  const annotationId = created.json.annotation.id;
+  const annotationId = "legacy-handover-annotation";
 
   const handover = await requestJson(`${baseUrl}/api/handover`, {
     method: "POST",

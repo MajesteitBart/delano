@@ -45,15 +45,16 @@ export function ReviewDraftPanel({
   selectedIds: string[]
 }) {
   const [confirmed, setConfirmed] = useState(false)
-  const selected = selectedIds.length
-    ? annotations.filter((annotation) => selectedIds.includes(annotation.id))
-    : annotations
+  const selected = annotations.filter((annotation) =>
+    selectedIds.includes(annotation.id)
+  )
 
   return (
     <aside
       role="complementary"
       aria-label="Review draft"
       aria-hidden={!open}
+      inert={!open ? true : undefined}
       data-open={open}
       className="fixed inset-y-0 right-0 z-40 flex w-full translate-x-full flex-col border-l bg-popover text-sm text-popover-foreground shadow-lg transition-transform duration-300 ease-out data-[open=false]:pointer-events-none data-[open=true]:translate-x-0 sm:max-w-[420px]"
     >

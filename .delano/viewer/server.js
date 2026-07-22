@@ -1492,6 +1492,15 @@ function reviewDirectory() {
   return path.join(projectRoot, 'reviews');
 }
 
+function canonicalReviewDirectory() {
+  const projectReal = realpathSafe(projectRoot);
+  const reviewReal = realpathSafe(reviewDirectory());
+  if (!projectReal || !reviewReal || !isInside(projectReal, reviewReal)) {
+    throw new HttpRequestError('Review directory is not contained in the selected .project directory.', 400);
+  }
+  return reviewReal;
+}
+
 function reviewFiles() {
   const directory = reviewDirectory();
   if (!fs.existsSync(directory)) return [];
@@ -1517,8 +1526,8 @@ function reviewFileForId(reviewId, mustExist = true) {
   const schema = loadReviewSchema();
   const id = sanitizeString(reviewId, 80, 'reviewId', true);
   if (!new RegExp(schema.properties.review_id.pattern).test(id)) throw new HttpRequestError('reviewId is invalid.', 400);
-  const file = path.join(reviewDirectory(), `${id}.md`);
-  const root = path.resolve(reviewDirectory());
+  const root = canonicalReviewDirectory();
+  const file = path.join(root, `${id}.md`);
   if (!isInside(root, path.resolve(file))) throw new HttpRequestError('Review path escapes .project/reviews.', 400);
   if (mustExist && (!fs.existsSync(file) || !fs.statSync(file).isFile())) throw new HttpRequestError('Review artifact not found.', 404);
   return file;
@@ -1606,12 +1615,20 @@ function normalizePublishedFindings(input, now, schema, defaultAuthor) {
     const threadInput = Array.isArray(raw.thread) && raw.thread.length
       ? raw.thread
       : [{ body: raw.comment, author_display_name: raw.author_display_name || defaultAuthor }];
-    const thread = threadInput.map((message, messageIndex) => ({
-      id: `M-${String(messageIndex + 1).padStart(3, '0')}`,
-      created_at: message.created_at && Number.isFinite(Date.parse(message.created_at)) ? new Date(message.created_at).toISOString() : now,
-      ...(normalizeDisplayName(message.author_display_name || defaultAuthor, `finding ${index + 1} message author`) ? { author_display_name: normalizeDisplayName(message.author_display_name || defaultAuthor, `finding ${index + 1} message author`) } : {}),
-      body: sanitizeString(message.body, 20000, `finding ${index + 1} message body`, true),
-    }));
+    if (threadInput.length > schema.$defs.finding.properties.thread.maxItems) {
+      throw new HttpRequestError(`finding ${index + 1} thread must contain at most ${schema.$defs.finding.properties.thread.maxItems} messages.`, 400);
+    }
+    const thread = threadInput.map((message, messageIndex) => {
+      if (!message || typeof message !== 'object') {
+        throw new HttpRequestError(`finding ${index + 1} message ${messageIndex + 1} must be an object.`, 400);
+      }
+      return {
+        id: `M-${String(messageIndex + 1).padStart(3, '0')}`,
+        created_at: message.created_at && Number.isFinite(Date.parse(message.created_at)) ? new Date(message.created_at).toISOString() : now,
+        ...(normalizeDisplayName(message.author_display_name || defaultAuthor, `finding ${index + 1} message author`) ? { author_display_name: normalizeDisplayName(message.author_display_name || defaultAuthor, `finding ${index + 1} message author`) } : {}),
+        body: sanitizeString(message.body, 20000, `finding ${index + 1} message body`, true),
+      };
+    });
     let resolution = null;
     if (status !== 'open') {
       const resolutionInput = raw.resolution && typeof raw.resolution === 'object' ? raw.resolution : {};
@@ -2483,48 +2500,8 @@ async function handleAnnotations(req, res, parsed) {
     });
   }
 
-  if (req.method === 'POST') {
-    ensureCapability(req, 'publishReview');
-    const payload = await readJsonBody(req);
-    ensureCapability(req, 'publishReview');
-    let annotation;
-    try {
-      annotation = normalizeAnnotationInput(payload);
-    } catch (error) {
-      return sendError(res, 400, error.message);
-    }
-    store.annotations.push(annotation);
-    writeAnnotationStore(store);
-    return sendJsonStatus(res, 201, { ok: true, annotation: visibleAnnotation(annotation) });
-  }
-
-  if (req.method === 'PATCH') {
-    ensureCapability(req, 'publishReview');
-    const id = sanitizeString(parsed.query.id, 120, 'id', true);
-    const index = store.annotations.findIndex((annotation) => annotation.id === id);
-    if (index < 0) return sendError(res, 404, 'Annotation not found.');
-    const payload = await readJsonBody(req);
-    ensureCapability(req, 'publishReview');
-    let annotation;
-    try {
-      annotation = normalizeAnnotationInput({ ...store.annotations[index], ...payload }, store.annotations[index]);
-    } catch (error) {
-      return sendError(res, 400, error.message);
-    }
-    store.annotations[index] = annotation;
-    writeAnnotationStore(store);
-    return sendJson(res, { ok: true, annotation: visibleAnnotation(annotation) });
-  }
-
-  if (req.method === 'DELETE') {
-    ensureCapability(req, 'publishReview');
-    const ids = String(parsed.query.id || '').split(',').map((id) => id.trim()).filter(Boolean);
-    if (!ids.length) return sendError(res, 400, 'Annotation id is required.');
-    const before = store.annotations.length;
-    const idSet = new Set(ids);
-    store.annotations = store.annotations.filter((annotation) => !idSet.has(annotation.id));
-    writeAnnotationStore(store);
-    return sendJson(res, { ok: true, deleted: before - store.annotations.length });
+  if (['POST', 'PATCH', 'DELETE'].includes(req.method)) {
+    return sendError(res, 405, 'Legacy annotations are read-only. Use browser-local drafts and publish tracked reviews instead.');
   }
 
   return sendError(res, 405, 'Unsupported method.');

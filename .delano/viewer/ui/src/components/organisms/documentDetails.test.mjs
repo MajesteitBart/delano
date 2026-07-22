@@ -10,6 +10,10 @@ const drawerSource = readFileSync(
   new URL("./AnnotationDrawer.tsx", import.meta.url),
   "utf8"
 )
+const reviewDraftSource = readFileSync(
+  new URL("./ReviewDraftPanel.tsx", import.meta.url),
+  "utf8"
+)
 const metadataSource = readFileSync(
   new URL("./DocumentMetaPanel.tsx", import.meta.url),
   "utf8"
@@ -97,7 +101,7 @@ test("review drawer is a single annotation surface with existing actions", () =>
 
 test("annotations are gated behind explicit Review mode", () => {
   assert.doesNotMatch(readerSource, /setReviewOpen\(items\.length > 0\)/)
-  assert.match(readerSource, /annotationEnabled=\{reviewMode && writable\}/)
+  assert.match(readerSource, /annotationEnabled=\{reviewMode && canReview\}/)
   assert.match(readerSource, /reviewMode=\{reviewMode\}/)
   assert.match(
     markdownArticleSource,
@@ -108,6 +112,12 @@ test("annotations are gated behind explicit Review mode", () => {
     /onClick=\{reviewMode \? handleClick : undefined\}/
   )
   assert.match(markdownArticleSource, /if \(!reviewMode\) return/)
+})
+
+test("closed review drafts are inert and empty selection publishes nothing", () => {
+  assert.match(reviewDraftSource, /inert=\{!open \? true : undefined\}/)
+  assert.match(reviewDraftSource, /const selected = annotations\.filter/)
+  assert.doesNotMatch(reviewDraftSource, /selectedIds\.length[\s\S]*: annotations/)
 })
 
 test("Review drawer does not reserve document width", () => {

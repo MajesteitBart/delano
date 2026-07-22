@@ -139,7 +139,7 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
       tasks: openTasks.length,
       progress: progress.length,
       annotations,
-      reviews: index?.reviewSummary?.open ?? reviews.length,
+      reviews: index?.reviewSummary?.open ?? 0,
       validation: validation.length,
       warnings: warnings.length,
       blockers: blockers.length,

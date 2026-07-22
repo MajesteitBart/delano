@@ -27,8 +27,8 @@
         "state": "exact",
         "line_start": 4,
         "line_end": 4,
-        "start_offset": 16,
-        "end_offset": 24,
+        "start_offset": 17,
+        "end_offset": 25,
         "block_id": "b4"
       },
       "labels": [
