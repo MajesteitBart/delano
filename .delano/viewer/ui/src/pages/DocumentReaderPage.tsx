@@ -38,8 +38,10 @@ import type { LiveDocEvent } from "@/app/useLiveEvents"
 import { annotationLine, numberOrNull } from "@/lib/domain/annotations"
 import { agentLabel } from "@/lib/domain/handover"
 import {
+  publicationContentHash,
   publicationFindings,
   readReviewDraft,
+  removePublishedFindings,
   reviewDraftKey,
   writeReviewDraft,
 } from "@/lib/domain/review-drafts"
@@ -265,6 +267,7 @@ export function DocumentReaderPage({
   }
 
   const canEdit = doc.role !== "review" && Boolean(doc.baseline?.hash) && capabilities.applyContract
+  const canReview = capabilities.review
   const canPublishReview = capabilities.publishReview
   const reviewId = doc.role === "review" && typeof doc.frontmatter?.review_id === "string"
     ? doc.frontmatter.review_id
@@ -352,7 +355,7 @@ export function DocumentReaderPage({
     highlightSource: DraftAnnotation["anchor"]["highlightSource"],
     rect: DOMRect
   ) => {
-    if (!reviewMode || !canPublishReview) return false
+    if (!reviewMode || !canReview) return false
     if (popoverDirty) return false
     const quote = highlightSource.text.trim()
     if (!quote || quote.length < 2) return false
@@ -465,7 +468,7 @@ export function DocumentReaderPage({
     setPublishStatus("")
     setAnnotationError("")
     try {
-      const expectedContentHash = findings[0]?.baseline?.hash ?? doc.contentHash
+      const expectedContentHash = publicationContentHash(findings, doc.contentHash)
       const payload = await requestJson<{ path: string }>("/api/reviews", {
         method: "POST",
         body: JSON.stringify({
@@ -475,11 +478,11 @@ export function DocumentReaderPage({
           findings: publicationFindings(findings, doc.markdown),
         }),
       })
-      const publishedIds = new Set(findings.map((finding) => finding.id))
-      persistAnnotations(
-        annotations.filter((annotation) => !publishedIds.has(annotation.id))
-      )
-      setSelectedIds([])
+      const currentDraft = readReviewDraft(window.localStorage, localDraftKey)
+      const remainingDraft = removePublishedFindings(currentDraft, findings)
+      persistAnnotations(remainingDraft)
+      const remainingIds = new Set(remainingDraft.map((finding) => finding.id))
+      setSelectedIds((ids) => ids.filter((id) => remainingIds.has(id)))
       setPublishStatus(`Published ${payload.path}. Viewer did not commit or push it.`)
       onRefresh?.()
     } catch (error) {
@@ -761,7 +764,7 @@ export function DocumentReaderPage({
             html={markdown}
             hideFirstHeading={Boolean(taskTitleHeading)}
             reviewMode={reviewMode}
-            annotationEnabled={reviewMode && canPublishReview}
+            annotationEnabled={reviewMode && canReview}
             annotations={annotations}
             draftSource={
               popover?.mode === "create"
@@ -826,7 +829,7 @@ export function DocumentReaderPage({
           type={type}
           comment={comment}
           saving={saving}
-          readOnly={!canPublishReview}
+          readOnly={!canReview}
           onTypeChange={setType}
           onCommentChange={setComment}
           onCancel={closePopover}

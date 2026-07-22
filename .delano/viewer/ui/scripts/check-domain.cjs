@@ -233,7 +233,31 @@ reviewDrafts.writeReviewDraft(storage, draftKey, [
     anchor: { blockId: "b3" },
   },
 ])
-assert.equal(reviewDrafts.readReviewDraft(storage, draftKey).length, 1)
+const storedDraft = reviewDrafts.readReviewDraft(storage, draftKey)
+assert.equal(storedDraft.length, 1)
+storedDraft[0].baseline = { hash: "current-hash" }
+assert.equal(
+  reviewDrafts.publicationContentHash(storedDraft, "current-hash"),
+  "current-hash"
+)
+assert.throws(
+  () => reviewDrafts.publicationContentHash(storedDraft, "different-hash"),
+  /different source content/
+)
+assert.deepEqual(
+  reviewDrafts.removePublishedFindings(
+    [storedDraft[0], { ...storedDraft[0], id: "draft-2" }],
+    [storedDraft[0]]
+  ).map((finding) => finding.id),
+  ["draft-2"]
+)
+assert.equal(
+  reviewDrafts.removePublishedFindings(
+    [{ ...storedDraft[0], comment: "Edited while publishing" }],
+    [storedDraft[0]]
+  ).length,
+  1
+)
 assert.deepEqual(
   reviewDrafts.publicationFindings(
     reviewDrafts.readReviewDraft(storage, draftKey),
@@ -588,6 +612,15 @@ assert.deepEqual(
     warnings: 0,
     blockers: 1,
   }
+)
+assert.equal(
+  workspaceModel.sidebarCounts({
+    repo: "demo",
+    generatedAt: "2026-06-30T00:00:00Z",
+    docs: [{ path: "reviews/resolved.md", title: "Resolved", role: "review" }],
+    projects: [],
+  }).reviews,
+  0
 )
 assert.equal(workspaceModel.isOpenTaskStatus("planned"), true)
 assert.equal(workspaceModel.isOpenTaskStatus("ready"), true)
