@@ -786,7 +786,7 @@ function validDateTime(value) {
   const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   if (month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1]) return false;
-  if (hour > 23 || minute > 59 || second > 60) return false;
+  if (hour > 23 || minute > 59 || second > 59) return false;
   if (offsetHourText != null && (Number(offsetHourText) > 23 || Number(offsetMinuteText) > 59)) return false;
   return true;
 }

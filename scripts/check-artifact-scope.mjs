@@ -271,6 +271,6 @@ function validRfc3339(value) {
   const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
   return month >= 1 && month <= 12
     && day >= 1 && day <= daysInMonth[month - 1]
-    && Number(hourText) <= 23 && Number(minuteText) <= 59 && Number(secondText) <= 60
+    && Number(hourText) <= 23 && Number(minuteText) <= 59 && Number(secondText) <= 59
     && (offsetHourText == null || (Number(offsetHourText) <= 23 && Number(offsetMinuteText) <= 59));
 }

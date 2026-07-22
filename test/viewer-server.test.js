@@ -694,6 +694,11 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
   const invalidTimestamp = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
   assert.equal(invalidTimestamp.status, 422, invalidTimestamp.raw);
   assert.match(invalidTimestamp.json.error, /timestamps are invalid/i);
+  const invalidLeapSecondMarkdown = reviewMarkdown.replace(/"created_at": "[^"]+"/, '"created_at": "2026-07-22T11:16:60Z"');
+  fs.writeFileSync(reviewFile, invalidLeapSecondMarkdown, "utf8");
+  const invalidLeapSecond = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
+  assert.equal(invalidLeapSecond.status, 422, invalidLeapSecond.raw);
+  assert.match(invalidLeapSecond.json.error, /timestamps are invalid/i);
 });
 
 test("viewer rejects a review directory symlink that escapes the selected project", async (t) => {
