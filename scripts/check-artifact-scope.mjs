@@ -55,6 +55,7 @@ checkCurrentArtifacts("spec", ".project/projects/*/spec.md");
 checkCurrentArtifacts("plan", ".project/projects/*/plan.md");
 checkCurrentArtifacts("workstream", ".project/projects/*/workstreams/*.md");
 checkCurrentArtifacts("task", ".project/projects/*/tasks/*.md");
+checkCurrentArtifacts("review", ".project/reviews/*.md", { allowEmpty: true });
 
 if (errors.length > 0) {
   console.error("Artifact scope check failed:");
@@ -75,7 +76,7 @@ function readJson(filePath) {
   }
 }
 
-function checkCurrentArtifacts(artifactType, globPattern) {
+function checkCurrentArtifacts(artifactType, globPattern, { allowEmpty = false } = {}) {
   const contract = artifactTypes[artifactType];
   if (!contract || contract.frontmatter !== true) {
     return;
@@ -83,7 +84,7 @@ function checkCurrentArtifacts(artifactType, globPattern) {
 
   const files = expandSimpleGlob(globPattern);
   if (files.length === 0) {
-    errors.push(`No current artifacts found for ${artifactType} using ${globPattern}`);
+    if (!allowEmpty) errors.push(`No current artifacts found for ${artifactType} using ${globPattern}`);
     return;
   }
 
@@ -114,8 +115,18 @@ function parseFrontmatter(filePath) {
     return {};
   }
 
+  const block = match[1].trim();
+  if (block.startsWith("{")) {
+    try {
+      return JSON.parse(block);
+    } catch (error) {
+      errors.push(`${toRepoPath(filePath)} has malformed JSON frontmatter: ${error.message}`);
+      return {};
+    }
+  }
+
   const result = {};
-  for (const line of match[1].split(/\r?\n/)) {
+  for (const line of block.split(/\r?\n/)) {
     const index = line.indexOf(":");
     if (index === -1) {
       continue;

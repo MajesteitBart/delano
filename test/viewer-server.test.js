@@ -296,6 +296,12 @@ test("viewer switches only across registered Git contexts and isolates root-scop
   assert.equal(switchedLinked.json.context.worktree.role, "linked");
   assert.equal(switchedLinked.json.context.worktree.projectState.diverged, true);
   assert.ok(switchedLinked.json.context.risk.indicators.includes("linked_worktree"));
+  const dirtinessProbe = path.join(linked, ".project", "viewer-risk-probe.md");
+  fs.writeFileSync(dirtinessProbe, "# Risk probe\n", "utf8");
+  const refreshedRisk = await readJson(`${baseUrl}/api/context`);
+  assert.equal(refreshedRisk.active.worktree.projectState.dirty, true);
+  assert.ok(refreshedRisk.active.risk.indicators.includes("dirty_project_state"));
+  fs.rmSync(dirtinessProbe);
   const linkedDoc = await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
   assert.match(linkedDoc.markdown, /Repository A linked/);
 
@@ -634,11 +640,30 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
   assert.equal(normalizedQuote.json.review.findings[0].quote, "A prefix.\nRepository review backend.");
   assert.equal(normalizedQuote.json.runtime.findings[0].anchorState, "exact");
 
+  const maximumSlug = "a".repeat(63);
+  const maximumReviewId = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      expectedContentHash: normalizedSourceReview.json.runtime.currentContentHash,
+      sessionSlug: maximumSlug,
+      confirmUncommitted: true,
+      findings: normalizedQuote.json.review.findings
+    }
+  });
+  assert.equal(maximumReviewId.status, 201, maximumReviewId.raw);
+  assert.equal(maximumReviewId.json.review.review_id.length, 87);
+
   const invalidTrackedMarkdown = fs.readFileSync(reviewFile, "utf8").replace('"schema_version": 1', '"schema_version": 2');
   fs.writeFileSync(reviewFile, invalidTrackedMarkdown, "utf8");
   const invalidTracked = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
   assert.equal(invalidTracked.status, 422, invalidTracked.raw);
   assert.match(invalidTracked.json.error, /schema_version is invalid/i);
+  const invalidTimestampMarkdown = reviewMarkdown.replace(/"created_at": "[^"]+"/, '"created_at": "January 1, 2020"');
+  fs.writeFileSync(reviewFile, invalidTimestampMarkdown, "utf8");
+  const invalidTimestamp = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(published.json.review.review_id)}`);
+  assert.equal(invalidTimestamp.status, 422, invalidTimestamp.raw);
+  assert.match(invalidTimestamp.json.error, /timestamps are invalid/i);
 });
 
 test("viewer rejects a review directory symlink that escapes the selected project", async (t) => {
@@ -650,6 +675,9 @@ test("viewer rejects a review directory symlink that escapes the selected projec
   });
   fs.symlinkSync(outside, path.join(fixture.repo, ".project", "reviews"), process.platform === "win32" ? "junction" : "dir");
   const baseUrl = await startViewerForRepo(t, fixture.repo);
+  const listed = await requestJson(`${baseUrl}/api/reviews`);
+  assert.equal(listed.status, 400, listed.raw);
+  assert.match(listed.json.error, /not contained in the selected \.project directory/i);
   const sourceDoc = await readJson(`${baseUrl}/api/doc?path=projects%2Fdemo%2Fspec.md`);
   const response = await requestJson(`${baseUrl}/api/reviews`, {
     method: "POST",
@@ -789,6 +817,13 @@ test("viewer migrates legacy review evidence explicitly, idempotently, and non-d
   assert.equal(second.json.existing.length, 1);
   assert.equal(reviewFilesOnDisk(fixture.repo).length, 1);
   assert.equal(fs.readFileSync(legacyPath, "utf8"), originalLegacy);
+
+  fs.writeFileSync(fixture.specPath, "# Demo\n\nChanged legacy review source.\n", "utf8");
+  const staleMigrated = await requestJson(`${baseUrl}/api/reviews?id=${encodeURIComponent(first.json.migrated[0].reviewId)}`);
+  assert.equal(staleMigrated.status, 200, staleMigrated.raw);
+  const globalIndex = staleMigrated.json.review.findings.findIndex((finding) => finding.quote === "");
+  assert.ok(globalIndex >= 0);
+  assert.equal(staleMigrated.json.runtime.findings[globalIndex].anchorState, "unanchored");
 });
 
 test("viewer legacy migration reports empty and corrupt stores without destructive writes", async (t) => {

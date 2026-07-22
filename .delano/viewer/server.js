@@ -773,7 +773,22 @@ function isRecord(value) {
 }
 
 function validDateTime(value) {
-  return typeof value === 'string' && Number.isFinite(Date.parse(value));
+  if (typeof value !== 'string') return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})[Tt](\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:[Zz]|[+-](\d{2}):(\d{2}))$/.exec(value);
+  if (!match) return false;
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText, offsetHourText, offsetMinuteText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1]) return false;
+  if (hour > 23 || minute > 59 || second > 60) return false;
+  if (offsetHourText != null && (Number(offsetHourText) > 23 || Number(offsetMinuteText) > 59)) return false;
+  return true;
 }
 
 function validDisplayName(value) {
@@ -1017,8 +1032,9 @@ function resolveFreshSelectedContext(expected = activeContext) {
 
 function capabilityState() {
   let denial = null;
+  let freshContext = null;
   try {
-    resolveFreshSelectedContext();
+    freshContext = resolveFreshSelectedContext();
   } catch (error) {
     denial = {
       code: 'stale_selected_context',
@@ -1034,13 +1050,14 @@ function capabilityState() {
   return {
     capabilities: Object.fromEntries(CAPABILITY_NAMES.map((name) => [name, denial === null])),
     capabilityDenials: Object.fromEntries(CAPABILITY_NAMES.map((name) => [name, denial])),
+    freshContext,
   };
 }
 
 function visibleContext() {
-  const repository = activeContext.repository;
-  const worktree = activeContext.worktree;
-  const capability = capabilityState();
+  const { freshContext, ...capability } = capabilityState();
+  const repository = freshContext?.repository || activeContext.repository;
+  const worktree = freshContext?.worktree || activeContext.worktree;
   return {
     generation: contextGeneration,
     switching: contextSwitching,
@@ -1560,9 +1577,10 @@ function canonicalReviewDirectory() {
 function reviewFiles() {
   const directory = reviewDirectory();
   if (!fs.existsSync(directory)) return [];
-  return fs.readdirSync(directory, { withFileTypes: true })
+  const root = canonicalReviewDirectory();
+  return fs.readdirSync(root, { withFileTypes: true })
     .filter((entry) => entry.isFile() && /^review-[A-Za-z0-9-]+\.md$/.test(entry.name))
-    .map((entry) => path.join(directory, entry.name))
+    .map((entry) => path.join(root, entry.name))
     .sort((a, b) => a.localeCompare(b));
 }
 
@@ -1580,7 +1598,7 @@ function readReviewFile(file) {
 
 function reviewFileForId(reviewId, mustExist = true) {
   const schema = loadReviewSchema();
-  const id = sanitizeString(reviewId, 80, 'reviewId', true);
+  const id = sanitizeString(reviewId, 87, 'reviewId', true);
   if (!new RegExp(schema.properties.review_id.pattern).test(id)) throw new HttpRequestError('reviewId is invalid.', 400);
   const root = canonicalReviewDirectory();
   const file = path.join(root, `${id}.md`);

@@ -158,6 +158,9 @@ export function DocumentReaderPage({
     () => reviewDraftKey(draftScope.repositoryId, draftScope.worktreeId, doc.path),
     [doc.path, draftScope.repositoryId, draftScope.worktreeId]
   )
+  const activeDraftKeyRef = useRef(localDraftKey)
+  const publishRequestRef = useRef(0)
+  activeDraftKeyRef.current = localDraftKey
 
   const loadAnnotations = useCallback(async () => {
     const draft = readReviewDraft(window.localStorage, localDraftKey)
@@ -180,6 +183,7 @@ export function DocumentReaderPage({
 
   useEffect(() => {
     let cancelled = false
+    publishRequestRef.current += 1
     queueMicrotask(() => {
       if (cancelled) return
       setPopover(null)
@@ -190,6 +194,7 @@ export function DocumentReaderPage({
       setReviewMode(false)
       setAnnotationError("")
       setPublishStatus("")
+      setPublishBusy(false)
       void loadAnnotations().catch((err) => {
         if (!cancelled) setAnnotationError(messageFromError(err))
       })
@@ -464,31 +469,43 @@ export function DocumentReaderPage({
 
   const publishReview = async (findings: Annotation[]) => {
     if (!findings.length) return
+    const originDraftKey = localDraftKey
+    const requestId = ++publishRequestRef.current
+    const sourcePath = doc.path
+    const sourceMarkdown = doc.markdown
+    const sourceContentHash = doc.contentHash
     setPublishBusy(true)
     setPublishStatus("")
     setAnnotationError("")
     try {
-      const expectedContentHash = publicationContentHash(findings, doc.contentHash)
+      const expectedContentHash = publicationContentHash(findings, sourceContentHash)
       const payload = await requestJson<{ path: string }>("/api/reviews", {
         method: "POST",
         body: JSON.stringify({
-          sourcePath: doc.path,
+          sourcePath,
           expectedContentHash,
           confirmUncommitted: true,
-          findings: publicationFindings(findings, doc.markdown),
+          findings: publicationFindings(findings, sourceMarkdown),
         }),
       })
-      const currentDraft = readReviewDraft(window.localStorage, localDraftKey)
+      const currentDraft = readReviewDraft(window.localStorage, originDraftKey)
       const remainingDraft = removePublishedFindings(currentDraft, findings)
-      persistAnnotations(remainingDraft)
-      const remainingIds = new Set(remainingDraft.map((finding) => finding.id))
-      setSelectedIds((ids) => ids.filter((id) => remainingIds.has(id)))
-      setPublishStatus(`Published ${payload.path}. Viewer did not commit or push it.`)
-      onRefresh?.()
+      writeReviewDraft(window.localStorage, originDraftKey, remainingDraft)
+      if (activeDraftKeyRef.current === originDraftKey && publishRequestRef.current === requestId) {
+        setAnnotations(remainingDraft)
+        const remainingIds = new Set(remainingDraft.map((finding) => finding.id))
+        setSelectedIds((ids) => ids.filter((id) => remainingIds.has(id)))
+        setPublishStatus(`Published ${payload.path}. Viewer did not commit or push it.`)
+        onRefresh?.()
+      }
     } catch (error) {
-      setAnnotationError(messageFromError(error))
+      if (activeDraftKeyRef.current === originDraftKey && publishRequestRef.current === requestId) {
+        setAnnotationError(messageFromError(error))
+      }
     } finally {
-      setPublishBusy(false)
+      if (activeDraftKeyRef.current === originDraftKey && publishRequestRef.current === requestId) {
+        setPublishBusy(false)
+      }
     }
   }
 

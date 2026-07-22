@@ -34,7 +34,7 @@ The only supported author provenance is an optional, human-chosen display name. 
 
 At read or handover time, recompute the selected source hash with the same algorithm. Equal hashes mean `exact`; unequal hashes mean `stale`, regardless of branch name, HEAD, review-file commits, or unrelated repository changes. Git commit and blob ids are provenance only.
 
-When published or migrated, every stored quote is normalized with the same BOM removal and CRLF/CR-to-LF conversion used for the source content hash. When stale, quote re-anchoring is deterministic: normalize the current source, search for that exact normalized stored quote, and mark the anchor `reanchored` only when exactly one match exists. Zero or multiple matches produce `unanchored`. Re-anchoring never changes the review's `stale` source state or silently claims an exact anchor. Updating persisted anchor data requires an explicit review update.
+When published or migrated, every stored quote is normalized with the same BOM removal and CRLF/CR-to-LF conversion used for the source content hash. When stale, quote re-anchoring is deterministic: normalize the current source, search for that exact normalized stored quote, and mark the anchor `reanchored` only when exactly one match exists. Empty stored quotes are never searched and always remain `unanchored`; zero or multiple matches also produce `unanchored`. Re-anchoring never changes the review's `stale` source state or silently claims an exact anchor. Updating persisted anchor data requires an explicit review update.
 
 For uncommitted reviewed content, explicit publication confirmation is required, `source.content_state` is `uncommitted`, and both `source.commit` and `source.blob` are null. The body shows the template's warning.
 

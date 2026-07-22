@@ -262,6 +262,7 @@ test("agent entry docs keep operational handoff guidance", () => {
   assert.match(checkResult.stdout, /Agent entry doc check passed/);
 });
 test("artifact scope contract matches current project artifacts", () => {
+  const checkerSource = fs.readFileSync(path.join(repoRoot, "scripts", "check-artifact-scope.mjs"), "utf8");
   const checkResult = spawnSync(process.execPath, ["scripts/check-artifact-scope.mjs"], {
     cwd: repoRoot,
     encoding: "utf8"
@@ -269,6 +270,8 @@ test("artifact scope contract matches current project artifacts", () => {
 
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   assert.match(checkResult.stdout, /Artifact scope check passed/);
+  assert.match(checkerSource, /checkCurrentArtifacts\("review", "\.project\/reviews\/\*\.md"/);
+  assert.match(checkerSource, /JSON\.parse\(block\)/);
 });
 
 
