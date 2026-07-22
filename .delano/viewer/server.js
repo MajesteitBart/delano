@@ -1658,7 +1658,7 @@ function normalizeLegacyDisplayName(value, field) {
   }
 }
 
-function normalizePublishedFindings(input, now, schema, defaultAuthor) {
+function normalizePublishedFindings(input, now, schema, defaultAuthor, sourceText) {
   if (!Array.isArray(input) || input.length < 1 || input.length > 500) throw new HttpRequestError('findings must contain 1-500 entries.', 400);
   return input.map((raw, index) => {
     if (!raw || typeof raw !== 'object') throw new HttpRequestError(`finding ${index + 1} must be an object.`, 400);
@@ -1677,6 +1677,22 @@ function normalizePublishedFindings(input, now, schema, defaultAuthor) {
       if (!Number.isInteger(value) || value < minimum) throw new HttpRequestError(`finding ${index + 1} ${field} is invalid.`, 400);
       return value;
     };
+    const startOffset = anchored ? integer(anchorInput.start_offset, 0, 'start_offset') : null;
+    const endOffset = anchored ? integer(anchorInput.end_offset, 0, 'end_offset') : null;
+    const lineStart = anchored ? integer(anchorInput.line_start, 1, 'line_start') : null;
+    const lineEnd = anchored ? integer(anchorInput.line_end, 1, 'line_end') : null;
+    if (anchored) {
+      const expectedLineStart = sourceText.slice(0, startOffset).split('\n').length;
+      const expectedLineEnd = expectedLineStart + quote.split('\n').length - 1;
+      if (
+        endOffset !== startOffset + quote.length
+        || sourceText.slice(startOffset, endOffset) !== quote
+        || lineStart !== expectedLineStart
+        || lineEnd !== expectedLineEnd
+      ) {
+        throw new HttpRequestError(`finding ${index + 1} anchor does not match the normalized review source.`, 400);
+      }
+    }
     const threadInput = Array.isArray(raw.thread) && raw.thread.length
       ? raw.thread
       : [{ body: raw.comment, author_display_name: raw.author_display_name || defaultAuthor }];
@@ -1711,10 +1727,10 @@ function normalizePublishedFindings(input, now, schema, defaultAuthor) {
       quote,
       anchor: {
         state,
-        line_start: anchored ? integer(anchorInput.line_start, 1, 'line_start') : null,
-        line_end: anchored ? integer(anchorInput.line_end, 1, 'line_end') : null,
-        start_offset: anchored ? integer(anchorInput.start_offset, 0, 'start_offset') : null,
-        end_offset: anchored ? integer(anchorInput.end_offset, 0, 'end_offset') : null,
+        line_start: lineStart,
+        line_end: lineEnd,
+        start_offset: startOffset,
+        end_offset: endOffset,
         block_id: anchorInput.block_id == null ? null : sanitizeString(anchorInput.block_id, 100, `finding ${index + 1} block_id`, false),
       },
       labels: sanitizeLabels(raw.labels).slice(0, 20),
@@ -1959,7 +1975,8 @@ async function handleReviews(req, res, parsed) {
     ensureCapability(req, 'publishReview');
     const source = resolveProjectMarkdownPath(payload.sourcePath);
     if (!source || artifactRoleFor(source.rel) === 'review') return sendError(res, 400, 'sourcePath must identify a non-review .project Markdown artifact.');
-    const initialHash = normalizedContentHash(source.file);
+    const sourceText = normalizeSourceText(source.file);
+    const initialHash = sha256(sourceText);
     if (payload.expectedContentHash != null && sanitizeString(payload.expectedContentHash, 128, 'expectedContentHash', true) !== initialHash) {
       return sendError(res, 409, 'Review draft baseline does not match the selected source content.');
     }
@@ -1970,7 +1987,7 @@ async function handleReviews(req, res, parsed) {
     const schema = loadReviewSchema();
     const now = new Date().toISOString();
     const author = normalizeDisplayName(payload.authorDisplayName, 'authorDisplayName');
-    const findings = normalizePublishedFindings(payload.findings, now, schema, author);
+    const findings = normalizePublishedFindings(payload.findings, now, schema, author, sourceText);
     const reviewId = makeReviewId(payload.sessionSlug);
     const review = {
       schema_version: 1,

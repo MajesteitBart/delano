@@ -437,6 +437,16 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
     authorDisplayName: "Reviewer",
     findings: [finding]
   };
+  const invalidAnchor = await requestJson(`${baseUrl}/api/reviews`, {
+    method: "POST",
+    body: {
+      ...publishBody,
+      sessionSlug: "invalid-anchor",
+      findings: [{ ...finding, anchor: { ...finding.anchor, start_offset: 9, end_offset: 35 } }]
+    }
+  });
+  assert.equal(invalidAnchor.status, 400, invalidAnchor.raw);
+  assert.match(invalidAnchor.json.error, /anchor does not match the normalized review source/i);
   const published = await requestJson(`${baseUrl}/api/reviews`, { method: "POST", body: publishBody });
   assert.equal(published.status, 201, published.raw);
   assert.equal(published.json.review.source.content_state, "committed");
@@ -494,10 +504,14 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
   assert.equal(reviewDocument.reviewRuntime.findings[0].anchorState, "reanchored");
   assert.match(reviewDocument.body, /Source content:/);
   assert.match(reviewDocument.body, /Clarify the backend contract\./);
+  const reanchoredFinding = {
+    ...finding,
+    anchor: { ...finding.anchor, start_offset: 18, end_offset: 44 }
+  };
 
   const rejectedUncommitted = await requestJson(`${baseUrl}/api/reviews`, {
     method: "POST",
-    body: { ...publishBody, expectedContentHash: stale.json.runtime.currentContentHash, sessionSlug: "uncommitted-rejected" }
+    body: { ...publishBody, expectedContentHash: stale.json.runtime.currentContentHash, sessionSlug: "uncommitted-rejected", findings: [reanchoredFinding] }
   });
   assert.equal(rejectedUncommitted.status, 409, rejectedUncommitted.raw);
   assert.match(rejectedUncommitted.json.error, /confirmUncommitted:true/);
@@ -507,7 +521,8 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
       ...publishBody,
       expectedContentHash: stale.json.runtime.currentContentHash,
       sessionSlug: "uncommitted-confirmed",
-      confirmUncommitted: true
+      confirmUncommitted: true,
+      findings: [reanchoredFinding]
     }
   });
   assert.equal(publishedUncommitted.status, 201, publishedUncommitted.raw);
@@ -544,7 +559,7 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
       expectedContentHash: stale.json.runtime.currentContentHash,
       sessionSlug: "malformed-rejected",
       confirmUncommitted: true,
-      findings: [{ ...finding, severity: "catastrophic" }]
+      findings: [{ ...reanchoredFinding, severity: "catastrophic" }]
     }
   });
   assert.equal(malformed.status, 400, malformed.raw);
@@ -555,7 +570,7 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
       expectedContentHash: stale.json.runtime.currentContentHash,
       sessionSlug: "malformed-thread-rejected",
       confirmUncommitted: true,
-      findings: [{ ...finding, thread: [null] }]
+      findings: [{ ...reanchoredFinding, thread: [null] }]
     }
   });
   assert.equal(malformedThread.status, 400, malformedThread.raw);
@@ -567,7 +582,7 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
       expectedContentHash: stale.json.runtime.currentContentHash,
       sessionSlug: "oversized-thread-rejected",
       confirmUncommitted: true,
-      findings: [{ ...finding, thread: Array.from({ length: 201 }, () => ({ body: "Message" })) }]
+      findings: [{ ...reanchoredFinding, thread: Array.from({ length: 201 }, () => ({ body: "Message" })) }]
     }
   });
   assert.equal(oversizedThread.status, 400, oversizedThread.raw);
@@ -585,7 +600,7 @@ test("viewer publishes, indexes, resolves, archives, and freshness-checks tracke
       expectedContentHash: stale.json.runtime.currentContentHash,
       sessionSlug: "privacy-rejected",
       confirmUncommitted: true,
-      findings: [{ ...finding, comment: "See C:\\Users\\reviewer\\notes.txt" }]
+      findings: [{ ...reanchoredFinding, comment: "See C:\\Users\\reviewer\\notes.txt" }]
     }
   });
   assert.equal(privatePath.status, 422, privatePath.raw);
