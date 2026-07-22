@@ -664,7 +664,8 @@ test("viewer migrates legacy review evidence explicitly, idempotently, and non-d
         labels: ["migration"],
         status: "open",
         createdAt: "2026-07-16T10:04:00Z",
-        updatedAt: "2026-07-16T10:04:30Z"
+        updatedAt: "2026-07-16T10:04:30Z",
+        author: { name: "reviewer@example.test" }
       },
       {
         id: "missing-source",
@@ -722,6 +723,7 @@ test("viewer migrates legacy review evidence explicitly, idempotently, and non-d
   assert.match(migratedText, /legacy-global/);
   assert.match(migratedText, /No source quote; global comment/);
   assert.match(migratedText, /This comment applies to the whole document/);
+  assert.doesNotMatch(migratedText, /reviewer@example\.test/);
   assert.doesNotMatch(migratedText, /[A-Za-z]:[\\/]|file:\/\//i);
 
   const commonDir = spawnSync("git", ["rev-parse", "--git-common-dir"], { cwd: fixture.repo, encoding: "utf8" }).stdout.trim();

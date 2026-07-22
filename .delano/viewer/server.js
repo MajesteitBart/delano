@@ -1601,6 +1601,14 @@ function normalizeDisplayName(value, field) {
   return name;
 }
 
+function normalizeLegacyDisplayName(value, field) {
+  try {
+    return normalizeDisplayName(value, field);
+  } catch {
+    return undefined;
+  }
+}
+
 function normalizePublishedFindings(input, now, schema, defaultAuthor) {
   if (!Array.isArray(input) || input.length < 1 || input.length > 500) throw new HttpRequestError('findings must contain 1-500 entries.', 400);
   return input.map((raw, index) => {
@@ -1727,7 +1735,7 @@ function stableLegacyReview(source, annotations) {
   const provenance = gitSourceProvenance(source);
   const findings = ordered.map((annotation, index) => {
     const resolved = ['closed', 'done', 'resolved'].includes(String(annotation.status || '').toLowerCase());
-    const author = normalizeDisplayName(annotation.author?.name, `legacy annotation ${annotation.id} author`);
+    const author = normalizeLegacyDisplayName(annotation.author?.name, `legacy annotation ${annotation.id} author`);
     return {
       id: `F-${String(index + 1).padStart(3, '0')}`,
       kind: schema.$defs.finding.properties.kind.enum.includes(annotation.type) ? annotation.type : 'comment',

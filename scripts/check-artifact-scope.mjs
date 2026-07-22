@@ -15,7 +15,8 @@ const requiredArtifactTypes = [
   "decision_log",
   "update",
   "context",
-  "evidence"
+  "evidence",
+  "review"
 ];
 
 const errors = [];

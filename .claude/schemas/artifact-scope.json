@@ -234,6 +234,37 @@
         "timestamp is the leading ISO8601 UTC value in a task Evidence Log bullet"
       ],
       "schema_path": ".agents/schemas/artifacts/evidence.schema.json"
+    },
+    "review": {
+      "path_patterns": [
+        ".project/reviews/*.md"
+      ],
+      "frontmatter": true,
+      "required_fields": [
+        "schema_version",
+        "review_id",
+        "name",
+        "status",
+        "created_at",
+        "updated_at",
+        "source",
+        "findings"
+      ],
+      "optional_fields": [
+        "author_display_name",
+        "migration"
+      ],
+      "enum_fields": {
+        "status": [
+          "open",
+          "resolved",
+          "archived"
+        ]
+      },
+      "derived_fields": [
+        "review_id and source content hash are generated at explicit publication or legacy migration time"
+      ],
+      "schema_path": ".agents/schemas/artifacts/review.schema.json"
     }
   }
 }
