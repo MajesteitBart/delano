@@ -230,7 +230,7 @@ function getResearchHelp() {
     "  -h, --help             Show help",
     "",
     "Agent examples:",
-    "  delano research delano-spec-kit-interop import-edge-cases --title \"Import edge cases\" --question \"Which inputs should block import?\" --json",
+    "  delano research 012-delano-spec-kit-interop import-edge-cases --title \"Import edge cases\" --question \"Which inputs should block import?\" --json",
     "",
     "Output:",
     "  Human mode prints a concise summary plus validation output.",

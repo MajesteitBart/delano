@@ -5,7 +5,7 @@ on:
   push:
     branches:
       - main
-      - feat/delano-vnext-runtime-upgrade
+      - feat/009-delano-vnext-runtime-upgrade
   workflow_dispatch:
 
 jobs:

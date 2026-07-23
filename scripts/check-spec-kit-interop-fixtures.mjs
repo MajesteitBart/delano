@@ -17,7 +17,7 @@ const unsupportedSlug = `spec-kit-unsupported-smoke-${runId}`;
 const researchSlug = `fixture-research-smoke-${runId}`;
 const importProjectDir = path.join(repoRoot, ".project", "projects", importSlug);
 const unsupportedProjectDir = path.join(repoRoot, ".project", "projects", unsupportedSlug);
-const researchDir = path.join(repoRoot, ".project", "projects", "delano-spec-kit-interop", "research", researchSlug);
+const researchDir = path.join(repoRoot, ".project", "projects", "012-delano-spec-kit-interop", "research", researchSlug);
 const tempDir = mkdtempSync(path.join(os.tmpdir(), "delano-spec-kit-fixtures-"));
 
 assertFixturePathsAreAbsent();
@@ -100,7 +100,7 @@ try {
   const researchResult = runJson([
     delanoBin,
     "research",
-    "delano-spec-kit-interop",
+    "012-delano-spec-kit-interop",
     researchSlug,
     "--title",
     "Fixture research smoke",

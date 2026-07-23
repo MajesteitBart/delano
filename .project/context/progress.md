@@ -1,7 +1,7 @@
 # Progress
 
 ## What Changed
-- Completed the handbook-theo-method-upgrade implementation bundle across handbook, templates, runtime scripts, hooks/logging, installer messaging, and skill/runbook references.
+- Completed the 001-handbook-theo-method-upgrade implementation bundle across handbook, templates, runtime scripts, hooks/logging, installer messaging, and skill/runbook references.
 - Synced the `.claude` compatibility mirror to the updated `.agents` runtime so canonical and fallback command paths now align.
 - Replaced the placeholder `.project/context/` files with repo-specific context for Delano as both product and reference implementation.
 - Completed the tracked delivery portfolio through CLI packaging, context reader, contract enforcement, learning loop, multi-agent execution, operational sync, Spec Kit interop, state-command runtime, trust/safety runtime, viewer redesign, viewer annotations and handover, vNext blocker closure, and vNext runtime upgrade.
@@ -21,7 +21,7 @@
 - Follow up separately on any external documentation that may still teach legacy `.claude` examples.
 - Use native CLI and Node validation in Windows worktrees when Bash is unavailable.
 - Keep `.project/context/` current when new projects, viewer behavior, package assets, or validation realities change.
-- For future viewer refactors, use `.project/projects/delano-viewer-annotations-agent-chat/loopfile.md` as the iteration plan and record evidence in project updates.
+- For future viewer refactors, use `.project/projects/015-delano-viewer-annotations-agent-chat/loopfile.md` as the iteration plan and record evidence in project updates.
 
 ## Remaining Risks
 - External docs outside this repository may still need canonical-path and viewer-safety updates.

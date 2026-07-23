@@ -470,7 +470,7 @@ assert.equal(
     projects: [
       { slug: "other", outline: { spec: "other-spec.md" } },
       {
-        slug: "delano-viewer-annotations-agent-chat",
+        slug: "015-delano-viewer-annotations-agent-chat",
         outline: { spec: "target-spec.md" },
       },
     ],

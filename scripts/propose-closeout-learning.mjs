@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url); const __dirname = path.dirname(__filename);
 const repoRoot = resolveRepoRoot(__dirname);
-const project = readOption("--project") || "delano-learning-loop";
+const project = readOption("--project") || "008-delano-learning-loop";
 const metricsPath = readOption("--metrics") || path.join(repoRoot, ".agents", "metrics", "delivery-events.jsonl");
 const metrics = readEvents(metricsPath).filter((event)=>event.project === project || !event.project);
 const proposal = {

@@ -1,0 +1,13 @@
+---
+id: WS-A
+name: Trust Baseline
+status: done
+owner: bart
+created: 2026-04-29T21:57:00Z
+updated: 2026-05-12T10:52:38Z
+child_project: 004-delano-trust-safety-runtime
+---
+
+# WS-A: Trust Baseline
+
+Make Delano safe enough to extend: privacy-safe logging, safer hook output, package/manifest drift checks, and compact agent entry docs.

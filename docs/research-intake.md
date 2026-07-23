@@ -38,7 +38,7 @@ The command refuses to overwrite an existing research folder.
 Recommended agent form:
 
 ```bash
-delano research delano-spec-kit-interop spec-kit-import-edge-cases \
+delano research 012-delano-spec-kit-interop spec-kit-import-edge-cases \
   --title "Spec Kit import edge cases" \
   --question "Which unsupported artifact shapes should block import versus become clarification notes?" \
   --json
@@ -47,7 +47,7 @@ delano research delano-spec-kit-interop spec-kit-import-edge-cases \
 JSON mode returns one parseable object:
 
 ```json
-{"ok":true,"command":"research","project":".project/projects/delano-spec-kit-interop","research":".project/projects/delano-spec-kit-interop/research/spec-kit-import-edge-cases","files":["task_plan.md","findings.md","progress.md"],"validation":"passed"}
+{"ok":true,"command":"research","project":".project/projects/012-delano-spec-kit-interop","research":".project/projects/012-delano-spec-kit-interop/research/spec-kit-import-edge-cases","files":["task_plan.md","findings.md","progress.md"],"validation":"passed"}
 ```
 
 ## File roles

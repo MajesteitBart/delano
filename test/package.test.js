@@ -671,7 +671,7 @@ test("local sync map reader normalizes project and task references", () => {
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   const parsed = JSON.parse(checkResult.stdout);
   assert.equal(parsed.sync_map.schema_version, 1);
-  assert.ok(parsed.sync_map.projects.some((project) => project.slug === "delano-operational-sync"));
+  assert.ok(parsed.sync_map.projects.some((project) => project.slug === "006-delano-operational-sync"));
   assert.ok(parsed.sync_map.projects.some((project) => project.tasks.some((task) => task.local_id === "T-002")));
 });
 
@@ -880,7 +880,7 @@ test("lease release requires handoff summary", () => {
   const path = require("node:path");
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "delano-handoff-"));
   const state = path.join(tmp, "leases.json");
-  const acquire = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "acquire", "--state", state, "--owner", "test", "--project", "delano-multi-agent-execution", "--task", "T-006", "--zone", "scripts/lease-manager.mjs", "--mode", "exclusive"], { cwd: repoRoot, encoding: "utf8" });
+  const acquire = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "acquire", "--state", state, "--owner", "test", "--project", "007-delano-multi-agent-execution", "--task", "T-006", "--zone", "scripts/lease-manager.mjs", "--mode", "exclusive"], { cwd: repoRoot, encoding: "utf8" });
   assert.equal(acquire.status, 0, acquire.stderr || acquire.stdout);
   const leaseId = JSON.parse(fs.readFileSync(state, "utf8")).leases[0].lease_id;
   const release = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "release", "--state", state, "--lease-id", leaseId], { cwd: repoRoot, encoding: "utf8" });
@@ -891,7 +891,7 @@ test("lease release requires handoff summary", () => {
 test("lease conflict check blocks overlapping exclusive zones", () => {
   const tmp = require("node:fs").mkdtempSync(require("node:path").join(require("node:os").tmpdir(), "delano-conflict-"));
   const state = require("node:path").join(tmp, "leases.json");
-  const acquire = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "acquire", "--state", state, "--owner", "test", "--project", "delano-multi-agent-execution", "--task", "T-003", "--zone", "scripts/lease-manager.mjs", "--mode", "exclusive"], { cwd: repoRoot, encoding: "utf8" });
+  const acquire = spawnSync(process.execPath, ["scripts/lease-manager.mjs", "acquire", "--state", state, "--owner", "test", "--project", "007-delano-multi-agent-execution", "--task", "T-003", "--zone", "scripts/lease-manager.mjs", "--mode", "exclusive"], { cwd: repoRoot, encoding: "utf8" });
   assert.equal(acquire.status, 0, acquire.stderr || acquire.stdout);
   const conflict = spawnSync(process.execPath, ["scripts/check-lease-conflicts.mjs", "--state", state, "--zone", "scripts/lease-manager.mjs", "--mode", "shared"], { cwd: repoRoot, encoding: "utf8" });
   assert.equal(conflict.status, 2, conflict.stderr || conflict.stdout);
@@ -899,7 +899,7 @@ test("lease conflict check blocks overlapping exclusive zones", () => {
 
 
 test("next task selection is stream aware", () => {
-  const checkResult = spawnSync(process.execPath, ["scripts/select-next-task.mjs", "--project", "delano-multi-agent-execution", "--stream", "delta-prairie", "--json"], { cwd: repoRoot, encoding: "utf8" });
+  const checkResult = spawnSync(process.execPath, ["scripts/select-next-task.mjs", "--project", "007-delano-multi-agent-execution", "--stream", "delta-prairie", "--json"], { cwd: repoRoot, encoding: "utf8" });
   assert.equal(checkResult.status, 0, checkResult.stderr || checkResult.stdout);
   const result = JSON.parse(checkResult.stdout);
   assert.equal(result.stream, "delta-prairie");

@@ -52,7 +52,7 @@ Lifecycle changes usually cross schemas, templates, CLI mutation code, PM script
 | Compiled runtime | `.delano/viewer/public/` | Generated; rebuild from UI source. |
 | Integration tests | `test/viewer-server.test.js` | API/SSE/write safety. |
 
-For rationale, inspect `.project/projects/delano-viewer-annotations-agent-chat/` and `.project/projects/viewer-openknowledge-parity/`, especially `decisions.md`, `spec.md`, and recent `updates/`.
+For rationale, inspect `.project/projects/015-delano-viewer-annotations-agent-chat/` and `.project/projects/016-viewer-openknowledge-parity/`, especially `decisions.md`, `spec.md`, and recent `updates/`.
 
 ## Packaging and installation
 

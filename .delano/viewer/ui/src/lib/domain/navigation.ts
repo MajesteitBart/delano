@@ -1,4 +1,4 @@
-export const TARGET_PROJECT = "delano-viewer-annotations-agent-chat"
+export const TARGET_PROJECT = "015-delano-viewer-annotations-agent-chat"
 export const DEFAULT_WORKSPACE_VIEW = "workspace-projects"
 
 export type WorkspaceView =
