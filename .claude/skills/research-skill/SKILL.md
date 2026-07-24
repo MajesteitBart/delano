@@ -53,9 +53,11 @@ description: Open and run repo-native research intake before mutating canonical 
 - run Delano validation after creating or folding forward research
 
 ## Script hooks
-- `bash .agents/scripts/pm/research.sh <project-slug> <research-slug> --title "<Research Title>" --question "<Primary Question>" --owner <owner> --json`
-- `bash .agents/scripts/pm/validate.sh`
-- `bash .agents/scripts/pm/status.sh`
+- `delano research <project-slug> <research-slug> --title "<Research Title>" --question "<Primary Question>" --owner <owner> --json`
+- `delano validate`
+- `delano status`
+
+Use the Delano CLI instead of invoking bare `bash`. The CLI shares one Bash resolver across research, validation, status, and the other shell-backed commands. It discovers and capability-checks candidates before selecting one, including Git Bash fallbacks on Windows. Set `DELANO_BASH` to a full executable path only when an explicit override is needed.
 
 ## Lineage
 This skill adapts Bart's `planning_with_files` pattern to Delano. Keep the useful three-file working state and closeout discipline, but do not use Obsidian, `BartsVault`, or external briefing folders. Delano research belongs inside the project repository.

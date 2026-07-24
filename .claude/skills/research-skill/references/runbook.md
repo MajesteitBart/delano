@@ -13,12 +13,14 @@ Skip research when the work is already decided and executable. Use `execution-sk
 Run:
 
 ```bash
-bash .agents/scripts/pm/research.sh <project-slug> <research-slug> \
+delano research <project-slug> <research-slug> \
   --title "<Research Title>" \
   --question "<Primary Question>" \
   --owner <owner> \
   --json
 ```
+
+Do not replace this with a bare `bash .agents/scripts/...` invocation. `delano research` uses the shared runtime resolver to discover and capability-check Bash candidates, so an unusable Windows WSL shim can be skipped in favor of Git Bash. When automatic discovery cannot find the intended runtime, set `DELANO_BASH` to its full executable path.
 
 The command creates:
 - `task_plan.md`
@@ -53,7 +55,7 @@ If the answer is no-action, record why in `progress.md` and keep canonical files
 Run validation after creating intake files and again after folding conclusions forward:
 
 ```bash
-bash .agents/scripts/pm/validate.sh
+delano validate
 ```
 
 Report the research path, conclusion, folded-forward files, validation result, and remaining open items.
