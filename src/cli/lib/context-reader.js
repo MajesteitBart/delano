@@ -47,6 +47,13 @@ const PROFILES = {
   ]
 };
 
+const OPTIONAL_PROFILE_MEMBERS = {
+  overview: [
+    "vision.md",
+    "mission.md"
+  ]
+};
+
 class ContextReaderError extends CliError {
   constructor(message, code = "context-reader-error") {
     super(message, 1);
@@ -451,11 +458,18 @@ function resolveReadSelection(repoRoot, options) {
   if (!Object.prototype.hasOwnProperty.call(PROFILES, profile)) {
     throw new ContextReaderError(`Unknown context profile: ${profile}.`, "unknown-profile");
   }
+  const discoveredPaths = new Set(
+    list.files
+      .filter((file) => file.exists)
+      .map((file) => file.path.slice(`${CONTEXT_ROOT}/`.length))
+  );
+  const optionalMembers = (OPTIONAL_PROFILE_MEMBERS[profile] || [])
+    .filter((contextPath) => discoveredPaths.has(contextPath));
   return {
     list,
     mode: "profile",
     profile,
-    selected: [...PROFILES[profile]]
+    selected: [...optionalMembers, ...PROFILES[profile]]
   };
 }
 
@@ -611,6 +625,7 @@ module.exports = {
   ContextReaderError,
   DEFAULT_MAX_CHARS,
   FALLBACK_ORDER,
+  OPTIONAL_PROFILE_MEMBERS,
   PER_FILE_MAX_CHARS,
   PROFILES,
   formatContextMarkdown,

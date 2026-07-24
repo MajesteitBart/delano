@@ -5,13 +5,14 @@ import { fileURLToPath } from "node:url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = resolveRepoRoot(__dirname);
-const contextDir = path.join(repoRoot, ".project", "context");
+const contextDir = readOption("--context") || path.join(repoRoot, ".project", "context");
 const staleDays = Number(readOption("--stale-days") || 180);
 const now = Date.now();
 const requiredCommandDocs = new Map([
   ["tech-context.md", ["npm test", "validate.sh"]],
   ["progress.md", ["validate.sh"]]
 ]);
+const directionFiles = new Set(["vision.md", "mission.md"]);
 
 const files = existsSync(contextDir) ? readdirSync(contextDir).filter((file) => file.endsWith(".md")).sort() : [];
 const entries = files.map((file) => auditFile(file));
@@ -32,8 +33,8 @@ if (process.argv.includes("--json")) console.log(JSON.stringify(result, null, 2)
 else console.log(`Context audit scored ${entries.length} file(s): ${Object.entries(summary).map(([k,v])=>`${k}=${v}`).join(", ")}.`);
 
 function auditFile(file) {
-  const repoPath = [".project", "context", file].join("/");
-  const abs = path.join(repoRoot, ".project", "context", file);
+  const repoPath = path.join(path.relative(repoRoot, contextDir) || ".", file).split(path.sep).join("/");
+  const abs = path.join(contextDir, file);
   const text = readFileSync(abs, "utf8");
   const requiredCommands = requiredCommandDocs.get(file) || [];
   const missingCommands = requiredCommands.filter((command) => !text.includes(command));
@@ -43,7 +44,7 @@ function auditFile(file) {
   const placeholderSignals = countSignals(text, [/\bTODO\b/i, /\bTBD\b/i, /placeholder/i, /fill this/i, /coming soon/i]);
   let classification = "real";
   if (file === "README.md") classification = "not_applicable";
-  else if (wordCount < 40 || placeholderSignals >= 2) classification = "placeholder";
+  else if (!directionFiles.has(file) && (wordCount < 40 || placeholderSignals >= 2)) classification = "placeholder";
   else if (missingCommands.length) classification = "missing_required_commands";
   else if (ageDays > staleDays) classification = "stale";
   const score = classification === "real" ? 100 : classification === "stale" ? 65 : classification === "missing_required_commands" ? 55 : classification === "placeholder" ? 25 : 0;

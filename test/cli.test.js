@@ -1168,6 +1168,67 @@ test("context CLI rejects unsafe selectors with a non-zero exit", () => {
   assert.match(result.stderr + result.stdout, /path traversal/);
 });
 
+test("overview context profile silently preserves legacy selection when direction files are absent", () => {
+  const repo = createTempContextRepo({
+    "README.md": [
+      "# Context Pack",
+      "",
+      "Required context files:",
+      "",
+      "- `project-overview.md`",
+      "- `project-brief.md`",
+      "- `product-context.md`",
+      "- `progress.md`"
+    ].join("\n"),
+    "project-overview.md": "# Overview\n\nOverview body.",
+    "project-brief.md": "# Brief\n\nBrief body.",
+    "product-context.md": "# Product\n\nProduct body.",
+    "progress.md": "# Progress\n\nProgress body."
+  });
+
+  const result = readContext({ repoRoot: repo, profile: "overview" });
+  assert.deepEqual(result.files.map((file) => path.basename(file.path)), [
+    "project-overview.md",
+    "project-brief.md",
+    "product-context.md",
+    "progress.md"
+  ]);
+  assert.ok(result.warnings.every((warning) => !/vision\.md|mission\.md/.test(warning)));
+});
+
+test("overview context profile prepends present direction files in deterministic order", () => {
+  const repo = createTempContextRepo({
+    "README.md": [
+      "# Context Pack",
+      "",
+      "Required context files:",
+      "",
+      "- `project-overview.md`",
+      "- `project-brief.md`",
+      "- `product-context.md`",
+      "- `progress.md`"
+    ].join("\n"),
+    "vision.md": "# Vision\n\nA durable future.",
+    "mission.md": "# Mission\n\nOur enduring purpose.",
+    "project-overview.md": "# Overview\n\nOverview body.",
+    "project-brief.md": "# Brief\n\nBrief body.",
+    "product-context.md": "# Product\n\nProduct body.",
+    "progress.md": "# Progress\n\nProgress body."
+  });
+
+  const result = readContext({ repoRoot: repo, profile: "overview" });
+  assert.deepEqual(result.files.map((file) => path.basename(file.path)), [
+    "vision.md",
+    "mission.md",
+    "project-overview.md",
+    "project-brief.md",
+    "product-context.md",
+    "progress.md"
+  ]);
+  assert.equal(result.files[0].profile, "overview");
+  assert.equal(result.files[1].profile, "overview");
+});
+
 test("Spec Kit interop fixture commands generate valid artifacts", () => {
   const output = execFileSync(process.execPath, ["scripts/check-spec-kit-interop-fixtures.mjs"], {
     cwd: process.cwd(),

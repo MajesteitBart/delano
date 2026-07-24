@@ -969,6 +969,21 @@ test("context audit scores project context files", () => {
   assert.ok(report.files.every((entry) => typeof entry.score === "number"));
 });
 
+test("context file audit exempts concise direction files without weakening ordinary placeholder checks", () => {
+  const contextDir = fs.mkdtempSync(path.join(os.tmpdir(), "delano-direction-audit-"));
+  fs.writeFileSync(path.join(contextDir, "vision.md"), "# Vision\n\nMake delivery intent visible.\n", "utf8");
+  fs.writeFileSync(path.join(contextDir, "ordinary.md"), "# Ordinary\n\nToo short.\n", "utf8");
+  const result = spawnSync(process.execPath, ["scripts/audit-context-files.mjs", "--context", contextDir, "--json"], {
+    cwd: repoRoot,
+    encoding: "utf8"
+  });
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  const report = JSON.parse(result.stdout);
+  assert.equal(report.files.find((entry) => entry.path.endsWith("/vision.md")).classification, "real");
+  assert.equal(report.files.find((entry) => entry.path.endsWith("/ordinary.md")).classification, "placeholder");
+});
+
 
 test("skill output eval fixtures cover valid and invalid cases", () => {
   const result = spawnSync(process.execPath, ["scripts/check-skill-output-evals.mjs"], { cwd: repoRoot, encoding: "utf8" });

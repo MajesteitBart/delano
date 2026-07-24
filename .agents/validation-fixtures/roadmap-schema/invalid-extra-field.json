@@ -1,0 +1,13 @@
+{
+  "expected": "fail",
+  "filename": "RM-004-invalid-schedule-field.md",
+  "frontmatter": {
+    "id": "RM-004",
+    "name": "Invalid schedule field",
+    "status": "planned",
+    "horizon": "later",
+    "created": "2026-07-24T00:00:00Z",
+    "updated": "2026-07-24T00:00:00Z",
+    "target_date": "2026-12-01"
+  }
+}

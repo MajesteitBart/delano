@@ -1,0 +1,148 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "name": "legacy-no-opt-in",
+      "items": [],
+      "projects": [
+        { "slug": "legacy", "status": "active" }
+      ],
+      "expected_rules": []
+    },
+    {
+      "name": "valid-one-to-many",
+      "items": [
+        { "status": "active", "horizon": "now" }
+      ],
+      "projects": [
+        { "slug": "alpha", "status": "active", "roadmap_item": "RM-001" },
+        { "slug": "beta", "status": "planned", "roadmap_item": "RM-001" }
+      ],
+      "expected_rules": []
+    },
+    {
+      "name": "invalid-filename",
+      "items": [
+        { "path": ".project/roadmap/RM-1-bad.md" }
+      ],
+      "projects": [],
+      "expected_rules": ["invalid-item-path"]
+    },
+    {
+      "name": "id-mismatch",
+      "items": [
+        { "path": ".project/roadmap/RM-002-mismatch.md" }
+      ],
+      "projects": [],
+      "expected_rules": ["item-id-mismatch"]
+    },
+    {
+      "name": "invalid-id",
+      "items": [
+        { "id": "RM-1" }
+      ],
+      "projects": [],
+      "expected_rules": ["invalid-item-id", "item-id-mismatch"]
+    },
+    {
+      "name": "duplicate-id",
+      "items": [
+        { "path": ".project/roadmap/RM-001-first.md" },
+        { "path": ".project/roadmap/RM-001-second.md" }
+      ],
+      "projects": [],
+      "expected_rules": ["duplicate-item-id"]
+    },
+    {
+      "name": "missing-field",
+      "items": [
+        { "omit_fields": ["name"] }
+      ],
+      "projects": [],
+      "expected_rules": ["missing-required-field"]
+    },
+    {
+      "name": "missing-section",
+      "items": [
+        { "omit_sections": ["Boundaries"] }
+      ],
+      "projects": [],
+      "expected_rules": ["invalid-body-sections"]
+    },
+    {
+      "name": "invalid-enums",
+      "items": [
+        { "status": "running", "horizon": "soon" }
+      ],
+      "projects": [],
+      "expected_rules": ["invalid-item-horizon", "invalid-item-status"]
+    },
+    {
+      "name": "created-after-updated",
+      "items": [
+        { "created": "2026-07-25T00:00:00Z", "updated": "2026-07-24T00:00:00Z" }
+      ],
+      "projects": [],
+      "expected_rules": ["created-after-updated"]
+    },
+    {
+      "name": "missing-project-reference",
+      "items": [],
+      "projects": [
+        { "slug": "orphan", "status": "planned", "roadmap_item": "RM-999" }
+      ],
+      "expected_rules": ["unresolved-project-reference"]
+    },
+    {
+      "name": "active-wrong-horizon",
+      "items": [
+        { "status": "active", "horizon": "next" }
+      ],
+      "projects": [
+        { "slug": "alpha", "status": "active", "roadmap_item": "RM-001" }
+      ],
+      "expected_rules": ["active-horizon"]
+    },
+    {
+      "name": "active-without-active-project",
+      "items": [
+        { "status": "active", "horizon": "now" }
+      ],
+      "projects": [
+        { "slug": "alpha", "status": "planned", "roadmap_item": "RM-001" }
+      ],
+      "expected_rules": ["active-without-active-project"]
+    },
+    {
+      "name": "done-missing-evidence",
+      "items": [
+        { "status": "done", "closure_evidence": "None yet." }
+      ],
+      "projects": [
+        { "slug": "alpha", "status": "complete", "roadmap_item": "RM-001" }
+      ],
+      "expected_rules": ["done-missing-closure-evidence"]
+    },
+    {
+      "name": "done-without-complete-project",
+      "items": [
+        { "status": "done", "closure_evidence": "Verified." }
+      ],
+      "projects": [
+        { "slug": "alpha", "status": "deferred", "roadmap_item": "RM-001" }
+      ],
+      "expected_rules": ["done-without-complete-project"]
+    },
+    {
+      "name": "done-with-open-project",
+      "items": [
+        { "status": "done", "closure_evidence": "Verified." }
+      ],
+      "projects": [
+        { "slug": "alpha", "status": "complete", "roadmap_item": "RM-001" },
+        { "slug": "beta", "status": "active", "roadmap_item": "RM-001" }
+      ],
+      "expected_rules": ["done-with-non-terminal-project"]
+    }
+  ]
+}

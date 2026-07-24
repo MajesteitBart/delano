@@ -515,6 +515,27 @@ if [[ -n "$artifact_schema_check" ]]; then
   fi
 fi
 
+roadmap_contract_check=""
+if [[ -f .agents/scripts/check-roadmap-contracts.mjs ]]; then
+  roadmap_contract_check=".agents/scripts/check-roadmap-contracts.mjs"
+elif [[ -f scripts/check-roadmap-contracts.mjs ]]; then
+  roadmap_contract_check="scripts/check-roadmap-contracts.mjs"
+fi
+
+if [[ -n "$roadmap_contract_check" ]]; then
+  echo ""
+  if command -v node >/dev/null 2>&1; then
+    if node "$roadmap_contract_check"; then
+      true
+    else
+      errors=$((errors + 1))
+    fi
+  else
+    echo "Node runtime not found for roadmap contract check"
+    errors=$((errors + 1))
+  fi
+fi
+
 if [[ -f scripts/check-adapter-manifests.mjs ]]; then
   echo ""
   if command -v node >/dev/null 2>&1; then

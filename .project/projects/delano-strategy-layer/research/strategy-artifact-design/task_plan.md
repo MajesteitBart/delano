@@ -3,9 +3,9 @@ type: research_intake
 project: delano-strategy-layer
 slug: strategy-artifact-design
 owner: team
-status: opened
+status: completed
 created: 2026-07-23T23:01:31Z
-updated: 2026-07-23T23:08:00Z
+updated: 2026-07-24T01:03:35Z
 ---
 
 # Research Plan: Strategy artifact design and roadmap-to-project traceability
@@ -34,7 +34,7 @@ Which artifact shape (single strategy contract vs separate vision/mission/roadma
 
 ## Current Phase
 
-Folded forward; awaiting owner approval of proposed decisions at spec approval.
+Completed and folded forward into a revised planned spec, delivery plan, decisions, workstreams, and tasks.
 
 ## Phases
 
@@ -48,9 +48,14 @@ Folded forward; awaiting owner approval of proposed decisions at spec approval.
 | Decision | Rationale |
 | --- | --- |
 | Repo-native investigation via three read-only sweeps (CLI architecture, validation/schema pipeline, viewer navigation) instead of a prototype probe | All three surfaces have working in-repo precedents (operating-modes rollout, reviews viewer tier, research scaffold); inspection bounded the implementation paths without building anything |
-| Recommendations for NC-001, NC-002, NC-003, NC-005 recorded in `findings.md` as proposed, not final | Artifact shape, roadmap model, traceability policy, and naming ship in the operating model; owner approves at spec approval per the project's approval gate |
+| Revised after owner feedback: vision/mission live in the existing `.project/context/` pack; only the roadmap is a new tier | The context pack already provides the correct prose boundary; a parallel tier would duplicate it |
+| Persist only the optional project-to-roadmap reference and derive reverse links | A physical back-link list would create a multi-file transaction and a second source of truth |
+| Treat promotion as a state mutation followed by an optional handover | Canonical contract creation and agent dispatch have different authority and failure semantics |
+| Ship board-only v1 receipts from canonical project/task state | Commit counts, timeline targets, and heterogeneous closeout parsing would overstate what the current contracts prove |
+| Keep vision/mission presence-aware and length-exempt | Fixed context profiles/fallbacks would warn in non-adopting repositories, and the runtime does not enforce a generic optional prose audit |
 
 ## Blockers
 
 | Blocker | Owner | Check-back |
 | --- | --- | --- |
+| Owner confirmation of the 21-day staleness default, closure gate, and `roadmap init` seed behavior before activation | bart | At spec approval |

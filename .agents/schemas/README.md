@@ -17,6 +17,7 @@ This directory defines the first contract surface for Delano project artifacts.
 - Context documents
 - Evidence records in task logs or update files
 - Published review artifacts under `.project/reviews/`; unpublished drafts and machine-local receipts remain outside the tracked schema surface
+- Optional roadmap items under `.project/roadmap/`, with exact frontmatter and lifecycle constraints defined by `.agents/rules/roadmap.md`
 
 ## Validation posture
 

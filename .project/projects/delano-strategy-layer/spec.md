@@ -2,156 +2,198 @@
 name: Delano Strategy Layer
 slug: delano-strategy-layer
 owner: bart
-status: planned
+status: active
 created: 2026-07-23T22:59:54Z
-updated: 2026-07-23T23:08:00Z
-outcome: Vision, mission, and roadmap exist as first-class validated Delano contracts, and new delivery projects can declare roadmap traceability that delano validate enforces.
+updated: 2026-07-24T06:35:24Z
+outcome: A repository can opt into direction files and roadmap items, promote a roadmap item into one or more traceable delivery projects, and inspect derived delivery receipts on a live horizon board while repositories without roadmap artifacts validate unchanged.
 uncertainty: medium
 probe_required: false
 probe_status: skipped
-probe_decision_rationale: Research intake strategy-artifact-design resolved the technical unknowns by repository inspection (operating-modes rollout, reviews viewer tier, and in-process project creation are working precedents); remaining uncertainty is owner design choice, not buildable risk.
-operating_mode: uncertain-feature
+probe_decision_rationale: Repository inspection established the context-reader, state-command, validation, viewer-write, handover, live-event, and packaging extension points; the remaining choices are product policy decisions rather than prototype questions.
+operating_mode: multi-stream
 ---
 
 # Spec: Delano Strategy Layer
 
 ## Executive Summary
 
-Delano's canonical model today starts at a single project's outcome: `Outcome -> Spec -> Delivery project -> Workstreams -> Tasks -> Evidence`. Nothing above the project tier explains why a project exists, which direction it serves, or what should be delivered next at portfolio level. This spec introduces a strategy tier: durable vision and mission contracts plus a roadmap whose items translate into delivery projects with enforced traceability. Strategy artifacts follow the same file-backed, validated, CLI-managed contract pattern as the delivery tier, and adoption is opt-in so existing repositories and closed projects are untouched.
+Delano currently proves delivery below the project boundary but does not explain why projects exist or which strategic bet they serve. This project adds a thin strategy layer without turning Delano into a portfolio scheduler:
+
+`vision and mission context -> roadmap item -> delivery projects -> workstreams -> tasks -> evidence`
+
+Vision and mission remain freeform, opt-in files in `.project/context/`. Roadmap items become the only new validated artifact type. A project may carry one optional `roadmap_item` reference; every reverse link and delivery receipt is derived from those project specs rather than copied into the roadmap item.
+
+The product is an evidence-backed portfolio lens. The default viewer is a `now | next | later` board whose cards show source-linked delivery facts. It does not estimate, assign, sequence, forecast, or auto-close work. Promotion is a canonical state action that creates a planned project with strategic provenance; launching an agent is a separate, optional handover after creation.
+
+## Adversarial Review of the Earlier Proposal
+
+The earlier proposal found the right product boundary but understated several contract risks:
+
+- Stored back-links would create two sources of truth. The project spec reference is authoritative; roadmap-to-project links must be derived.
+- Promotion is not a third handover intent. Handover dispatches an agent and grants no write authority; promotion creates canonical contracts and must complete before an optional `start` handover.
+- Git commit counts are not delivery evidence. Commits are not reliably mapped to projects, and closeout files are not yet a single canonical artifact shape. V1 receipts use project/task states, canonical timestamps, and links to source evidence.
+- A timeline powered by target windows is scheduling by another name. It conflicts with the stated invariant and is excluded from v1.
+- Adding optional vision/mission files directly to the current fixed context profile or fallback list would emit missing-file warnings in repositories that did not opt in. Profile inclusion must be presence-aware.
+- The existing context audit does not enforce the earlier claim that every optional context file is checked for placeholder rot. Vision/mission are explicitly exempt from length/shape validation.
+- `fs.watch` and SSE provide the invalidation signal, not the finished board behavior. Index refresh, affected-card derivation, and visual change feedback still require implementation and tests.
+- A read-only public share link is not a cheap extension of an unauthenticated local viewer. It is a separate deployment, access-control, and privacy project.
 
 ## Problem and Users
 
-- Operators and maintainers can inspect delivery state (`delano status`, viewer) but have no canonical place to record or read strategic direction. Direction lives in heads, chat threads, or ad-hoc docs outside `.project/`.
-- `delano next` answers "which task next" but nothing answers "which project should exist next" or "does this proposed project serve the current direction".
-- Coding agents get delivery contracts and context files, but no strategic frame; a request like "does this feature fit the product direction" is unanswerable from disk.
-- `PRODUCT.md` (in this repo) captures product identity for design purposes, but it is not part of the installable operating model, has no contract surface, and does not connect to projects.
+- Repository owners can inspect delivery state but cannot record and browse strategic bets as addressable contracts.
+- Operators cannot answer which projects serve a bet without manually correlating prose and project folders.
+- Agents opening discovery receive repository context but no machine-resolvable strategic source.
+- Existing project dashboards show delivery facts per project; there is no cross-project, evidence-backed strategic projection.
 
-Users: repository owners/maintainers who set direction, operators who select and scope new projects, and coding agents that need strategic context when opening discovery for new work.
+Primary users are repository owners setting direction, operators promoting strategic bets into delivery, and agents opening or reviewing the resulting project contracts.
 
 ## Outcome and Success Metrics
 
-Outcome: vision, mission, and roadmap exist as first-class validated Delano contracts, and new delivery projects can declare roadmap traceability that `delano validate` enforces.
+Outcome: a repository can opt into direction files and roadmap items, promote a roadmap item into one or more traceable delivery projects, and inspect derived delivery receipts on a live horizon board while repositories without roadmap artifacts validate unchanged.
 
-Success metrics (binary at closeout):
-
-- SM-001: A repository can initialize strategy contracts via the CLI, and `delano validate` passes on a fresh clone with and without strategy artifacts present.
-- SM-002: A roadmap item can be promoted into a delivery project through the CLI, and the created project carries a machine-readable reference to that item.
-- SM-003: `delano validate` fails when a project references a missing roadmap item, when a roadmap item has an invalid state, or when required strategy frontmatter keys are absent.
-- SM-004: The viewer renders strategy contracts as navigable documents alongside projects.
-- SM-005: `HANDBOOK.md`, `AGENTS.md`, and the domain concept docs describe the strategy tier, and the packaged runtime assets include the new templates without package-manifest drift.
+- SM-001: `delano validate` passes for a fresh repository with no roadmap directory and for a repository initialized with valid vision, mission, and roadmap artifacts.
+- SM-002: `delano roadmap promote RM-001 <project-slug>` creates a planned project whose spec contains `roadmap_item: RM-001`; no physical project list is written to RM-001.
+- SM-003: Validation fails for malformed roadmap items, invalid lifecycle combinations, missing referenced items, or a `done` item without closure evidence and terminal linked projects.
+- SM-004: The viewer board groups non-terminal items by horizon and shows linked-project states, task-state totals, last canonical delivery activity, and source links derived from current `.project` files.
+- SM-005: Guarded viewer actions can move or promote an item only with a current hash, explicit confirmation, allowed fields/actions, and the same worktree capability checks as other canonical writes.
+- SM-006: Existing SSE invalidation refreshes the board after roadmap or linked-project changes, and only affected cards receive change feedback.
+- SM-007: New templates, rules, schemas, scripts, viewer assets, CLI help, and documentation are represented in the install payload and pass release validation.
 
 ## User Stories
 
-- US-001: As a repository owner, I want to record vision and mission as durable contracts in `.project/`, so that direction is inspectable on disk next to delivery state.
-- US-002: As an operator, I want a roadmap of strategic items with explicit states/horizons, so that I can see what is now, next, and later without a tracker.
-- US-003: As an operator, I want to promote a roadmap item into a delivery project with one CLI action, so that new projects start traceable to strategy instead of ad hoc.
-- US-004: As a maintainer, I want `delano validate` to check strategy contracts and roadmap references, so that strategic traceability cannot silently rot.
-- US-005: As a coding agent, I want discovery to read strategy contracts when opening a new spec, so that outcome hypotheses can be checked against stated direction.
-- US-006: As an operator, I want to browse vision, mission, and roadmap in the viewer, so that strategic context is readable in the same surface as delivery contracts.
+- US-001: As a repository owner, I want concise vision and mission files in the context pack so that agents can understand durable direction.
+- US-002: As an operator, I want addressable roadmap items grouped by horizon so that I can communicate strategic intent without dates or scheduling mechanics.
+- US-003: As an operator, I want to promote a roadmap item into a planned delivery project so that the new project inherits strategic provenance.
+- US-004: As a maintainer, I want roadmap contracts and project references validated so that traceability cannot silently rot.
+- US-005: As an operator, I want each roadmap card to show linked delivery receipts so that status claims are inspectable at their source.
+- US-006: As an operator, I want guarded structured board actions so that I can move or promote an item without unlocking arbitrary frontmatter.
+- US-007: As an operator, I want stale `now` bets called out as advisory attention states so that the board exposes neglected commitments without inventing blockers.
 
 ## Acceptance Scenarios
 
-- AC-001: Given a repository without strategy artifacts, when `delano validate` runs, then validation passes unchanged (strategy tier is opt-in).
-- AC-002: Given `delano strategy init` (final command name may differ) has run, when the operator opens `.project/strategy/`, then vision, mission, and roadmap contracts exist from templates with valid frontmatter.
-- AC-003: Given a roadmap with item RM-001 in an actionable state, when the operator promotes RM-001, then a delivery project is created whose frontmatter references RM-001 and RM-001 records the project slug.
-- AC-004: Given a project referencing a roadmap item that does not exist, when `delano validate` runs, then validation fails with a message naming the project and the missing item.
-- AC-005: Given strategy contracts exist, when the viewer is opened, then vision, mission, and roadmap are listed and render as documents.
-- AC-006: Given a pre-existing project without any roadmap reference, when `delano validate` runs, then that project validates under legacy rules only.
+- AC-001: Given no `.project/roadmap/` directory or roadmap references, when validation and context reading run, then behavior and output remain compatible with the current repository contract.
+- AC-002: Given absent strategy files, when `delano roadmap init` runs, then it creates missing vision, mission, and roadmap index seeds without overwriting existing context files.
+- AC-003: Given a valid roadmap item, when it is added or shown through the CLI, then its ID, status, horizon, timestamps, and body contract round-trip deterministically.
+- AC-004: Given RM-001 is non-terminal, when it is promoted twice using two distinct project slugs, then both project specs reference RM-001 and the roadmap projection derives both links without mutating RM-001.
+- AC-005: Given a project references a missing item, or a roadmap item violates the lifecycle matrix, when validation runs, then it fails with the affected artifact and rule.
+- AC-006: Given linked projects and tasks exist, when the board opens, then the RM-001 card reports project-state counts, done/open/blocked task counts, last canonical delivery activity, and links to the source projects.
+- AC-007: Given the viewer has a stale RM-001 hash, when a move or promotion is submitted, then the server returns a conflict and writes nothing.
+- AC-008: Given RM-001 or a linked project changes on disk, when the SSE rescan publishes the change, then the board refreshes and RM-001 receives bounded change feedback.
+- AC-009: Given a non-terminal item has `horizon: now` and no active linked project for 21 days, when the board model is derived, then it shows a non-blocking staleness reason.
+- AC-010: Given RM-001 has at least one complete linked project, all linked projects are terminal, and closure evidence is supplied, when the operator closes it, then status becomes `done`; otherwise closure is rejected.
+- AC-011: Given a terminal roadmap item, when promotion is attempted, then no project is created and the CLI/API returns a clear error.
+- AC-012: Given viewer promotion succeeds, when the operator chooses to hand the created spec to an agent, then the existing `start` handover runs as a separate action against the new spec.
 
 ## Scope
 
 ### In Scope
 
-- Strategy artifact contracts (vision, mission, roadmap) with templates, frontmatter schema, and canonical states for roadmap items.
-- CLI lifecycle surface for creating/updating strategy artifacts and for promoting roadmap items into projects.
-- Validation rules wiring strategy contracts and project-to-roadmap references into `delano validate`.
-- Viewer read support for strategy artifacts.
-- Handbook, AGENTS.md, domain docs, and packaged asset/template updates.
+- Presence-based, opt-in `vision.md` and `mission.md` context seeds and overview-profile delivery when present.
+- One Markdown file per roadmap item under `.project/roadmap/`.
+- Roadmap schema, lifecycle matrix, body contract, templates, validation, and fixtures.
+- Optional `roadmap_item` on project specs, with one authoritative project-to-item link and derived reverse links.
+- Native `delano roadmap` commands for init, add, show, move, lifecycle, and promotion.
+- A pure roadmap projection that derives project/task receipts and staleness reasons from canonical files.
+- Viewer roadmap workspace, source-linked cards, archive filter, guarded move/promotion actions, optional post-promotion handover, and live change feedback.
+- Documentation, discovery-skill guidance, generated mirrors/assets, package coverage, and release checks.
 
 ### Out of Scope
 
-- OKR or KPI tracking, scoring, and progress rollups from tasks to strategy.
-- Multi-repository portfolio rollups; strategy scope is one repository.
-- Remote tracker (Linear/GitHub) synchronization of roadmap items in the first release; mapping design may be noted but not implemented.
-- Editing strategy documents from the viewer beyond the existing guarded canonical-apply path.
-- Automatic generation of specs/plans from roadmap items without operator approval.
-- Rewriting closed historical projects to add traceability fields.
+- Dates, target windows, timeline, Gantt, dependencies, estimates, assignees, capacity, velocity, forecasts, or automatic prioritization.
+- Stored project back-links on roadmap items or any second roadmap database/index file.
+- Automatic roadmap closure, percentage-complete fields, or task-to-roadmap rollups written back into item files.
+- Git commit counts as evidence or parsing heterogeneous closeout prose into a synthetic metric.
+- More than one roadmap item per project in v1.
+- Mandatory roadmap references for patches, maintenance, or legacy projects.
+- Remote Linear/GitHub roadmap synchronization.
+- Approval workflows that publish every lane change as a Review artifact.
+- Public/read-only share links, hosted viewers, authentication, or client-facing deployment.
+- Structural or minimum-length validation of vision and mission prose.
 
 ## Functional Requirements
 
-- FR-001: Strategy contracts live under `.project/` in a dedicated tier (working assumption: `.project/strategy/`) as Markdown with frontmatter, first block, per the frontmatter rule.
-- FR-002: Roadmap items are individually addressable (ID pattern like RM-###), carry a state from a canonical set, and support an ordering or horizon signal (for example now/next/later).
-- FR-003: Project frontmatter supports an optional roadmap reference key; the CLI writes it during promotion, and validation resolves it against the roadmap.
-- FR-004: Promotion is operator-triggered, reuses `delano project create` semantics (templates, operating-mode defaults), and back-links the created project on the roadmap item.
-- FR-005: Strategy artifacts follow the datetime rule (UTC ISO8601 `created`/`updated`, immutable `created`).
-- FR-006: `delano status` (or an equivalent read command) can summarize the strategy tier; exact surface decided in planning.
-- FR-007: New templates are added to `.project/templates/`, mirrored into packaged assets, and covered by `npm run check:package-manifest`.
-- FR-008: A drift check compares the `.project/templates/` directory (and new strategy schema/script files) against `assets/install-manifest.json` entries so a forgotten manifest line fails validation instead of failing silently at install time.
+- FR-001: `delano roadmap init` creates only missing `.project/context/vision.md`, `.project/context/mission.md`, and `.project/roadmap/README.md` seeds; it never overwrites existing files and reports created versus skipped paths.
+- FR-002: Roadmap item files match `.project/roadmap/RM-###-<slug>.md` and require `id`, `name`, `status`, `horizon`, `created`, and `updated` frontmatter plus `Strategic intent`, `Outcome signal`, `Boundaries`, and `Closure evidence` body sections.
+- FR-003: Roadmap status uses `planned | active | done | deferred`; horizon uses `now | next | later`. `active` requires `horizon: now` and at least one active linked project. Terminal items are excluded from open lanes and remain available in an archive view.
+- FR-004: A project spec may contain one optional `roadmap_item: RM-###`. Validation resolves the reference when present; the reverse relationship is always derived by scanning project specs.
+- FR-005: `delano roadmap promote` validates a non-terminal source item, reuses project-template creation, writes the roadmap reference into the created spec, and leaves the roadmap item byte-unchanged. Distinct project slugs may promote the same item repeatedly.
+- FR-006: Promotion is failure-safe for the newly created target: a failed operation must not leave a partial project dossier. It never launches an agent implicitly.
+- FR-007: The roadmap projection reports linked project states, done/open/blocked task totals, and the newest canonical `updated` value across linked project artifacts. It links to source evidence instead of inferring commit ownership or impact.
+- FR-008: Closing an item requires a supplied closure-evidence entry, at least one linked project with `spec.status: complete`, and every linked project in `complete | deferred`. Closure remains an explicit operator action.
+- FR-009: The viewer exposes a board-first roadmap workspace. Cards show strategic intent, status, receipt summary, staleness reasons, and source navigation; terminal items are available through an archive filter.
+- FR-010: Structured viewer roadmap actions delegate to the same domain functions as the CLI and accept only whitelisted actions/fields. They require repository/worktree capability, current `expectedHash`, `confirm: true`, and an audit receipt.
+- FR-011: The viewer may offer the existing `start` handover only after a promotion response identifies the newly created spec; promotion itself is not a handover intent.
+- FR-012: Staleness is advisory and derived with an injectable clock. A non-terminal `now` item is stale after 21 days without an active linked project or linked delivery activity; an item whose linked projects are all terminal receives a closure-review reason.
+- FR-013: Vision and mission join the overview context response only when the files exist. They are not added to the required fallback list, and their diagnostic audit classification is exempt from minimum word-count rules.
+- FR-014: New runtime and viewer sources are mirrored or built through existing generation commands and explicitly asserted in package tests and the install manifest.
 
 ## Non-Functional Requirements
 
-- NFR-001: Zero breaking change for repositories without strategy artifacts; contracts-only validation must keep passing on a fresh clone.
-- NFR-002: Strategy tier follows existing conventions (kebab-case slugs, frontmatter contract keys, status sets defined in `.agents/schemas/`), not a parallel format.
-- NFR-003: Viewer treatment stays document-like and read-only in spirit, consistent with `PRODUCT.md` design principles.
-- NFR-004: No machine-local or absolute paths in strategy artifacts (path privacy rule).
+- NFR-001: Repositories that do not adopt the roadmap incur no missing-file warning, validation failure, or new required command.
+- NFR-002: `.project` remains the only persisted source of truth; the viewer and CLI projections are recomputable.
+- NFR-003: Canonical mutations are conflict-safe and scoped to resolved repository paths.
+- NFR-004: Board derivation is deterministic for a fixed file snapshot and injected clock.
+- NFR-005: Roadmap indexing and validation remain linear in roadmap plus project artifact count and do not invoke Git history.
+- NFR-006: No local absolute paths or private machine data are written to contracts, docs, logs, or audit receipts.
 
 ## Assumptions
 
-- The operating-modes rollout is the precedent to copy: canonical machine-readable schema plus rule doc plus templates plus opt-in validation, with legacy artifacts keeping legacy validation.
-- Strategy is per-repository; a repository's `.project/` remains the single source of truth for its own direction.
-- The existing CLI command framework in `src/cli/` can host a new command family without structural rework.
-- Vision and mission change rarely; roadmap items change often. Contract design should make the roadmap the mutable surface.
+- One project has at most one primary roadmap parent in v1; a roadmap item may have many projects.
+- A strategic item can sit in `now` before execution begins, but the staleness advisory makes prolonged non-action visible.
+- Project spec/task states and canonical timestamps are reliable enough for a v1 receipt summary; impact measurement remains human-authored closure evidence.
+- The existing viewer capability model can guard a structured roadmap endpoint without adding authentication.
 
 ## Needs Clarification
 
-Research intake `strategy-artifact-design` produced recommendations for each item (rationale in `research/strategy-artifact-design/findings.md`). Owner confirms or overrides at spec approval.
-
-- NC-001: Artifact shape. Recommendation: separate `vision.md` and `mission.md` plus one file per roadmap item under `.project/strategy/roadmap/RM-###-<slug>.md`, mirroring the task-file pattern for addressability and per-item frontmatter.
-- NC-002: Roadmap model. Recommendation: lifecycle status reusing the canonical `planned|active|done|deferred` set plus a separate `horizon: now|next|later` field; no dated roadmaps in v1.
-- NC-003: Traceability policy. Recommendation: optional `roadmap_item` key on projects, validated when present, written automatically by the promote action; never required (mirrors the `operating_mode` rollout posture).
-- NC-004: Relationship to `PRODUCT.md` and `.project/context/product-context.md`. Recommendation: coexist and cross-reference; strategy contracts join the installable operating model, `PRODUCT.md` stays a repo-level design-identity doc. Owner taste call.
-- NC-005: Naming. Recommendation: tier `.project/strategy/`; command families `delano strategy` (init/show) and `delano roadmap` (add/promote/lifecycle/show), matching the flat family precedent.
-- NC-006: Strategy consumption by `delano next`/discovery-skill. Recommendation: read-only presence in v1 plus a discovery-skill runbook step to read strategy contracts when opening a spec; no `delano next` integration yet.
-- NC-007: Vision/mission lifecycle. Recommendation: minimal `active|superseded`; no `operating_mode`-style maturity field for the strategy tier.
+- NC-001: Confirm the default staleness window. Recommendation: 21 days, advisory only, with an injected clock for deterministic tests.
+- NC-002: Confirm the manual closure gate. Recommendation: at least one complete linked project, all linked projects terminal, and a non-empty closure-evidence entry.
+- NC-003: Confirm the adoption command. Recommendation: `delano roadmap init` non-destructively seeds vision, mission, and a roadmap README; `roadmap add` can also create the roadmap directory when init was skipped.
 
 ## Hypotheses and Unknowns
 
-- H-001: A thin, opt-in strategy tier will be adopted because it mirrors the contract patterns operators already use; heavyweight portfolio tooling would not be.
-- H-002: Roadmap-item-to-project promotion is the single interaction that makes the tier real; without it, vision/mission become dead documents.
-- H-003: Validation of references (project to roadmap item) is cheap to implement in the existing validate pipeline; the risky surface is viewer navigation and packaged-asset drift.
-- U-001: Resolved. Viewer file discovery is generic over `.project/**/*.md`; navigability requires small additions to three hardcoded allowlists (server fixed-tier array, client workspace nav, artifact-role classifier). The `reviews/` tier is the working precedent; the `templates` tier warns that skipping UI wiring leaves docs indexed but invisible.
-- U-002: Resolved. Spec-kit import maps a fixed section list and ignores unknown keys; Linear/GitHub sync readers consume a fixed key set and tolerate extras. No constraint on adding `roadmap_item` or new artifact types.
+- H-001: Operators will maintain roadmap items if each card resolves directly to delivery receipts and never asks for project-management metadata.
+- H-002: One authoritative project reference plus derived reverse links will survive manual edits and concurrent agent work better than synchronized link lists.
+- H-003: Separating promotion from handover will make write authority and failure handling understandable without weakening the useful handoff flow.
+- U-001: Product choice remains around the 21-day default and strictness of the closure gate; neither requires a prototype.
+- U-002: The usefulness of a public share surface is unproven and cannot be evaluated safely inside this local-only feature.
 
 ## Touchpoints to Exercise
 
-- `src/cli/` command registration and `project create` flow (promotion path).
-- `.agents/scripts/pm/validate.sh` and `.agents/schemas/` (artifact scope, status transitions, operating modes).
-- `.project/templates/` and `assets/` payload build (`npm run build:assets`, `npm run check:package-manifest`).
-- Viewer document listing/navigation for a non-project artifact tier.
-- `HANDBOOK.md` sections 3 (canonical model), 6 (data contracts), 8 (CLI command map).
+- `src/cli/index.js`, `src/cli/commands/`, and `src/cli/lib/project-state.js`.
+- `.agents/schemas/`, `.agents/scripts/pm/validate.sh`, templates, fixtures, and package tests.
+- `src/cli/lib/context-reader.js` and context-reader tests for absent/present optional profile files.
+- `.delano/viewer/server.js`, viewer index/domain/navigation/pages, SSE behavior, guarded writes, and server/UI tests.
+- Viewer source build, `.delano/viewer/public/`, `.claude/` mirror, `assets/install-manifest.json`, and `assets/payload/`.
 
 ## Probe Findings
 
-Probe skipped. Research intake `strategy-artifact-design` resolved the technical unknowns by repository inspection instead of a prototype: the operating-modes rollout (commits `52a5157`, `20ffea6`) is a mechanical precedent for schema + rule doc + validator + templates + CLI defaults + manifest + mirror; `createProjectFromTemplates` is reusable in-process for promotion; viewer support is an additive ~5-file change. Remaining uncertainty is owner design choice (NC-001 through NC-007 recommendations), retirable at spec approval without building anything.
+No prototype is required. Repository inspection confirms reusable project creation, frontmatter mutation, generic Markdown indexing, hash-guarded canonical writes, capability checks, start/review handover, and debounced SSE index invalidation. The inspection also showed that optional context delivery, trustworthy evidence aggregation, physical back-link avoidance, and promotion/write-boundary semantics need explicit implementation rather than being free.
 
 ## Footguns Discovered
 
-- Template/payload drift is worse than assumed: `assets/install-manifest.json` is a flat allowlist and `check:package-manifest` compares manifest↔payload only, so a new template missing from the manifest passes release validation and fails silently at install time (`Missing template` at `readTemplate`). A directory-vs-manifest drift check does not exist and is an in-scope hardening item (FR-008).
-- `.claude/` is a generated mirror; any skill/rule/schema changes for strategy must be made in `.agents/` and synced via `npm run sync:claude-mirror`.
-- New artifact types do not self-register: `requiredArtifactTypes` in `check-artifact-scope.mjs` and `KNOWN_ARTIFACT_KINDS` in `check-operating-modes.mjs` are hardcoded lists that must be extended alongside `artifact-scope.json`.
-- The strategy tier lives outside `.project/projects/<slug>/`, so no existing validator walks it; it needs its own walker wired into `validate.sh`.
+- The context reader currently treats profile filenames as fixed selections. Adding absent vision/mission files directly would generate warnings; adding them to fallback order would make them effectively required.
+- The validation-time context audit checks the context directory as a whole, while other audit scripts use hardcoded file lists or word-count heuristics. None currently provides the earlier claimed opt-in vision/mission contract.
+- `createProjectFromTemplates` writes a project dossier in place. Promotion needs failure cleanup or a staged write so an exception cannot leave a partial project.
+- A stored roadmap `projects` list would require a multi-file transaction and drift repair. Derived links avoid that entire failure class.
+- The viewer's `/api/handover` supports dispatch/review and intentionally does not mutate delivery contracts. Promotion must not be smuggled into that endpoint.
+- SSE refreshes the index after filesystem changes, but card-level affected-item detection and change feedback are new behavior.
+- Closeout files currently vary between `closeout.md` and `completion-summary.md` and do not share one machine schema. V1 must link to them, not parse them as a normalized metric.
+- The install manifest cannot infer a forgotten new source file. This feature needs explicit package assertions for every new shipped artifact.
 
 ## Remaining Unknowns
 
-- Owner confirmation or override of NC-001 through NC-007 recommendations at spec approval. No open technical unknowns.
+Only NC-001 through NC-003 require owner confirmation before activation. The implementation paths and dependency boundaries are otherwise defined.
 
 ## Dependencies
 
-- Existing validation pipeline and schema layout under `.agents/schemas/`.
-- Packaged asset build and install manifest (`assets/install-manifest.json`).
-- Viewer document rendering pipeline.
-- Handbook update discipline (source-of-truth precedence).
+- Existing state-command and project-template libraries.
+- Artifact schema/validation pipeline and package fixtures.
+- Context reader and diagnostic audit scripts.
+- Viewer index, capability, apply-audit, handover, and SSE infrastructure.
+- Existing generated mirror and package-asset workflows.
 
 ## Approval Notes
 
-Draft. Not approved for planning. Research intake `strategy-artifact-design` is complete: findings, options, and recommendations for NC-001 through NC-007 are in `research/strategy-artifact-design/findings.md`, and proposed decisions are in `decisions.md`. The probe decision (skipped, by inspection) is recorded above. Owner action to unblock planning: confirm or override the NC recommendations, then approve the spec.
+- 2026-07-24T06:35:24Z: Owner authorized WS-A delivery against the approved strategy-layer plan
+
+The owner requested this adversarial rewrite and workstream/task decomposition on 2026-07-24. That authorizes planning artifacts but does not activate implementation. The project, plan, workstreams, and tasks remain `planned` until the owner confirms NC-001 through NC-003 or explicitly starts delivery.

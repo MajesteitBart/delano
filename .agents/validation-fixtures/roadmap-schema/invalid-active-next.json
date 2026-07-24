@@ -1,0 +1,12 @@
+{
+  "expected": "fail",
+  "filename": "RM-003-invalid-active-lane.md",
+  "frontmatter": {
+    "id": "RM-003",
+    "name": "Invalid active lane",
+    "status": "active",
+    "horizon": "next",
+    "created": "2026-07-24T00:00:00Z",
+    "updated": "2026-07-24T00:00:00Z"
+  }
+}

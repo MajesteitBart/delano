@@ -1,0 +1,12 @@
+{
+  "expected": "pass",
+  "filename": "RM-002-live-strategy-board.md",
+  "frontmatter": {
+    "id": "RM-002",
+    "name": "Live strategy board",
+    "status": "active",
+    "horizon": "now",
+    "created": "2026-07-24T00:00:00Z",
+    "updated": "2026-07-24T01:00:00Z"
+  }
+}

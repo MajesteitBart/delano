@@ -82,6 +82,10 @@
     "target_version": {
       "type": "string"
     },
+    "roadmap_item": {
+      "type": "string",
+      "pattern": "^RM-[0-9]{3}$"
+    },
     "operating_mode": {
       "enum": [
         0,

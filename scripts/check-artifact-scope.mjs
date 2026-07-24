@@ -16,7 +16,8 @@ const requiredArtifactTypes = [
   "update",
   "context",
   "evidence",
-  "review"
+  "review",
+  "roadmap_item"
 ];
 
 const errors = [];
@@ -56,6 +57,7 @@ checkCurrentArtifacts("plan", ".project/projects/*/plan.md");
 checkCurrentArtifacts("workstream", ".project/projects/*/workstreams/*.md");
 checkCurrentArtifacts("task", ".project/projects/*/tasks/*.md");
 checkCurrentArtifacts("review", ".project/reviews/*.md", { allowEmpty: true });
+checkCurrentArtifacts("roadmap_item", ".project/roadmap/*.md", { allowEmpty: true });
 
 if (errors.length > 0) {
   console.error("Artifact scope check failed:");
