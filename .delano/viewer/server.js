@@ -62,10 +62,19 @@ class HttpRequestError extends Error {
 
 let contextReader = null;
 let repositoryDomain = null;
+let roadmapDomain = null;
 try {
   contextReader = require(path.resolve(__dirname, '..', '..', 'src', 'cli', 'lib', 'context-reader'));
 } catch {
   contextReader = null;
+}
+try {
+  roadmapDomain = {
+    projection: require(path.resolve(__dirname, '..', '..', 'src', 'cli', 'lib', 'roadmap-projection')),
+    state: require(path.resolve(__dirname, '..', '..', 'src', 'cli', 'lib', 'roadmap-state')),
+  };
+} catch {
+  roadmapDomain = null;
 }
 try {
   repositoryDomain = {
@@ -493,6 +502,8 @@ function projectSlugFor(rel) {
 function artifactRoleFor(rel) {
   if (rel.startsWith('context/')) return rel.endsWith('/progress.md') || rel.endsWith('progress.md') ? 'progress' : 'context';
   if (rel.startsWith('templates/')) return 'template';
+  if (/^roadmap\/RM-[0-9]{3}-[^/]+\.md$/.test(rel)) return 'roadmap-item';
+  if (rel.startsWith('roadmap/')) return 'roadmap';
   if (/^reviews\/[^/]+\.md$/.test(rel)) return 'review';
   if (/^projects\/[^/]+\/research\//.test(rel)) return 'research';
   if (/\/spec\.md$/.test(rel)) return 'spec';
@@ -541,6 +552,7 @@ function docMeta(file, relOverride = null) {
     artifactRole: role,
     workstreamId: role === 'workstream' ? codeFromFilename(rel, 'WS') : (role === 'task' ? normalizeWorkstreamId(frontmatter.workstream) : null),
     taskId: role === 'task' ? frontmatter.id || codeFromFilename(rel, 'T') : null,
+    roadmapItemId: role === 'roadmap-item' ? frontmatter.id || codeFromFilename(rel, 'RM') : null,
     dependsOn: role === 'task' ? csvArray(frontmatter.depends_on) : [],
     updated: frontmatter.updated || frontmatter.timestamp || stat.mtime.toISOString(),
     frontmatter,
@@ -653,6 +665,20 @@ function loadContextPack() {
       `Shared context reader failed while building viewer context metadata: ${error.message}`,
       contextPackProfiles()
     );
+  }
+}
+
+function loadRoadmapWorkspace() {
+  const root = '.project/roadmap';
+  if (!roadmapDomain) {
+    return { root, items: [], warnings: ['Shared roadmap projection helpers are unavailable to this viewer runtime.'] };
+  }
+  try {
+    const snapshot = roadmapDomain.state.loadRoadmapSnapshot(repoRoot);
+    const items = roadmapDomain.projection.deriveRoadmapProjection(snapshot, { now: new Date() });
+    return { root, items, warnings: [] };
+  } catch (error) {
+    return { root, items: [], warnings: [`Roadmap projection failed: ${error.message}`] };
   }
 }
 
@@ -1280,6 +1306,7 @@ function loadIndex() {
     reviewSummary: reviewSummary(),
     contextPack,
     annotationSummary: annotationSummaryResult,
+    roadmap: loadRoadmapWorkspace(),
     projects,
     docs,
   };
@@ -2697,6 +2724,163 @@ async function handleApplyPreview(req, res, shouldWrite) {
   });
 }
 
+// Whitelisted structured roadmap actions. Every mutation delegates to the
+// shared CLI domain service; the server adds capability, hash, confirmation,
+// and audit guards but never duplicates lifecycle rules.
+const ROADMAP_ACTION_FIELDS = {
+  move: ['horizon', 'reason'],
+  start: ['reason'],
+  close: ['evidence'],
+  defer: ['reason'],
+  promote: ['projectSlug', 'projectName', 'owner', 'lead', 'outcome', 'mode'],
+};
+
+function roadmapField(payload, field, maxLength, required = false) {
+  try {
+    return sanitizeString(payload[field], maxLength, field, required);
+  } catch (error) {
+    throw new HttpRequestError(error.message, 400);
+  }
+}
+
+function appendRoadmapAudit(entry) {
+  const store = readAnnotationStore();
+  store.applyAudit.push({
+    id: crypto.randomUUID(),
+    kind: 'roadmap-action',
+    action: entry.action,
+    roadmapId: entry.roadmapId,
+    sources: entry.sources,
+    outputs: entry.outputs,
+    previousHash: entry.previousHash,
+    nextHash: entry.nextHash ?? null,
+    appliedAt: new Date().toISOString(),
+  });
+  writeAnnotationStore(store);
+}
+
+async function handleRoadmapAction(req, res) {
+  if (req.method !== 'POST') return sendError(res, 405, 'Use POST');
+  ensureCapability(req, 'applyContract');
+  let payload;
+  try {
+    payload = await readJsonBody(req);
+  } catch (error) {
+    return sendError(res, statusCodeForError(error), error.message);
+  }
+  ensureCapability(req, 'applyContract');
+  if (!roadmapDomain) {
+    return sendError(res, 503, 'Shared roadmap domain services are unavailable to this viewer runtime.');
+  }
+
+  const action = String(payload.action || '');
+  if (!Object.prototype.hasOwnProperty.call(ROADMAP_ACTION_FIELDS, action)) {
+    return sendError(res, 400, 'Unsupported roadmap action.');
+  }
+  const allowedFields = new Set(['action', 'id', 'expectedHash', 'confirm', ...ROADMAP_ACTION_FIELDS[action]]);
+  const unsupported = Object.keys(payload).filter((field) => !allowedFields.has(field));
+  if (unsupported.length) {
+    return sendError(res, 400, `Unsupported roadmap ${action} field(s): ${unsupported.sort().join(', ')}.`);
+  }
+
+  const id = roadmapField(payload, 'id', 16, true);
+  let source;
+  try {
+    source = roadmapDomain.state.resolveRoadmapItem(repoRoot, id);
+  } catch (error) {
+    return sendError(res, /not found/i.test(error.message) ? 404 : 400, error.message);
+  }
+  const projectReal = realpathSafe(projectRoot);
+  const itemReal = realpathSafe(source.absolutePath);
+  if (!projectReal || !itemReal || !isInside(projectReal, itemReal)) {
+    return sendError(res, 409, 'Roadmap item is not contained in the selected .project directory.');
+  }
+
+  const expectedHash = roadmapField(payload, 'expectedHash', 128, true);
+  const currentHash = sha256(source.text);
+  if (expectedHash !== currentHash) {
+    return sendJsonStatus(res, 409, {
+      ok: false,
+      error: 'Roadmap item changed; refresh it before submitting the action.',
+      currentHash,
+    });
+  }
+  if (payload.confirm !== true) return sendError(res, 400, 'confirm:true is required before writing.');
+  ensureCapability(req, 'applyContract');
+
+  try {
+    if (action === 'promote') {
+      const result = roadmapDomain.state.promoteRoadmapItem(repoRoot, id, roadmapField(payload, 'projectSlug', 120, true), {
+        name: roadmapField(payload, 'projectName', 200) || undefined,
+        owner: roadmapField(payload, 'owner', 100) || undefined,
+        lead: roadmapField(payload, 'lead', 100) || undefined,
+        outcome: roadmapField(payload, 'outcome', 500) || undefined,
+        mode: roadmapField(payload, 'mode', 40) || undefined,
+      });
+      const itemHash = sha256(readText(source.absolutePath));
+      appendRoadmapAudit({
+        action,
+        roadmapId: id,
+        sources: [source.repoPath],
+        outputs: result.files,
+        previousHash: currentHash,
+        nextHash: itemHash,
+      });
+      return sendJsonStatus(res, 201, {
+        ok: true,
+        action,
+        id,
+        itemPath: source.repoPath,
+        itemHash,
+        project: result.project,
+        spec: result.spec,
+        files: result.files,
+      });
+    }
+
+    let result;
+    if (action === 'move') {
+      result = roadmapDomain.state.moveRoadmapItem(repoRoot, id, roadmapField(payload, 'horizon', 16, true), {
+        reason: roadmapField(payload, 'reason', 500, true),
+      });
+    } else if (action === 'start') {
+      result = roadmapDomain.state.startRoadmapItem(repoRoot, id, {
+        reason: roadmapField(payload, 'reason', 500, true),
+      });
+    } else if (action === 'close') {
+      result = roadmapDomain.state.closeRoadmapItem(repoRoot, id, {
+        evidence: roadmapField(payload, 'evidence', 2000, true),
+      });
+    } else {
+      result = roadmapDomain.state.deferRoadmapItem(repoRoot, id, {
+        reason: roadmapField(payload, 'reason', 500, true),
+      });
+    }
+    const baseline = fileBaseline(source.absolutePath);
+    appendRoadmapAudit({
+      action,
+      roadmapId: id,
+      sources: [source.repoPath],
+      outputs: [source.repoPath],
+      previousHash: currentHash,
+      nextHash: baseline.hash,
+    });
+    return sendJson(res, {
+      ok: true,
+      action,
+      id,
+      path: source.repoPath,
+      status: result.status,
+      horizon: result.horizon,
+      updated: result.updated,
+      baseline,
+    });
+  } catch (error) {
+    if (error && error.name === 'CliError') return sendError(res, 422, error.message);
+    throw error;
+  }
+}
+
 const server = http.createServer(async (req, res) => {
   try {
     req.delanoGeneration = contextGeneration;
@@ -2768,6 +2952,9 @@ const server = http.createServer(async (req, res) => {
     }
     if (parsed.pathname === '/api/apply') {
       return await handleApplyPreview(req, res, true);
+    }
+    if (parsed.pathname === '/api/roadmap/action') {
+      return await handleRoadmapAction(req, res);
     }
     if (parsed.pathname === '/api/handover') {
       return await handleHandover(req, res);

@@ -31,6 +31,7 @@
     ".agents/rules/frontmatter-operations.md",
     ".agents/rules/github-operations.md",
     ".agents/rules/path-standards.md",
+    ".agents/rules/roadmap.md",
     ".agents/rules/test-execution.md",
     ".agents/rules/worktree-operations.md",
     ".agents/schemas/README.md",
@@ -40,6 +41,7 @@
     ".agents/schemas/artifacts/evidence.schema.json",
     ".agents/schemas/artifacts/plan.schema.json",
     ".agents/schemas/artifacts/review.schema.json",
+    ".agents/schemas/artifacts/roadmap_item.schema.json",
     ".agents/schemas/artifacts/spec.schema.json",
     ".agents/schemas/artifacts/task.schema.json",
     ".agents/schemas/artifacts/update.schema.json",
@@ -75,6 +77,10 @@
     ".agents/scripts/check-log-safety.sh",
     ".agents/scripts/check-operating-modes.mjs",
     ".agents/scripts/check-path-standards.sh",
+    {
+      "source": "scripts/check-roadmap-contracts.mjs",
+      "target": ".agents/scripts/check-roadmap-contracts.mjs"
+    },
     ".agents/scripts/check-skill-output-evals.mjs",
     ".agents/scripts/check-status-transitions.mjs",
     ".agents/scripts/check-strict-fixtures.mjs",
@@ -107,6 +113,22 @@
     ".agents/scripts/select-next-task.mjs",
     ".agents/scripts/summarize-project-metrics.mjs",
     ".agents/scripts/test-and-log.sh",
+    {
+      "source": "src/cli/lib/errors.js",
+      "target": ".agents/src/cli/lib/errors.js"
+    },
+    {
+      "source": "src/cli/lib/project-state.js",
+      "target": ".agents/src/cli/lib/project-state.js"
+    },
+    {
+      "source": "src/cli/lib/roadmap-projection.js",
+      "target": ".agents/src/cli/lib/roadmap-projection.js"
+    },
+    {
+      "source": "src/cli/lib/runtime.js",
+      "target": ".agents/src/cli/lib/runtime.js"
+    },
     ".agents/skills/.gitkeep",
     ".agents/skills/README.md",
     ".agents/skills/breakdown-skill/SKILL.md",
@@ -186,17 +208,27 @@
     ".agents/validation-fixtures/strict/valid/minimal-project/task.md",
     ".agents/validation-fixtures/reviews/manifest.json",
     ".agents/validation-fixtures/reviews/valid/canonical-committed-open.md",
+    ".agents/validation-fixtures/roadmap-contracts/cases.json",
+    ".agents/validation-fixtures/roadmap-schema/invalid-active-next.json",
+    ".agents/validation-fixtures/roadmap-schema/invalid-extra-field.json",
+    ".agents/validation-fixtures/roadmap-schema/invalid-id-mismatch.json",
+    ".agents/validation-fixtures/roadmap-schema/valid-active.json",
+    ".agents/validation-fixtures/roadmap-schema/valid-planned.json",
     ".codex/hooks.json",
     ".project/projects/.gitkeep",
     ".project/registry/linear-map.json",
     ".project/registry/migration-map.json",
     ".project/templates/completion-summary.md",
     ".project/templates/decisions.md",
+    ".project/templates/mission.md",
     ".project/templates/plan.md",
     ".project/templates/progress-update.md",
     ".project/templates/review.md",
+    ".project/templates/roadmap-item.md",
+    ".project/templates/roadmap-readme.md",
     ".project/templates/spec.md",
     ".project/templates/task.md",
+    ".project/templates/vision.md",
     ".project/templates/workstream.md",
     "HANDBOOK.md",
     {

@@ -2,9 +2,9 @@
 id: WS-C
 name: WS-C Viewer Roadmap
 owner: bart
-status: planned
+status: done
 created: 2026-07-24T00:59:22Z
-updated: 2026-07-24T01:03:35Z
+updated: 2026-07-24T12:41:12Z
 operating_mode: multi-stream
 ---
 
@@ -47,3 +47,7 @@ Add a board-first roadmap workspace that exposes derived receipts and staleness,
 - Board actions have non-drag keyboard/button alternatives; frontmatter remains locked in the editor.
 - Successful promotion identifies the new spec before an optional existing `start` handover is offered.
 - Linked artifact changes refresh and highlight only affected cards; stale conflicts write nothing.
+
+## Updates
+
+- 2026-07-24T12:07:58Z: Owner directed WS-C delivery; dependencies T-004/T-005/T-006 are done

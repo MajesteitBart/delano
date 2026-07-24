@@ -415,6 +415,326 @@ test("viewer snippets use the first regular paragraph and mark truncation", asyn
   assert.equal(plan.snippet.endsWith("…"), false);
 });
 
+test("viewer indexes roadmap items and derives the shared roadmap projection", { timeout: 15000 }, async (t) => {
+  const { repo } = createLiveViewerRepo("delano-viewer-roadmap-");
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
+  const roadmapDir = path.join(repo, ".project", "roadmap");
+  fs.mkdirSync(roadmapDir, { recursive: true });
+  fs.writeFileSync(path.join(roadmapDir, "README.md"), "# Roadmap\n\nAdoption notes for the horizon board.\n", "utf8");
+  fs.writeFileSync(
+    path.join(roadmapDir, "RM-001-live-horizon-board.md"),
+    roadmapItemMarkdown({ id: "RM-001", name: "Live horizon board", status: "planned", horizon: "now", updated: "2026-01-01T00:00:00Z" }),
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(roadmapDir, "RM-002-guarded-actions.md"),
+    roadmapItemMarkdown({ id: "RM-002", name: "Guarded actions", status: "planned", horizon: "next", updated: "2026-01-01T00:00:00Z" }),
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(roadmapDir, "RM-003-shipped-bet.md"),
+    roadmapItemMarkdown({ id: "RM-003", name: "Shipped bet", status: "done", horizon: "later", updated: "2026-01-01T00:00:00Z" }),
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(roadmapDir, "RM-004-rotten-contract.md"),
+    roadmapItemMarkdown({ id: "RM-004", name: "Rotten contract", status: "someday", horizon: "eventually", updated: "2026-01-01T00:00:00Z" }),
+    "utf8"
+  );
+  writeRoadmapLinkedProject(repo, "alpha", {
+    status: "active",
+    roadmapItem: "RM-001",
+    updated: "2026-01-02T00:00:00Z",
+    tasks: [
+      { id: "T-001", status: "done", updated: "2026-01-02T00:00:00Z" },
+      { id: "T-002", status: "blocked", updated: "2026-01-02T00:00:00Z" },
+      { id: "T-003", status: "in-progress", updated: "2026-01-02T00:00:00Z" }
+    ]
+  });
+  writeRoadmapLinkedProject(repo, "beta", {
+    status: "planned",
+    roadmapItem: "RM-001",
+    updated: "2026-01-03T00:00:00Z",
+    tasks: []
+  });
+
+  const baseUrl = await startViewerForRepo(t, repo);
+  const index = await readJson(`${baseUrl}/api/index`);
+
+  const itemDoc = index.docs.find((doc) => doc.path === "roadmap/RM-001-live-horizon-board.md");
+  assert.equal(itemDoc.role, "roadmap-item");
+  assert.equal(itemDoc.roadmapItemId, "RM-001");
+  const readmeDoc = index.docs.find((doc) => doc.path === "roadmap/README.md");
+  assert.equal(readmeDoc.role, "roadmap");
+  assert.equal(readmeDoc.roadmapItemId, null);
+  assert.deepEqual(
+    index.docs.filter((doc) => doc.role === "roadmap-item").map((doc) => doc.roadmapItemId),
+    ["RM-001", "RM-002", "RM-003", "RM-004"]
+  );
+
+  assert.equal(index.roadmap.root, ".project/roadmap");
+  assert.deepEqual(index.roadmap.warnings, []);
+  assert.deepEqual(index.roadmap.items.map((item) => item.id), ["RM-001", "RM-002", "RM-003", "RM-004"]);
+
+  const first = index.roadmap.items[0];
+  assert.deepEqual(first.linkedProjects.map((project) => project.slug), ["alpha", "beta"]);
+  assert.deepEqual(first.receipt.projectStates, { active: 1, planned: 1 });
+  assert.deepEqual(first.receipt.taskTotals, { done: 1, open: 1, blocked: 1, deferred: 0, unknown: 0 });
+  assert.equal(first.receipt.lastActivity, "2026-01-03T00:00:00Z");
+  assert.ok(first.receipt.sources.includes(".project/projects/alpha/spec.md"));
+  assert.ok(first.receipt.sources.includes(".project/projects/alpha/tasks/T-002.md"));
+  assert.equal(first.staleness.stale, true);
+  assert.deepEqual(first.staleness.reasons, ["inactive-delivery"]);
+  assert.equal(first.closure.eligible, false);
+  assert.ok(first.closure.reasons.includes("no-complete-linked-project"));
+
+  const nextItem = index.roadmap.items[1];
+  assert.equal(nextItem.staleness.stale, false);
+  assert.deepEqual(nextItem.linkedProjects, []);
+
+  const doneItem = index.roadmap.items[2];
+  assert.equal(doneItem.status, "done");
+  const unknownItem = index.roadmap.items[3];
+  assert.equal(unknownItem.status, "someday");
+  assert.equal(unknownItem.horizon, "eventually");
+});
+
+test("viewer roadmap projection stays empty and warning-free without roadmap artifacts", { timeout: 15000 }, async (t) => {
+  const { repo } = createLiveViewerRepo("delano-viewer-no-roadmap-");
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
+  const baseUrl = await startViewerForRepo(t, repo);
+  const index = await readJson(`${baseUrl}/api/index`);
+  assert.deepEqual(index.roadmap, { root: ".project/roadmap", items: [], warnings: [] });
+  assert.equal(index.docs.some((doc) => doc.role === "roadmap-item"), false);
+});
+
+test("viewer roadmap action endpoint enforces whitelist, hash, confirmation, domain, and audit guards", { timeout: 20000 }, async (t) => {
+  const { repo } = createLiveViewerRepo("delano-viewer-roadmap-action-");
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
+  const roadmapDir = path.join(repo, ".project", "roadmap");
+  fs.mkdirSync(roadmapDir, { recursive: true });
+  const itemFile = path.join(roadmapDir, "RM-001-live-horizon-board.md");
+  fs.writeFileSync(
+    itemFile,
+    roadmapItemMarkdown({ id: "RM-001", name: "Live horizon board", status: "planned", horizon: "now", updated: "2026-01-01T00:00:00Z" }),
+    "utf8"
+  );
+  const doneFile = path.join(roadmapDir, "RM-002-shipped-bet.md");
+  fs.writeFileSync(
+    doneFile,
+    roadmapItemMarkdown({ id: "RM-002", name: "Shipped bet", status: "done", horizon: "later", updated: "2026-01-01T00:00:00Z" }),
+    "utf8"
+  );
+  writeRoadmapPromotionTemplates(repo);
+
+  const baseUrl = await startViewerForRepo(t, repo);
+  const actionUrl = `${baseUrl}/api/roadmap/action`;
+  const itemDoc = await readJson(`${baseUrl}/api/doc?path=roadmap%2FRM-001-live-horizon-board.md`);
+  const doneDoc = await readJson(`${baseUrl}/api/doc?path=roadmap%2FRM-002-shipped-bet.md`);
+  const itemBytes = fs.readFileSync(itemFile, "utf8");
+
+  const wrongMethod = await requestJson(actionUrl, { method: "GET" });
+  assert.equal(wrongMethod.status, 405);
+
+  const malformed = await requestRaw(actionUrl, { method: "POST", rawBody: "{not-json" });
+  assert.equal(malformed.status, 400);
+
+  const oversized = await requestRaw(actionUrl, {
+    method: "POST",
+    rawBody: JSON.stringify({ action: "move", filler: "x".repeat(600 * 1024) })
+  });
+  assert.equal(oversized.status, 413);
+
+  const unknownAction = await requestJson(actionUrl, {
+    method: "POST",
+    body: { action: "rename", id: "RM-001", expectedHash: itemDoc.baseline.hash, confirm: true }
+  });
+  assert.equal(unknownAction.status, 400, unknownAction.raw);
+  assert.match(unknownAction.json.error, /Unsupported roadmap action/);
+
+  const smuggledMarkdown = await requestJson(actionUrl, {
+    method: "POST",
+    body: {
+      action: "move",
+      id: "RM-001",
+      expectedHash: itemDoc.baseline.hash,
+      confirm: true,
+      horizon: "next",
+      reason: "smuggle",
+      replacementMarkdown: "# replaced",
+      frontmatter: { status: "done" }
+    }
+  });
+  assert.equal(smuggledMarkdown.status, 400, smuggledMarkdown.raw);
+  assert.match(smuggledMarkdown.json.error, /Unsupported roadmap move field\(s\): frontmatter, replacementMarkdown/);
+
+  const invalidId = await requestJson(actionUrl, {
+    method: "POST",
+    body: { action: "move", id: "RM-1", expectedHash: itemDoc.baseline.hash, confirm: true, horizon: "next", reason: "invalid id" }
+  });
+  assert.equal(invalidId.status, 400, invalidId.raw);
+
+  const unknownId = await requestJson(actionUrl, {
+    method: "POST",
+    body: { action: "move", id: "RM-999", expectedHash: itemDoc.baseline.hash, confirm: true, horizon: "next", reason: "missing item" }
+  });
+  assert.equal(unknownId.status, 404, unknownId.raw);
+
+  const missingHash = await requestJson(actionUrl, {
+    method: "POST",
+    body: { action: "move", id: "RM-001", confirm: true, horizon: "next", reason: "no hash" }
+  });
+  assert.equal(missingHash.status, 400, missingHash.raw);
+  assert.match(missingHash.json.error, /expectedHash is required/);
+
+  const staleHash = await requestJson(actionUrl, {
+    method: "POST",
+    body: { action: "move", id: "RM-001", expectedHash: "0".repeat(64), confirm: true, horizon: "next", reason: "stale" }
+  });
+  assert.equal(staleHash.status, 409, staleHash.raw);
+  assert.equal(staleHash.json.currentHash, itemDoc.baseline.hash);
+
+  const unconfirmed = await requestJson(actionUrl, {
+    method: "POST",
+    body: { action: "move", id: "RM-001", expectedHash: itemDoc.baseline.hash, horizon: "next", reason: "not confirmed" }
+  });
+  assert.equal(unconfirmed.status, 400, unconfirmed.raw);
+  assert.match(unconfirmed.json.error, /confirm:true/);
+  assert.equal(fs.readFileSync(itemFile, "utf8"), itemBytes);
+
+  const moved = await requestJson(actionUrl, {
+    method: "POST",
+    body: { action: "move", id: "RM-001", expectedHash: itemDoc.baseline.hash, confirm: true, horizon: "next", reason: "Sequenced behind guarded actions" }
+  });
+  assert.equal(moved.status, 200, moved.raw);
+  assert.equal(moved.json.horizon, "next");
+  assert.equal(moved.json.status, "planned");
+  assert.equal(moved.json.path, ".project/roadmap/RM-001-live-horizon-board.md");
+  assert.notEqual(moved.json.baseline.hash, itemDoc.baseline.hash);
+  const movedText = fs.readFileSync(itemFile, "utf8");
+  assert.match(movedText, /^horizon: next$/m);
+  assert.match(movedText, /Sequenced behind guarded actions/);
+
+  const terminalMove = await requestJson(actionUrl, {
+    method: "POST",
+    body: { action: "move", id: "RM-002", expectedHash: doneDoc.baseline.hash, confirm: true, horizon: "now", reason: "should fail" }
+  });
+  assert.equal(terminalMove.status, 422, terminalMove.raw);
+  assert.match(terminalMove.json.error, /terminal/i);
+
+  const terminalPromote = await requestJson(actionUrl, {
+    method: "POST",
+    body: { action: "promote", id: "RM-002", expectedHash: doneDoc.baseline.hash, confirm: true, projectSlug: "shipped-again" }
+  });
+  assert.equal(terminalPromote.status, 422, terminalPromote.raw);
+  assert.match(terminalPromote.json.error, /terminal/i);
+  assert.equal(fs.existsSync(path.join(repo, ".project", "projects", "shipped-again")), false);
+
+  const promoted = await requestJson(actionUrl, {
+    method: "POST",
+    body: {
+      action: "promote",
+      id: "RM-001",
+      expectedHash: moved.json.baseline.hash,
+      confirm: true,
+      projectSlug: "board-delivery",
+      projectName: "Board Delivery",
+      owner: "operator"
+    }
+  });
+  assert.equal(promoted.status, 201, promoted.raw);
+  assert.equal(promoted.json.project, "board-delivery");
+  assert.equal(promoted.json.spec, ".project/projects/board-delivery/spec.md");
+  assert.equal(promoted.json.itemHash, moved.json.baseline.hash);
+  assert.equal(promoted.json.launched, undefined);
+  assert.equal(promoted.json.command, undefined);
+  const promotedSpec = fs.readFileSync(path.join(repo, ".project", "projects", "board-delivery", "spec.md"), "utf8");
+  assert.match(promotedSpec, /^roadmap_item: RM-001$/m);
+  assert.equal(fs.readFileSync(itemFile, "utf8"), movedText);
+  assert.equal(fs.existsSync(path.join(repo, ".project", "viewer", "handovers")), false);
+
+  const auditStore = JSON.parse(fs.readFileSync(path.join(repo, ".project", "viewer", "annotations.json"), "utf8"));
+  const roadmapAudit = auditStore.applyAudit.filter((entry) => entry.kind === "roadmap-action");
+  assert.deepEqual(roadmapAudit.map((entry) => entry.action), ["move", "promote"]);
+  assert.deepEqual(roadmapAudit[0].sources, [".project/roadmap/RM-001-live-horizon-board.md"]);
+  assert.deepEqual(roadmapAudit[0].outputs, [".project/roadmap/RM-001-live-horizon-board.md"]);
+  assert.equal(roadmapAudit[0].previousHash, itemDoc.baseline.hash);
+  assert.equal(roadmapAudit[0].nextHash, moved.json.baseline.hash);
+  assert.ok(roadmapAudit[0].appliedAt);
+  assert.ok(roadmapAudit[1].outputs.includes(".project/projects/board-delivery/spec.md"));
+  assert.equal(roadmapAudit[1].previousHash, moved.json.baseline.hash);
+  const auditRaw = fs.readFileSync(path.join(repo, ".project", "viewer", "annotations.json"), "utf8");
+  assert.doesNotMatch(auditRaw, /[A-Za-z]:[\\/]|file:\/\//);
+});
+
+test("viewer roadmap promotion failure leaves no partial project dossier", { timeout: 15000 }, async (t) => {
+  const { repo } = createLiveViewerRepo("delano-viewer-roadmap-partial-");
+  t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
+  const roadmapDir = path.join(repo, ".project", "roadmap");
+  fs.mkdirSync(roadmapDir, { recursive: true });
+  const itemFile = path.join(roadmapDir, "RM-001-live-horizon-board.md");
+  fs.writeFileSync(
+    itemFile,
+    roadmapItemMarkdown({ id: "RM-001", name: "Live horizon board", status: "planned", horizon: "now", updated: "2026-01-01T00:00:00Z" }),
+    "utf8"
+  );
+  writeRoadmapPromotionTemplates(repo);
+  // Inject a partial-creation failure: without `updated:` frontmatter the
+  // roadmap reference cannot be written after staging files already exist.
+  const specTemplate = path.join(repo, ".project", "templates", "spec.md");
+  fs.writeFileSync(
+    specTemplate,
+    fs.readFileSync(specTemplate, "utf8").replace(/^updated:[^\r\n]*\r?\n/m, ""),
+    "utf8"
+  );
+
+  const baseUrl = await startViewerForRepo(t, repo);
+  const itemDoc = await readJson(`${baseUrl}/api/doc?path=roadmap%2FRM-001-live-horizon-board.md`);
+  const itemBytes = fs.readFileSync(itemFile, "utf8");
+  const failed = await requestJson(`${baseUrl}/api/roadmap/action`, {
+    method: "POST",
+    body: { action: "promote", id: "RM-001", expectedHash: itemDoc.baseline.hash, confirm: true, projectSlug: "partial-delivery" }
+  });
+  assert.equal(failed.status, 422, failed.raw);
+  assert.match(failed.json.error, /without updated/i);
+  assert.equal(fs.existsSync(path.join(repo, ".project", "projects", "partial-delivery")), false);
+  const stagingRoot = path.join(repo, ".project", ".staging");
+  assert.ok(!fs.existsSync(stagingRoot) || fs.readdirSync(stagingRoot).length === 0);
+  assert.equal(fs.readFileSync(itemFile, "utf8"), itemBytes);
+  assert.equal(fs.existsSync(path.join(repo, ".project", "viewer", "annotations.json")), false);
+});
+
+test("viewer roadmap action requires a fresh selected worktree context", { timeout: 20000 }, async (t) => {
+  const fixture = createGitViewerRepo("delano-viewer-roadmap-guard-", "Roadmap guard fixture.");
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "delano-viewer-roadmap-home-"));
+  t.after(() => fs.rmSync(fixture.repo, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+  const roadmapDir = path.join(fixture.repo, ".project", "roadmap");
+  fs.mkdirSync(roadmapDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(roadmapDir, "RM-001-live-horizon-board.md"),
+    roadmapItemMarkdown({ id: "RM-001", name: "Live horizon board", status: "planned", horizon: "now", updated: "2026-01-01T00:00:00Z" }),
+    "utf8"
+  );
+  spawnSync("git", ["add", "."], { cwd: fixture.repo });
+  spawnSync("git", ["commit", "-m", "add roadmap item"], { cwd: fixture.repo });
+  registerRepository(fixture.repo, { env: { DELANO_HOME: home } });
+
+  const baseUrl = await startViewerForRepo(t, fixture.repo, { DELANO_HOME: home });
+  const itemDoc = await readJson(`${baseUrl}/api/doc?path=roadmap%2FRM-001-live-horizon-board.md`);
+  fs.writeFileSync(path.join(fixture.repo, "advance.txt"), "advance HEAD\n", "utf8");
+  spawnSync("git", ["add", "advance.txt"], { cwd: fixture.repo });
+  spawnSync("git", ["commit", "-m", "advance head"], { cwd: fixture.repo });
+
+  const stale = await requestJson(`${baseUrl}/api/roadmap/action`, {
+    method: "POST",
+    body: { action: "move", id: "RM-001", expectedHash: itemDoc.baseline.hash, confirm: true, horizon: "next", reason: "stale context" }
+  });
+  assert.equal(stale.status, 409, stale.raw);
+  assert.match(stale.json.error, /HEAD changed/i);
+  assert.match(fs.readFileSync(path.join(roadmapDir, "RM-001-live-horizon-board.md"), "utf8"), /^horizon: now$/m);
+});
+
 test("viewer publishes, indexes, resolves, archives, and freshness-checks tracked reviews", { timeout: 15000 }, async (t) => {
   const fixture = createGitViewerRepo("delano-viewer-reviews-", "Repository review backend.");
   t.after(() => fs.rmSync(fixture.repo, { recursive: true, force: true }));
@@ -1019,6 +1339,97 @@ function createGitViewerRepo(prefix, body, options = {}) {
   const committed = spawnSync("git", ["commit", "-m", "viewer fixture"], { cwd: fixture.repo, encoding: "utf8" });
   assert.equal(committed.status, 0, committed.stderr || committed.stdout);
   return fixture;
+}
+
+function roadmapItemMarkdown({ id, name, status, horizon, updated }) {
+  return [
+    "---",
+    `id: ${id}`,
+    `name: ${name}`,
+    `status: ${status}`,
+    `horizon: ${horizon}`,
+    "created: 2026-01-01T00:00:00Z",
+    `updated: ${updated}`,
+    "---",
+    "",
+    `# Roadmap Item: ${name}`,
+    "",
+    "## Strategic intent",
+    "",
+    `${name} keeps strategic direction inspectable from delivery receipts.`,
+    "",
+    "## Outcome signal",
+    "",
+    "Operators navigate from the board to canonical delivery evidence.",
+    "",
+    "## Boundaries",
+    "",
+    "No scheduling, estimates, or synthetic progress metrics.",
+    "",
+    "## Closure evidence",
+    "",
+    "None yet.",
+    ""
+  ].join("\n");
+}
+
+function writeRoadmapPromotionTemplates(repo) {
+  const templatesDir = path.join(repo, ".project", "templates");
+  fs.mkdirSync(templatesDir, { recursive: true });
+  for (const name of ["spec.md", "plan.md", "decisions.md"]) {
+    fs.copyFileSync(
+      path.join(__dirname, "..", ".project", "templates", name),
+      path.join(templatesDir, name)
+    );
+  }
+}
+
+function writeRoadmapLinkedProject(repo, slug, { status, roadmapItem, updated, tasks = [] }) {
+  const projectDir = path.join(repo, ".project", "projects", slug);
+  fs.mkdirSync(projectDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(projectDir, "spec.md"),
+    [
+      "---",
+      `name: ${slug}`,
+      `slug: ${slug}`,
+      "owner: team",
+      `status: ${status}`,
+      "created: 2026-01-01T00:00:00Z",
+      `updated: ${updated}`,
+      `roadmap_item: ${roadmapItem}`,
+      "---",
+      "",
+      `# Spec: ${slug}`,
+      "",
+      "Linked delivery fixture.",
+      ""
+    ].join("\n"),
+    "utf8"
+  );
+  if (tasks.length) {
+    const tasksDir = path.join(projectDir, "tasks");
+    fs.mkdirSync(tasksDir, { recursive: true });
+    for (const task of tasks) {
+      fs.writeFileSync(
+        path.join(tasksDir, `${task.id}.md`),
+        [
+          "---",
+          `id: ${task.id}`,
+          `name: Task ${task.id}`,
+          `status: ${task.status}`,
+          "workstream: WS-A",
+          "created: 2026-01-01T00:00:00Z",
+          `updated: ${task.updated}`,
+          "---",
+          "",
+          `# Task: ${task.id}`,
+          ""
+        ].join("\n"),
+        "utf8"
+      );
+    }
+  }
 }
 
 function reviewFilesOnDisk(repo) {

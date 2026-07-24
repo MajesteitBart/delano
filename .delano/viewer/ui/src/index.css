@@ -483,6 +483,200 @@
     color: var(--dashboard-done) !important;
   }
 
+  .roadmap-board {
+    @apply grid grid-cols-3 items-start gap-5;
+  }
+
+  .roadmap-lane {
+    @apply flex min-w-0 flex-col gap-3 rounded-lg border bg-card/40 p-4;
+  }
+
+  .roadmap-lane-header {
+    @apply flex items-baseline justify-between gap-3;
+  }
+
+  .roadmap-lane-header h3 {
+    @apply text-sm font-semibold tracking-wide uppercase;
+  }
+
+  .roadmap-lane-count {
+    @apply font-mono text-xs text-muted-foreground;
+  }
+
+  .roadmap-lane-empty {
+    @apply border-l-2 border-muted py-1 pl-3 text-xs leading-5 text-muted-foreground;
+  }
+
+  .roadmap-card-list {
+    @apply flex min-w-0 flex-col gap-3;
+  }
+
+  .roadmap-card {
+    @apply flex min-w-0 flex-col gap-3 rounded-lg border bg-card p-4;
+  }
+
+  .roadmap-card-header {
+    @apply flex min-w-0 flex-col gap-1;
+  }
+
+  .roadmap-card-title {
+    @apply text-sm leading-5 font-medium break-words;
+  }
+
+  .roadmap-card-meta {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .roadmap-card-intent {
+    @apply line-clamp-3 text-xs leading-5 text-muted-foreground;
+  }
+
+  .roadmap-card-receipts {
+    @apply flex flex-col gap-1;
+  }
+
+  .roadmap-card-receipts > div {
+    @apply grid grid-cols-[88px_minmax(0,1fr)] gap-2;
+  }
+
+  .roadmap-card-receipts dt {
+    @apply text-[11px] leading-5 text-muted-foreground;
+  }
+
+  .roadmap-card-receipts dd {
+    @apply text-xs leading-5 break-words;
+  }
+
+  /* Advisory staleness stays visually and textually distinct from
+     blocked/invalid status: icon + "Advisory" prefix, never color alone. */
+  .roadmap-card-advisory {
+    @apply flex items-start gap-2 rounded-md border border-status-warning/60 bg-status-warning/10 px-2.5 py-2 text-xs leading-5;
+  }
+
+  .roadmap-card-advisory svg {
+    @apply mt-0.5 size-3.5 shrink-0;
+  }
+
+  .roadmap-card-warning {
+    @apply border-l-2 border-destructive py-1 pl-3 text-xs leading-5 text-destructive;
+  }
+
+  .roadmap-projection-warnings {
+    @apply rounded-md border border-destructive/50 px-3 py-2 text-xs leading-5 text-destructive;
+  }
+
+  .roadmap-section-title {
+    @apply text-sm font-semibold;
+  }
+
+  .roadmap-section-hint {
+    @apply mt-1 mb-3 text-xs leading-5 text-muted-foreground;
+  }
+
+  .roadmap-attention {
+    @apply rounded-lg border border-destructive/40 p-4;
+  }
+
+  .roadmap-archive {
+    @apply flex flex-col items-start gap-3;
+  }
+
+  .roadmap-archive-list {
+    @apply w-full;
+  }
+
+  .roadmap-card-projects {
+    @apply flex flex-col gap-1 border-t pt-3;
+  }
+
+  .roadmap-card-projects-label {
+    @apply text-[11px] leading-5 text-muted-foreground;
+  }
+
+  .roadmap-card-projects ul {
+    @apply flex flex-col gap-0.5;
+  }
+
+  .roadmap-card-projects li {
+    @apply flex items-baseline justify-between gap-3;
+  }
+
+  .roadmap-card-projects li > button {
+    @apply min-w-0 truncate font-mono text-xs;
+  }
+
+  .roadmap-card-project-status {
+    @apply shrink-0 text-[11px] text-muted-foreground;
+  }
+
+  .roadmap-card-actions {
+    @apply flex flex-wrap items-start gap-2 border-t pt-3;
+  }
+
+  .roadmap-card-hint {
+    @apply border-t pt-3 text-[11px] leading-5 text-muted-foreground;
+  }
+
+  .roadmap-action-panel {
+    @apply flex w-full flex-col gap-2 rounded-md border bg-card/60 p-3;
+  }
+
+  .roadmap-action-title {
+    @apply text-xs font-semibold;
+  }
+
+  .roadmap-action-destinations {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .roadmap-action-preview {
+    @apply border-l-2 border-muted pl-3 font-mono text-[11px] leading-5 text-muted-foreground;
+  }
+
+  .roadmap-action-field {
+    @apply flex flex-col gap-1;
+  }
+
+  .roadmap-action-field > span {
+    @apply text-[11px] leading-4 text-muted-foreground;
+  }
+
+  .roadmap-action-error {
+    @apply text-xs leading-5 text-destructive;
+  }
+
+  .roadmap-action-buttons {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .roadmap-board-status {
+    @apply rounded-md border px-3 py-2 text-xs leading-5;
+  }
+
+  .roadmap-promotion-result {
+    @apply flex flex-col gap-3 rounded-lg border bg-card p-4;
+  }
+
+  .roadmap-promotion-summary {
+    @apply text-sm leading-6;
+  }
+
+  .roadmap-promotion-actions {
+    @apply flex flex-wrap items-center gap-2;
+  }
+
+  .roadmap-card-affected {
+    animation: roadmap-card-flash 1.4s ease-out 2;
+  }
+
+  .roadmap-card-updated {
+    @apply inline-flex items-center gap-1 rounded-sm border px-1.5 py-0.5 text-[10px] tracking-wide text-muted-foreground uppercase;
+  }
+
+  .roadmap-card-updated svg {
+    @apply size-3;
+  }
+
   .mono-path {
     @apply mt-1 max-w-[52ch] truncate font-mono text-xs text-muted-foreground;
   }
@@ -814,6 +1008,20 @@
 
 }
 
+/* Bounded change feedback: two finite pulses plus a textual "Updated" chip,
+   so live-change awareness never depends on color alone or persists. */
+@keyframes roadmap-card-flash {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklch, var(--agent) 40%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 5px color-mix(in oklch, var(--agent) 12%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
 @keyframes agent-dot-pulse {
   0% {
     box-shadow: 0 0 0 0 color-mix(in oklch, var(--agent) 45%, transparent);
@@ -854,6 +1062,10 @@
 @media (max-width: 1180px) {
   .viewer-stage {
     @apply px-6;
+  }
+
+  .roadmap-board {
+    @apply grid-cols-1;
   }
 }
 

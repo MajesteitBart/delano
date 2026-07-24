@@ -25,6 +25,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import type { LiveDocEvent } from "@/app/useLiveEvents"
 import { messageFromError, requestJson } from "@/lib/api"
 import { annotationLine } from "@/lib/domain/annotations"
 import { formatDate } from "@/lib/domain/dates"
@@ -36,6 +37,7 @@ import {
   type ProjectStat,
   type WorkspaceTaskItem,
 } from "@/lib/domain/workspace-model"
+import { RoadmapBoardPage } from "@/pages/roadmap/RoadmapBoardPage"
 import {
   dataTableMeta,
   dateRangeFilter,
@@ -55,6 +57,11 @@ const WORKSPACE_COPY: Record<
   "workspace-projects": {
     title: "Projects",
     description: "Delivery contracts currently present in this workspace.",
+  },
+  "workspace-roadmap": {
+    title: "Roadmap",
+    description:
+      "Strategic bets grouped by horizon, backed by derived delivery receipts from canonical contracts.",
   },
   "workspace-tasks": {
     title: "Tasks",
@@ -89,13 +96,17 @@ const WORKSPACE_COPY: Record<
 
 export function WorkspacePage({
   index,
+  liveEvent,
   onOpenDoc,
   onOpenProject,
+  onRefreshIndex,
   view,
 }: {
   index: ViewerIndex | null
+  liveEvent?: LiveDocEvent | null
   onOpenDoc: (path: string) => void
   onOpenProject: (slug: string) => void
+  onRefreshIndex?: () => void
   view: WorkspaceView
 }) {
   const workspace = getWorkspaceModel(index)
@@ -171,6 +182,14 @@ export function WorkspacePage({
           items={workspace.projects}
           onOpenProject={onOpenProject}
           statusOptions={index?.schemaOptions?.spec?.status ?? []}
+        />
+      )}
+      {view === "workspace-roadmap" && (
+        <RoadmapBoardPage
+          index={index}
+          liveEvent={liveEvent}
+          onOpenDoc={onOpenDoc}
+          onRefreshIndex={onRefreshIndex}
         />
       )}
       {view === "workspace-tasks" && (

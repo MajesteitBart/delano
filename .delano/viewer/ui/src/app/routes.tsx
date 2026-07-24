@@ -39,6 +39,7 @@ export function ViewerRoute({
   onOpenProjectWorkstreams,
   onBackFromDocument,
   onRefreshDocument,
+  onRefreshIndex,
   route,
 }: {
   activeProject: ProjectIndex | null
@@ -55,6 +56,7 @@ export function ViewerRoute({
   onOpenProjectWorkstreams: () => void
   onBackFromDocument: () => void
   onRefreshDocument?: () => void
+  onRefreshIndex?: () => void
   route: ViewerRoute
 }) {
   if (loading) {
@@ -89,9 +91,11 @@ export function ViewerRoute({
     return (
       <WorkspacePage
         index={index}
+        liveEvent={liveEvent}
         view={route.view}
         onOpenDoc={onOpenDoc}
         onOpenProject={onOpenProject}
+        onRefreshIndex={onRefreshIndex}
       />
     )
   }

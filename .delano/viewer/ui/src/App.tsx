@@ -86,6 +86,7 @@ function App() {
             loading={indexState.loading}
             onBackFromDocument={navigation.backFromDocument}
             onRefreshDocument={docState.refresh}
+            onRefreshIndex={indexState.refresh}
             liveEvent={live.lastDocEvent}
             onOpenActivity={() => setActivityOpen(true)}
             onOpenDoc={navigation.setActivePath}

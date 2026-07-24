@@ -1,3 +1,4 @@
+import { ROADMAP_TERMINAL_STATUSES } from "@/lib/domain/roadmap"
 import { statusTone } from "@/lib/domain/status"
 import type { DocMeta, ProjectIndex, ViewerIndex } from "@/lib/domain/types"
 
@@ -122,6 +123,9 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
   const validation = allDocs.filter((doc) => doc.role !== "context")
   const annotations = index?.annotationSummary?.open ?? 0
   const reviews = allDocs.filter((doc) => doc.role === "review")
+  const openRoadmapItems = (index?.roadmap?.items ?? []).filter(
+    (item) => !ROADMAP_TERMINAL_STATUSES.has(item.status)
+  )
 
   return {
     context,
@@ -136,6 +140,7 @@ export function getWorkspaceModel(index: ViewerIndex | null) {
     counts: {
       context: context.length,
       projects: projects.length,
+      roadmap: openRoadmapItems.length,
       tasks: openTasks.length,
       progress: progress.length,
       annotations,

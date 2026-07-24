@@ -38,6 +38,7 @@ The viewer indexes:
 
 ```text
 .project/context/**/*.md
+.project/roadmap/**/*.md
 .project/templates/**/*.md
 .project/projects/**/*.md
 ```
@@ -57,6 +58,30 @@ Project folders show a project-oriented outline for specs, plans, decisions, res
 
 The workspace sidebar includes **Reviews** for tracked `.project/reviews/` artifacts and a legacy **Annotations** compatibility page used to inspect and explicitly migrate older viewer comments.
 
+## Roadmap Workspace
+
+The **Roadmap** workspace appears only when the active Viewer runtime reports roadmap projection capability. A repository with no roadmap items gets a concise adoption state pointing to `delano roadmap init` and `delano roadmap add`; the empty state does not make roadmap artifacts mandatory.
+
+The default board groups non-terminal items into honest `now`, `next`, and `later` lanes. Empty lanes stay visible. **Show archive** exposes terminal `done` and `deferred` items without mixing them into open work.
+
+Each card links back to its canonical roadmap item and linked project sources. Its receipt is derived from current project contracts and tasks: linked-project state counts, done/open/blocked task totals, and the latest canonical delivery activity. The viewer never writes those reverse links or counts into the item and does not infer impact from Git commits.
+
+![Roadmap workspace with now, next, and later lanes](images/screenshots/roadmap-board.png)
+
+The open board keeps strategic intent next to current delivery facts. In this example, the active item shows its linked project and task receipt, an unpromoted item remains visible without invented progress, and the stale `now` item carries a clearly advisory attention message. Empty lanes remain explicit so the board never implies work that is not present in canonical contracts.
+
+![Roadmap archive with completed and deferred items](images/screenshots/roadmap-archive.png)
+
+The archive is deliberately separate from the horizon lanes. Completed items retain their linked-project evidence, while deferred items remain inspectable without appearing as current commitments. Expanding or collapsing the archive changes presentation only; it never mutates roadmap lifecycle state.
+
+Attention text is advisory. A `now` item can be marked stale after 21 days without an active linked project or recent linked delivery activity, and an item whose linked projects are all terminal can request closure review. These messages are not blockers, validation failures, or automatic lifecycle changes.
+
+Move and promotion controls are keyboard-operable and show a destination or target-project preview, reason/input fields, and an explicit confirmation step. Requests require roadmap-action capability, a current item hash, allowed fields only, and `confirm: true`. A `409` conflict means the item changed on disk; the board does not apply optimistic state and asks the operator to refresh before retrying.
+
+Promotion creates a planned project that references the item. Only after the server returns the new spec may the viewer offer **Start handover** for that spec. This is a separate optional dispatch through the existing handover flow; promotion itself never launches an agent.
+
+SSE changes refresh the board. When an item or one of its linked project documents changes, only affected cards receive a bounded two-pulse highlight plus a textual **Updated** chip. Unrelated events do not flash the board.
+
 ## Repository And Worktree Context
 
 The searchable repository and worktree controls at the top of the sidebar use the machine-local Delano registry plus a fresh `git worktree list --porcelain` inventory. The registry stores local paths and timestamps at `~/.delano/repositories.json` (or `$DELANO_HOME/repositories.json`), so treat it as private machine metadata and do not commit or share it. Use `delano repos --forget <path>` to remove an entry without touching the repository itself.
@@ -65,7 +90,7 @@ The sidebar controls identify the selected repository and whether its worktree i
 
 The selected worktree's own `.project/` directory is the viewer's project-data source and launch root. Primary versus linked role is provenance and risk information, not authorization. A fresh registered worktree receives server-derived `dispatch`, `review`, `publishReview`, and `applyContract` capabilities; a stale, switched, detached-without-required-identity, unavailable, or deleted context is denied with an actionable explanation and never falls back to another checkout. Restart a running viewer after updating server-side viewer code so its indexer and compiled client come from the same package state.
 
-Workspace navigation contains **Projects**, **Tasks**, **Context pack**, **Reviews**, legacy **Annotations**, **Warnings**, and **Blockers**. The Tasks badge counts planned, ready, in-progress, and blocked contracts, but the page includes all indexed statuses, including done and deferred. Project and Workstream columns use searchable relationship choices derived from the active index. Status, Priority, and Estimate use canonical task-schema values exposed by `/api/index`; labels are presentation only, and a missing or malformed schema is shown as an error instead of replaced by viewer constants. Progress and Research stay under the selected project rather than appearing as cross-project Workspace entries.
+Workspace navigation contains **Projects**, **Tasks**, **Context pack**, **Reviews**, legacy **Annotations**, **Warnings**, and **Blockers**, plus **Roadmap** when the index reports that capability. The Tasks badge counts planned, ready, in-progress, and blocked contracts, but the page includes all indexed statuses, including done and deferred. Project and Workstream columns use searchable relationship choices derived from the active index. Status, Priority, and Estimate use canonical task-schema values exposed by `/api/index`; labels are presentation only, and a missing or malformed schema is shown as an error instead of replaced by viewer constants. Progress and Research stay under the selected project rather than appearing as cross-project Workspace entries.
 
 Published review lifecycle and open counts derive from the review schema. The legacy annotation page retains non-deleted history solely for compatibility and migration.
 
@@ -172,6 +197,8 @@ If the viewer shows no projects:
 - check that `.project/projects/` exists;
 - run `delano status`;
 - run `delano validate` to catch malformed contracts.
+
+If the Roadmap entry is absent, confirm `.project/roadmap/` contains at least one valid `RM-###-<slug>.md` item. Use `delano roadmap init` and `delano roadmap add` to adopt the feature; absence is valid and should not produce warnings.
 
 If a task or workstream relationship looks wrong, inspect the task frontmatter in `.project/projects/<slug>/tasks/` and verify `workstream`, `depends_on`, and status fields.
 

@@ -130,12 +130,13 @@ delano task close my-feature T-001 --evidence "tests pass, see updates/003"
 Everything supports `--json`, because half your users are agents parsing the output.
 
 - Package: `@bvdm/delano`, binary: `delano`
-- Commands: `onboarding`, `install`, `viewer`, `context`, `project`, `workstream`, `task`, `update`, `init`, `import-spec-kit`, `research`, `validate`, `status`, `next`
+- Commands: `onboarding`, `install`, `viewer`, `context`, `roadmap`, `project`, `workstream`, `task`, `update`, `init`, `import-spec-kit`, `research`, `validate`, `status`, `next`
 
 Command intent:
 
 - `delano install` bootstraps the Delano runtime into the current repository
 - `delano viewer` launches the guarded local review UI for `.project` contracts
+- `delano roadmap init|add|show|move|start|close|defer|promote` operates the optional strategy layer; promotion creates a referenced delivery project but never launches an agent
 - `delano validate` checks whether the runtime, contracts, and required assets still line up
 - `delano init <slug> "<Project Name>" [owner] [lead]` scaffolds a new delivery project (kebab-case slug; `owner` defaults to `team`, `lead` to `owner`)
 - `delano import-spec-kit <slug> <source-md> [--name ...] [--owner ...] [--lead ...] [--json]` creates a planned project from a supported Spec Kit-style markdown fixture (see `docs/spec-kit/import-contract.md`); imported artifacts still pass through validation, probe, and evidence gates, and the command refuses to overwrite an existing project folder

@@ -12,6 +12,7 @@
     "test:editor": "node --test src/editor/slashCommands.test.mjs",
     "test:reader": "node --test src/components/organisms/documentDetails.test.mjs",
     "test:dashboard": "node --test src/pages/projectDashboard.test.mjs",
+    "test:roadmap": "node --test src/pages/roadmap/roadmapBoard.test.mjs",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview"
   },

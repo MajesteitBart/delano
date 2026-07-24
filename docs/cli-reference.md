@@ -51,6 +51,7 @@ Use `delano --help` and `delano <command> --help` for live command help.
 | `delano onboarding` | Review repo-root agent instructions with explicit approval. | Nothing by default |
 | `delano viewer` | Start the package-owned guarded review UI for the selected worktree. | Local drafts; explicit `.project/reviews/*.md` publication; canonical markdown only through guarded preview/apply |
 | `delano context` | List and read `.project/context` as a safe context pack. | Nothing |
+| `delano roadmap` | Adopt and operate the optional strategy layer. | Optional direction seeds, roadmap items, or promoted project dossiers |
 | `delano repos` | List or forget machine-local repository registrations used by the viewer. | `~/.delano/repositories.json` (or `$DELANO_HOME/repositories.json`) |
 | `delano worktrees` | List fresh Git-reported worktrees and `.project` health for a repository. | Nothing |
 | `delano project` | Create, show, and patch project contracts. | `.project/projects/<slug>/` |
@@ -124,6 +125,62 @@ Profiles are:
 | `all` | Every discovered markdown file in canonical context order. |
 
 `delano context` is read-only. It never edits, creates, summarizes, or rewrites `.project/context` files. Selectors must stay below `.project/context`, must be markdown files, and fail closed for absolute paths, traversal, non-context paths, unreadable files, and symlink escapes. JSON output uses repo-relative paths only and includes ordered file metadata, missing required files, warnings, content for reads, and truncation state.
+
+When present, `vision.md` and `mission.md` join the `overview` profile. They remain optional freeform direction files: their absence emits no missing-file warning, and Delano does not impose structural or minimum-length validation on their prose.
+
+## Roadmap
+
+Roadmap adoption is optional. A repository with no `.project/roadmap/` directory and no project `roadmap_item` reference behaves and validates as before.
+
+Seed only missing direction and index files:
+
+```bash
+delano roadmap init --json
+```
+
+This creates missing `.project/context/vision.md`, `.project/context/mission.md`, and `.project/roadmap/README.md` files without overwriting existing content.
+
+Create and inspect an item:
+
+```bash
+delano roadmap add RM-001 \
+  --name "Evidence-backed onboarding" \
+  --horizon later \
+  --intent "Make the first delivery loop understandable." \
+  --outcome-signal "A new operator completes it without private guidance." \
+  --boundaries "No scheduling, estimates, or public sharing." \
+  --json
+
+delano roadmap show RM-001 --json
+```
+
+Move and lifecycle actions are explicit:
+
+```bash
+delano roadmap move RM-001 next --reason "Contract kernel is stable." --json
+delano roadmap move RM-001 now --reason "Delivery capacity is available." --json
+delano roadmap start RM-001 --reason "The linked project is active." --json
+delano roadmap defer RM-001 --reason "Strategy changed." --json
+delano roadmap close RM-001 --evidence "Outcome observed; see the linked project closeout." --json
+```
+
+An active item must be in `now` and have an active linked project. Closing requires non-empty closure evidence, at least one complete linked project, and every linked project in `complete` or `deferred`. No project transition closes an item automatically.
+
+Promote an item into a planned delivery project:
+
+```bash
+delano roadmap promote RM-001 evidence-onboarding \
+  --name "Evidence Onboarding" \
+  --owner team \
+  --lead team \
+  --outcome "A measurable first-run delivery flow." \
+  --mode feature \
+  --json
+```
+
+Promotion writes `roadmap_item: RM-001` into the new project spec and leaves the roadmap item byte-unchanged. The same non-terminal item may be promoted to multiple distinct project slugs. Those reverse links and the item receipt are derived from project specs; never add a project list to the item. Promotion creates contracts only and never launches an agent.
+
+Roadmap items are strategic contracts, not schedules. They intentionally exclude dates, target windows, timelines, Gantt, dependencies, estimates, assignees, capacity, velocity, percentage completion, commit counts, automatic closure, and public sharing.
 
 ## Repository Registry And Worktrees
 

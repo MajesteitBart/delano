@@ -2,6 +2,7 @@ import {
   CheckCircle2Icon,
   CodeIcon,
   Clock3Icon,
+  CompassIcon,
   FileTextIcon,
   FolderIcon,
   FolderOpenIcon,
@@ -24,8 +25,8 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import {
+  availableWorkspaceNav,
   normalizeDocPath,
-  WORKSPACE_NAV,
   type ViewerRoute,
   type WorkspaceView,
 } from "@/lib/domain/navigation"
@@ -41,6 +42,7 @@ import { cn } from "@/lib/utils"
 const WORKSPACE_ICONS: Record<WorkspaceView, LucideIcon> = {
   "workspace-context": FolderOpenIcon,
   "workspace-projects": CodeIcon,
+  "workspace-roadmap": CompassIcon,
   "workspace-tasks": ListChecksIcon,
   "workspace-progress": TrendingUpIcon,
   "workspace-annotations": MessageSquareTextIcon,
@@ -143,7 +145,7 @@ export function Sidebar({
           />
           <Separator />
           <NavSection title="Workspace">
-            {WORKSPACE_NAV.map((item) => {
+            {availableWorkspaceNav(Boolean(index?.roadmap)).map((item) => {
               const Icon = WORKSPACE_ICONS[item.view]
               return (
                 <NavButton

@@ -525,7 +525,7 @@ fi
 if [[ -n "$roadmap_contract_check" ]]; then
   echo ""
   if command -v node >/dev/null 2>&1; then
-    if node "$roadmap_contract_check"; then
+    if node "$roadmap_contract_check" --root "$root"; then
       true
     else
       errors=$((errors + 1))

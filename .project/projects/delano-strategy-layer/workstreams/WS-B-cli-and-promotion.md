@@ -2,9 +2,9 @@
 id: WS-B
 name: WS-B CLI and Promotion
 owner: bart
-status: planned
+status: done
 created: 2026-07-24T00:59:22Z
-updated: 2026-07-24T01:03:35Z
+updated: 2026-07-24T07:08:23Z
 operating_mode: multi-stream
 ---
 
@@ -44,3 +44,9 @@ Deliver a native `delano roadmap` command family whose lifecycle and promotion a
 - Promotion writes `spec.roadmap_item`, leaves the source item byte-identical, and cleans only newly created partial output after failure.
 - Terminal promotion, missing item, invalid transition, duplicate project slug, and closure-gate failures are tested.
 - The shared service is callable from the viewer without shelling out to the CLI.
+
+## Updates
+
+- 2026-07-24T07:08:23Z: Quality gate: WS-B handoff passes; release packaging remains assigned to WS-D/T-012.
+
+- 2026-07-24T06:57:57Z: Begin roadmap CLI and promotion execution after WS-A contract completion

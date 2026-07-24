@@ -8,6 +8,7 @@ export type DocMeta = {
   artifactRole?: string
   workstreamId?: string | null
   taskId?: string | null
+  roadmapItemId?: string | null
   updated?: string
   snippet?: string
   baselineHash?: string
@@ -15,6 +16,58 @@ export type DocMeta = {
   sourcePath?: string | null
   openFindingCount?: number | null
   frontmatter?: Record<string, unknown>
+}
+
+export type RoadmapLinkedProject = {
+  slug: string
+  status: string
+  updated?: string
+  path: string
+  roadmapItem?: string
+}
+
+export type RoadmapTaskTotals = {
+  done: number
+  open: number
+  blocked: number
+  deferred: number
+  unknown: number
+}
+
+export type RoadmapReceipt = {
+  projectStates: Record<string, number>
+  taskTotals: RoadmapTaskTotals
+  lastActivity: string | null
+  sources: string[]
+}
+
+export type RoadmapClosure = {
+  eligible: boolean
+  reasons: string[]
+}
+
+export type RoadmapStaleness = {
+  stale: boolean
+  reasons: string[]
+  staleAfterDays: number
+}
+
+export type RoadmapProjectedItem = {
+  id: string
+  name: string
+  status: string
+  horizon: string
+  path: string
+  linkedProjects: RoadmapLinkedProject[]
+  receipt: RoadmapReceipt
+  closure: RoadmapClosure
+  staleness: RoadmapStaleness
+}
+
+export type RoadmapWorkspace = {
+  root: string
+  items: RoadmapProjectedItem[]
+  warnings: string[]
 }
 
 export type ProjectIndex = {
@@ -92,6 +145,7 @@ export type ViewerIndex = {
       required?: boolean
     }>
   }
+  roadmap?: RoadmapWorkspace
   projects?: ProjectIndex[]
   docs?: DocMeta[]
 }

@@ -18,6 +18,7 @@ Use this page to find the smallest authoritative source set for a change.
 | Entrypoint and dispatch | `bin/delano.js`, `src/cli/index.js` | `test/cli.test.js` |
 | Install planning/application | `src/cli/commands/install.js`, `src/cli/lib/install.js` | CLI and package tests |
 | Project/workstream/task/update lifecycle | `src/cli/commands/state.js`, `src/cli/lib/project-state.js` | CLI tests; status-transition checks |
+| Roadmap lifecycle and promotion | `src/cli/commands/roadmap.js`, `src/cli/lib/roadmap-state.js`, `src/cli/lib/roadmap-projection.js` | roadmap CLI, projection, contract, and package tests |
 | Context packs | `src/cli/commands/context.js`, `src/cli/lib/context-reader.js` | CLI context safety tests |
 | Viewer launch | `src/cli/commands/viewer.js` | CLI launch tests; viewer server tests |
 | Bash wrappers | `src/cli/commands/wrapper.js`, `src/cli/lib/pm.js` | relevant PM script and CLI tests |
@@ -34,6 +35,7 @@ Use this page to find the smallest authoritative source set for a change.
 | Project instances | `.project/projects/<slug>/` |
 | Portfolio status/selection | `.agents/scripts/pm/status.sh`, `.agents/scripts/pm/next.sh`, `.agents/scripts/select-next-task.mjs` |
 | Context knowledge | `.project/context/` and `src/cli/lib/context-reader.js` |
+| Strategy contracts and traceability | `.project/roadmap/`, `.agents/rules/roadmap.md`, roadmap schema/checker, project spec `roadmap_item` |
 
 Lifecycle changes usually cross schemas, templates, CLI mutation code, PM scripts, docs, fixtures, and tests. Search all of them before editing.
 
@@ -45,6 +47,7 @@ Lifecycle changes usually cross schemas, templates, CLI mutation code, PM script
 | UI composition | `.delano/viewer/ui/src/App.tsx`, `src/pages/` | State-driven routes. |
 | Fetching/live state | `.delano/viewer/ui/src/app/` | Index, document, SSE, navigation, viewport. |
 | Domain derivation | `.delano/viewer/ui/src/lib/domain/` | Keep business derivation out of page components. |
+| Roadmap board/actions | `src/lib/domain/roadmap.ts`, `roadmap-actions.ts`, `src/pages/roadmap/` | Capability-gated projection and guarded mutations. |
 | Markdown read rendering | `src/lib/markdown/`, `MarkdownArticle.tsx` | Annotation anchors depend on block/line behavior. |
 | Editing | `src/editor/DocumentEditor.tsx`, `markdownEditing.ts`, `slashCommands.js` | Frontmatter locked; apply API reused. |
 | Annotations/review | `AnnotationPopover.tsx`, `AnnotationDrawer.tsx`, `annotations.ts` | Stored outside canonical contracts. |

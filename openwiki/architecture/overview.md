@@ -20,6 +20,7 @@ Native Node commands:
 - `install`: plans conflict-first installation from the packaged allowlist.
 - `onboarding`: analyzes the nearest `AGENTS.md` only after explicit approval.
 - `context`: safely lists/reads Markdown below `.project/context/`.
+- `roadmap`: non-destructively seeds optional direction files and creates, reads, moves, transitions, or promotes roadmap items.
 - `viewer`: finds the repository and starts the packaged server with `DELANO_VIEWER_ROOT`.
 - `project`, `workstream`, `task`, `update`: render templates or patch existing contracts; task mutations apply scoped parent/dependent rollups.
 
@@ -29,7 +30,7 @@ Native lifecycle commands patch existing files rather than regenerating them and
 
 ## Contract and policy layer
 
-`.project/projects/<slug>/` contains a project dossier: typically `spec.md`, `plan.md`, `decisions.md`, plus `workstreams/`, `tasks/`, `updates/`, and optional `research/`. `.project/templates/` seeds new artifacts. `.project/context/` supplies repository knowledge, while `.project/registry/` holds external mapping/migration data rather than primary state.
+`.project/roadmap/` optionally contains one strategic contract per `RM-###-<slug>.md`. `.project/projects/<slug>/` contains a project dossier: typically `spec.md`, `plan.md`, `decisions.md`, plus `workstreams/`, `tasks/`, `updates/`, and optional `research/`. A spec may persist one `roadmap_item` reference; reverse links and receipts are derived. `.project/templates/` seeds new artifacts. `.project/context/` supplies repository knowledge, including optional vision and mission files, while `.project/registry/` holds external mapping/migration data rather than primary state.
 
 `.agents/schemas/` defines artifact fields, status transitions, operating modes, evidence, synchronization, leases, metrics, and learning contracts. `.agents/scripts/pm/validate.sh` and the root `check:*` scripts enforce the machine-checkable subset. `.agents/skills/` describes the human/agent workflows that create and evolve the files.
 
@@ -40,6 +41,7 @@ Native lifecycle commands patch existing files rather than regenerating them and
 `.delano/viewer/server.js` is a dependency-free CommonJS HTTP server. It recursively indexes `.project` Markdown and serves the compiled SPA from `.delano/viewer/public/`. Important APIs include:
 
 - `GET /api/index`, `GET /api/doc`: derived navigation/index data and Markdown with a SHA-256 baseline.
+- `POST /api/roadmap/action`: guarded, whitelisted move or promotion with expected hash, confirmation, capability, and audit checks.
 - `/api/annotations` and `/api/annotations/export`: review state and deterministic exports.
 - `POST /api/apply/preview`, `POST /api/apply`: diff and guarded canonical writes.
 - `POST /api/handover`: annotation handover or task/workstream start/review dispatch.
@@ -53,11 +55,14 @@ The React 19/Vite/TypeScript source is under `.delano/viewer/ui/`:
 - `src/App.tsx` composes application hooks and shell.
 - `src/app/` owns route state, index/document fetching, live events, project selection, navigation, and viewport behavior.
 - `src/lib/domain/` derives navigation, workspace/project/task models, annotations, handovers, status, dates, and pagination.
+- `src/lib/domain/roadmap.ts` and `roadmap-actions.ts` derive the horizon board, receipts, advisory staleness, affected-card updates, and guarded action payloads.
 - `src/pages/` composes workspace, project, and document-reader experiences.
 - `src/editor/` is the lazy-loaded TipTap editing surface.
 - `src/lib/markdown/` retains the custom block/line-aware renderer needed for annotation anchors and change highlighting.
 
 Routes are state-driven rather than React Router-based. Live events use `fs.watch` as a signal followed by a debounced full Markdown snapshot comparison, because Windows may coalesce bulk events. Open documents update silently unless a dirty editor would lose work.
+
+The Roadmap workspace is capability-gated. It renders open `now | next | later` lanes plus an explicit terminal archive. Item or linked-project events refresh derived data and apply bounded feedback only to affected cards. Promotion returns a created spec; the existing `start` handover can be offered afterward but is not part of the mutation.
 
 ## Packaging pipeline
 

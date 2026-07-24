@@ -2,9 +2,9 @@
 name: Delano Strategy Layer
 slug: delano-strategy-layer
 owner: bart
-status: active
+status: complete
 created: 2026-07-23T22:59:54Z
-updated: 2026-07-24T06:35:24Z
+updated: 2026-07-24T15:04:21Z
 outcome: A repository can opt into direction files and roadmap items, promote a roadmap item into one or more traceable delivery projects, and inspect derived delivery receipts on a live horizon board while repositories without roadmap artifacts validate unchanged.
 uncertainty: medium
 probe_required: false

@@ -7,6 +7,7 @@ const { getOnboardingHelp, runOnboarding } = require("./commands/onboarding");
 const { runInstall, getInstallHelp } = require("./commands/install");
 const { runViewer, getViewerHelp } = require("./commands/viewer");
 const { getContextHelp, runContextCommand } = require("./commands/context");
+const { getRoadmapHelp, runRoadmapCommand } = require("./commands/roadmap");
 const { createWrapperCommand } = require("./commands/wrapper");
 const {
   getReposHelp,
@@ -62,6 +63,11 @@ const commands = {
     description: "List and read .project/context as a safe context pack.",
     run: runContextCommand,
     help: getContextHelp
+  },
+  roadmap: {
+    description: "Initialize, inspect, and mutate strategic roadmap contracts.",
+    run: runRoadmapCommand,
+    help: getRoadmapHelp
   },
   repos: {
     description: "List or forget machine-local Delano repositories.",
@@ -160,6 +166,7 @@ function getGeneralHelp() {
     "  install    Install the approved Delano runtime payload",
     "  viewer     Launch the guarded local review UI for .project contracts",
     "  context    List and read .project/context safely",
+    "  roadmap    Initialize, inspect, and mutate strategic roadmap contracts",
     "  repos      List or forget machine-local Delano repositories",
     "  worktrees  List Git-reported worktrees and project-state availability",
     "  project    Create, show, and patch project contracts",
@@ -186,6 +193,9 @@ function getGeneralHelp() {
     "  delano viewer",
     "  delano context list --json",
     "  delano context read --profile implementation",
+    "  delano roadmap init",
+    "  delano roadmap add RM-001 --name \"Evidence-backed roadmap\" --horizon next",
+    "  delano roadmap show RM-001 --json",
     "  delano repos",
     "  delano worktrees",
     "  delano project create my-project --name \"My Project\" --owner team",
@@ -298,6 +308,7 @@ module.exports = {
   getGeneralHelp,
   getContextHelp,
   getImportSpecKitHelp,
+  getRoadmapHelp,
   getResearchHelp,
   getTaskHelp,
   parseTaskArgs,

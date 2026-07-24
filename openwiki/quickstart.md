@@ -36,7 +36,7 @@ Use `delano --help` and `delano <command> --help` as the live command authority.
 bin/delano.js
   -> src/cli/index.js
      -> native Node commands: install, onboarding, context, viewer,
-        project, workstream, task, update
+        roadmap, project, workstream, task, update
      -> Bash-backed wrappers: init, import-spec-kit, research,
         validate, status, next
 
@@ -44,6 +44,8 @@ bin/delano.js
           ^                         |
           |                         v
       human/agent edits       schemas, skills, rules, evidence gates
+
+optional vision/mission -> roadmap item -> project -> workstream -> task -> evidence
 
 assets/install-manifest.json -> assets/payload/ -> npm package -> consumer repo
 ```
@@ -69,6 +71,7 @@ The package is deliberately thin: it distributes an allowlisted runtime and view
 
 - Change CLI behavior: start at `src/cli/index.js`, the relevant `src/cli/commands/` file, and `test/cli.test.js`.
 - Change lifecycle rules: read `.agents/schemas/artifact-scope.json`, `.agents/schemas/status-transitions.json`, `src/cli/commands/state.js`, templates, and validation tests together.
+- Change strategy behavior: inspect `.agents/rules/roadmap.md`, the roadmap schema/checker, `src/cli/lib/roadmap-*`, project spec traceability, Viewer roadmap domain/page code, and package coverage together.
 - Change viewer behavior: inspect `.delano/viewer/server.js`, `.delano/viewer/ui/src/app/`, the relevant page/domain module, and `test/viewer-server.test.js`.
 - Change install/package contents: update `assets/install-manifest.json`, run `npm run build:assets`, then check package drift and package tests.
 - Change canonical agent runtime: edit `.agents/`, synchronize `.claude/`, and verify mirror parity.

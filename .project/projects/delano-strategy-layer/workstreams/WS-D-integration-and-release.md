@@ -2,9 +2,9 @@
 id: WS-D
 name: WS-D Integration and Release
 owner: bart
-status: planned
+status: done
 created: 2026-07-24T00:59:22Z
-updated: 2026-07-24T01:03:35Z
+updated: 2026-07-24T15:04:21Z
 operating_mode: multi-stream
 ---
 

@@ -1,4 +1,14 @@
-const { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } = require("node:fs");
+const {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmdirSync,
+  rmSync,
+  writeFileSync
+} = require("node:fs");
 const path = require("node:path");
 
 const { CliError } = require("./errors");
@@ -291,13 +301,31 @@ function createProjectFromTemplates(root, options) {
     "<low|medium|high>": riskLevel
   });
   const decisions = renderTemplate(root, "decisions.md", baseReplacements);
-
-  mkdirSync(path.join(targetDir, "tasks"), { recursive: true });
-  mkdirSync(path.join(targetDir, "workstreams"), { recursive: true });
-  mkdirSync(path.join(targetDir, "updates"), { recursive: true });
-  writeFileSync(path.join(targetDir, "spec.md"), spec, "utf8");
-  writeFileSync(path.join(targetDir, "plan.md"), plan, "utf8");
-  writeFileSync(path.join(targetDir, "decisions.md"), decisions, "utf8");
+  const projectsRoot = path.dirname(targetDir);
+  mkdirSync(projectsRoot, { recursive: true });
+  const stagingRoot = path.join(root, ".project", ".staging");
+  mkdirSync(stagingRoot, { recursive: true });
+  const stagingDir = mkdtempSync(path.join(stagingRoot, `${slug}-`));
+  try {
+    mkdirSync(path.join(stagingDir, "tasks"), { recursive: true });
+    mkdirSync(path.join(stagingDir, "workstreams"), { recursive: true });
+    mkdirSync(path.join(stagingDir, "updates"), { recursive: true });
+    writeFileSync(path.join(stagingDir, "spec.md"), spec, "utf8");
+    writeFileSync(path.join(stagingDir, "plan.md"), plan, "utf8");
+    writeFileSync(path.join(stagingDir, "decisions.md"), decisions, "utf8");
+    if (typeof options.beforeFinalize === "function") {
+      options.beforeFinalize(stagingDir);
+    }
+    if (existsSync(targetDir)) {
+      throw new CliError(`Project already exists: .project/projects/${slug}`, 1);
+    }
+    renameSync(stagingDir, targetDir);
+    removeEmptyDirectory(stagingRoot);
+  } catch (error) {
+    if (existsSync(stagingDir)) rmSync(stagingDir, { recursive: true, force: true });
+    removeEmptyDirectory(stagingRoot);
+    throw error;
+  }
 
   return {
     slug,
@@ -308,6 +336,12 @@ function createProjectFromTemplates(root, options) {
       `.project/projects/${slug}/decisions.md`
     ]
   };
+}
+
+function removeEmptyDirectory(directory) {
+  if (existsSync(directory) && readdirSync(directory).length === 0) {
+    rmdirSync(directory);
+  }
 }
 
 function addWorkstreamFromTemplate(root, options) {

@@ -5,12 +5,14 @@
 Delano models a traceable path from business intent to proof:
 
 ```text
-Outcome -> Spec -> Delivery project -> Workstreams -> Tasks -> Evidence -> Closeout/learning
-                  \-> decisions, research, updates, external mappings
+optional Vision/Mission -> Roadmap item -> Delivery project -> Workstreams -> Tasks -> Evidence
+                                           \-> decisions, research, updates, external mappings
 ```
 
 Canonical definitions come from `HANDBOOK.md`; executable fields and allowed values come from `.agents/schemas/` and `.project/templates/`.
 
+- **Vision/Mission:** optional freeform direction context, included in the overview profile only when present.
+- **Roadmap item:** an addressable strategic bet in `now`, `next`, or `later`; it is not a schedule.
 - **Outcome:** measurable business result, not merely shipped output.
 - **Spec:** product/delivery intent for one outcome; may require a time-boxed prototype probe before approval.
 - **Delivery project:** bounded implementation dossier under `.project/projects/<slug>/`.
@@ -25,6 +27,7 @@ Allowed states differ by artifact (`.agents/schemas/artifact-scope.json`):
 
 | Artifact | States |
 | --- | --- |
+| Roadmap item | `planned`, `active`, `done`, `deferred` |
 | Spec | `planned`, `active`, `complete`, `deferred` |
 | Plan/workstream | `planned`, `active`, `done`, `deferred` |
 | Task | `planned`, `ready`, `in-progress`, `blocked`, `done`, `deferred` |
@@ -32,6 +35,8 @@ Allowed states differ by artifact (`.agents/schemas/artifact-scope.json`):
 User-facing “Draft Spec” and “Approved Spec” correspond to `planned` and `active`. Several machine-readable policy files currently label themselves `status: draft`; that is policy maturity metadata, not an artifact lifecycle value.
 
 A task is `ready` only when it is execution-eligible and local dependencies are done. `blocked` requires `blocked_owner` and `blocked_check_back`. Task closure requires evidence. See `.agents/schemas/status-transitions.json` for exact transition preconditions.
+
+A roadmap item uses `horizon: now | next | later`. `active` requires `now` plus an active linked project. `done` requires explicit closure evidence, at least one complete linked project, and only terminal linked projects. The project spec's optional `roadmap_item` field is the sole persisted relationship; reverse links and receipts are derived.
 
 ## Dependencies and scoped rollups
 
@@ -71,6 +76,8 @@ The completion rule in `AGENTS.md` is operationally important: implementation/co
 
 When prose and runtime disagree, inspect CLI help, schemas, scripts, and tests, then correct the stale documentation or implementation deliberately.
 
+The strategy layer follows the same precedence. Roadmap cards derive project-state counts, task totals, latest canonical activity, source paths, and advisory staleness from `.project`; they never persist a reverse project list, schedule, percentage, or commit count.
+
 ## Viewer review concepts
 
 **Annotation** is review feedback anchored to selected text and block/line metadata. It is stored in `.project/viewer/annotations.json`, separate from canonical Markdown. Body edits can make anchors stale; current behavior retains/flags rather than migrates them.
@@ -86,6 +93,8 @@ When prose and runtime disagree, inspect CLI help, schemas, scripts, and tests, 
 Handover does not grant permissions or silently modify canonical contracts. Annotation handovers are materialized under `.project/viewer/handovers/`; direct start dispatch can reference the contract without creating a handover file.
 
 **Activity** is recent `.project` filesystem change telemetry streamed over SSE. The 200-event server buffer is restart-ephemeral; persistent truth remains in files.
+
+**Roadmap action** is a whitelisted move or promotion guarded by selected-worktree capability, current item hash, and explicit confirmation. A conflict returns `409` without an optimistic write. Promotion creates a project first; an optional `start` handover for the returned spec remains a separate action.
 
 ## External synchronization
 

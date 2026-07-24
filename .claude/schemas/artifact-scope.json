@@ -25,6 +25,7 @@
         "source_review",
         "external_reference",
         "target_version",
+        "roadmap_item",
         "operating_mode"
       ],
       "enum_fields": {
@@ -265,6 +266,45 @@
         "review_id and source content hash are generated at explicit publication or legacy migration time"
       ],
       "schema_path": ".agents/schemas/artifacts/review.schema.json"
+    },
+    "roadmap_item": {
+      "path_patterns": [
+        ".project/roadmap/RM-###-<slug>.md"
+      ],
+      "frontmatter": true,
+      "required_fields": [
+        "id",
+        "name",
+        "status",
+        "horizon",
+        "created",
+        "updated"
+      ],
+      "optional_fields": [],
+      "required_sections": [
+        "Strategic intent",
+        "Outcome signal",
+        "Boundaries",
+        "Closure evidence"
+      ],
+      "enum_fields": {
+        "status": [
+          "planned",
+          "active",
+          "done",
+          "deferred"
+        ],
+        "horizon": [
+          "now",
+          "next",
+          "later"
+        ]
+      },
+      "derived_fields": [
+        "linked projects are derived from project spec roadmap_item references",
+        "terminal items are projected into the archive rather than a horizon lane"
+      ],
+      "schema_path": ".agents/schemas/artifacts/roadmap_item.schema.json"
     }
   }
 }

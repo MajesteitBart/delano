@@ -4,6 +4,7 @@ export const DEFAULT_WORKSPACE_VIEW = "workspace-projects"
 export type WorkspaceView =
   | "workspace-context"
   | "workspace-projects"
+  | "workspace-roadmap"
   | "workspace-tasks"
   | "workspace-progress"
   | "workspace-annotations"
@@ -27,6 +28,7 @@ export const WORKSPACE_NAV: Array<{
   countKey:
     | "context"
     | "projects"
+    | "roadmap"
     | "tasks"
     | "progress"
     | "annotations"
@@ -36,6 +38,7 @@ export const WORKSPACE_NAV: Array<{
     | "blockers"
 }> = [
   { view: "workspace-projects", label: "Projects", countKey: "projects" },
+  { view: "workspace-roadmap", label: "Roadmap", countKey: "roadmap" },
   { view: "workspace-tasks", label: "Tasks", countKey: "tasks" },
   { view: "workspace-context", label: "Context pack", countKey: "context" },
   { view: "workspace-reviews", label: "Reviews", countKey: "reviews" },
@@ -47,6 +50,14 @@ export const WORKSPACE_NAV: Array<{
   { view: "workspace-warnings", label: "Warnings", countKey: "warnings" },
   { view: "workspace-blockers", label: "Blockers", countKey: "blockers" },
 ]
+
+// The Roadmap workspace entry is index-driven: it appears only when the
+// connected server exposes the roadmap projection capability.
+export function availableWorkspaceNav(hasRoadmapCapability: boolean) {
+  return WORKSPACE_NAV.filter(
+    (item) => item.view !== "workspace-roadmap" || hasRoadmapCapability
+  )
+}
 
 type ViewerIndexLike = {
   context?: {

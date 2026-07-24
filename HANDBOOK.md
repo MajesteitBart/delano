@@ -109,6 +109,8 @@ Delano is not:
 - a chat-first project management method
 - a model-vendor-specific workflow
 - a dashboard-only system without execution semantics
+- a portfolio scheduler: roadmap items carry no dates, target windows, timeline, Gantt, dependencies, estimates, assignees, capacity, or velocity
+- a commit-count impact system, automatic roadmap closer, or public sharing service
 
 ### 2.2 Anti-patterns to avoid
 
@@ -129,6 +131,8 @@ Delano is not:
 
 ### 3.1 Core entities
 
+- **Vision and mission**: optional, freeform direction context that is present only when a repository adopts it
+- **Roadmap Item**: an addressable strategic bet grouped by `now`, `next`, or `later`
 - **Outcome**: measurable business result
 - **Spec**: product and delivery intent for one outcome
 - **Prototype Probe**: time-boxed learning loop used to retire material uncertainty before spec approval
@@ -136,6 +140,12 @@ Delano is not:
 - **Workstream**: coherent implementation slice
 - **Task**: atomic engineering unit
 - **Evidence**: completion proof (tests, review, release artifacts)
+
+The optional strategy-to-delivery chain is:
+
+`vision and mission context -> roadmap item -> delivery projects -> workstreams -> tasks -> evidence`
+
+`.project` remains the only persisted source of truth. A project spec may store one `roadmap_item` ID; linked projects and delivery receipts are always derived from project contracts and are never written back as a project list on the roadmap item.
 
 ### 3.2 Naming conventions
 
@@ -186,6 +196,8 @@ The full mapping design, including entity mapping, rationale, rejected alternati
 
 ```text
 .project/
+  roadmap/
+    RM-###-<slug>.md
   projects/
     <slug>/
       spec.md
@@ -196,6 +208,8 @@ The full mapping design, including entity mapping, rationale, rejected alternati
       research/
       decisions.md
   context/
+    vision.md       # optional
+    mission.md      # optional
   templates/
   registry/
     linear-map.json
@@ -420,6 +434,18 @@ The operating mode (Section 8.3) sizes the contract, not just the narrative. `op
 
 At modes 0 and 1 the spec and plan are optional artifacts. When they exist they may stay lean; the full section sets become mandatory from mode 2 upward. This is what makes a patch actually cheaper than a feature inside the same system.
 
+### 6.8 Optional strategy-layer contract
+
+`[enforced]` Roadmap adoption is presence-based. Repositories without `.project/roadmap/` and without project `roadmap_item` references validate unchanged. `vision.md` and `mission.md` are optional freeform context: when present they join the overview context profile, but they have no structural or minimum-length validation.
+
+`[enforced]` Each roadmap item is one `.project/roadmap/RM-###-<slug>.md` contract with exactly `id`, `name`, `status`, `horizon`, `created`, and `updated` frontmatter and ordered `Strategic intent`, `Outcome signal`, `Boundaries`, and `Closure evidence` sections. Status is `planned | active | done | deferred`; horizon is `now | next | later`.
+
+`[enforced]` A project spec may carry one optional `roadmap_item: RM-###`. That project-to-item reference is authoritative. Reverse links, project-state counts, task totals, latest canonical delivery activity, and source paths are derived projections. Roadmap items never store project lists, completion percentages, dates, estimates, assignments, dependencies, velocity, commit counts, or parsed closeout claims.
+
+`[enforced]` `active` requires `horizon: now` and at least one active linked project. Closing requires non-empty closure evidence, at least one complete linked project, and every linked project terminal (`complete` or `deferred`). Closure is an explicit operator action; no project transition closes a roadmap item automatically.
+
+`[policy]` A non-terminal `now` item with no active linked project or recent linked delivery activity for 21 days receives an advisory staleness reason. Staleness never mutates the contract, creates a blocker, or fails validation.
+
 ---
 
 ## 7) Status models and transition policy
@@ -551,6 +577,7 @@ Native package/runtime commands:
 | `delano onboarding` | approval-first review of repo agent instructions | none by default |
 | `delano install` | install or refresh the approved runtime payload | allowlisted runtime/package files |
 | `delano viewer` | launch the package-owned guarded UI for a selected registered worktree | local drafts; explicit `.project/reviews/*.md` publication; guarded canonical apply |
+| `delano roadmap` | initialize optional direction files; add, inspect, move, transition, or promote roadmap items | `.project/context/{vision,mission}.md`, `.project/roadmap/*.md`, or a promoted `.project/projects/<slug>/` dossier |
 | `delano project` | create, show, and patch project contracts | `.project/projects/<slug>/` |
 | `delano workstream` | add, show, and patch workstream contracts | `workstreams/*.md` |
 | `delano task` | add and patch task contracts with scoped lifecycle rollups | `tasks/*.md` and parent rollups |
@@ -579,6 +606,9 @@ Use the native state commands for template-backed contract creation and lifecycl
 - `[enforced]` Published review freshness follows normalized source content (`sha256-utf8-lf-v1`), not unrelated HEAD movement. Tracked review provenance is repository-relative and excludes absolute paths, worktree identifiers, and launch receipts.
 - `[enforced]` Legacy `.project/viewer/annotations.json` and generated handovers are noncanonical migration inputs. Migration is explicit, idempotent, non-destructive, and reports ambiguous evidence.
 - `[enforced]` Guarded canonical apply requires capability, containment, a current expected hash, fresh selected context, preview, and explicit confirmation in both primary and linked worktrees.
+- `[enforced]` The Roadmap workspace appears only when the index reports roadmap capability. It derives `now | next | later` lanes, archived terminal items, project/task receipts, source navigation, and advisory staleness from current `.project` files.
+- `[enforced]` Viewer roadmap moves and promotion require the same fresh worktree capability, current item hash, whitelisted action fields, and explicit confirmation as other canonical writes. A stale hash returns `409` and writes nothing.
+- `[policy]` Promotion creates the project contract first. Offering the existing `start` handover for the returned spec is a separate optional action and never part of promotion itself.
 - `[enforced]` The npm package owns the executable Viewer server and compiled assets. The repository install payload contains no `.delano/viewer`; existing local copies are inert and are never executed or automatically deleted.
 - `[enforced]` Normal validation reports dirty `.project` provenance consistently across checkout roles. Release validation applies one cleanliness rule to primary and linked worktrees, subject only to the explicit supported override.
 
@@ -738,6 +768,7 @@ Import and research are intake paths, not approval paths. Imported artifacts and
 
 - problem and owner identified
 - imported or researched intent, if present, has been reviewed
+- when the project spec has `roadmap_item`, that roadmap item has been resolved and read as strategic source context
 
 **Primary components**
 

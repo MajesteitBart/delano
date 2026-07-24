@@ -1,9 +1,9 @@
 ---
 name: Delano Strategy Layer
-status: active
+status: done
 lead: bart
 created: 2026-07-23T22:59:54Z
-updated: 2026-07-24T06:35:24Z
+updated: 2026-07-24T15:04:21Z
 linear_project_id:
 risk_level: high
 spec_status_at_plan_time: planned

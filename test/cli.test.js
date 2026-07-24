@@ -103,6 +103,7 @@ test("CLI exposes the package command surface", () => {
     "project",
     "repos",
     "research",
+    "roadmap",
     "status",
     "task",
     "update",
@@ -118,6 +119,7 @@ test("general help mentions the install and wrapper commands", () => {
   assert.match(helpText, /\bonboarding\b/);
   assert.match(helpText, /\binstall\b/);
   assert.match(helpText, /\bcontext\b/);
+  assert.match(helpText, /\broadmap\b/);
   assert.match(helpText, /\brepos\b/);
   assert.match(helpText, /\bworktrees\b/);
   assert.match(helpText, /\bimport-spec-kit\b/);

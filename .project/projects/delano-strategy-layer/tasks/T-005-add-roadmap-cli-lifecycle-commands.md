@@ -1,10 +1,10 @@
 ---
 id: T-005
 name: Add roadmap CLI lifecycle commands
-status: planned
+status: done
 workstream: WS-B
 created: 2026-07-24T00:59:23Z
-updated: 2026-07-24T01:03:35Z
+updated: 2026-07-24T07:03:42Z
 linear_issue_id:
 github_issue:
 github_pr:
@@ -26,13 +26,13 @@ Add the native roadmap command/service boundary for non-destructive initializati
 
 ## Acceptance Criteria
 
-- [ ] General and command help document `roadmap init|add|show|move|start|close|defer|promote` and contain no scheduling fields.
-- [ ] `roadmap init` creates only missing vision, mission, and roadmap README seeds and reports created/skipped paths without overwrite.
-- [ ] `roadmap add` creates a schema-valid planned item, creates the roadmap directory when needed, rejects duplicate IDs, and preserves immutable `created`.
-- [ ] `roadmap show` returns the item plus the derived linked-project/receipt projection in stable human and JSON formats.
-- [ ] Move/start/close/defer actions accept only their documented fields and enforce the lifecycle/closure contract before writing.
-- [ ] Each single-item mutation writes `updated` once and leaves all non-whitelisted frontmatter/body bytes unchanged except an explicit evidence/reason append.
-- [ ] Temporary-repository CLI tests cover success, invalid input, missing item, duplicate ID, invalid transition, and no-overwrite initialization.
+- [x] General and command help document `roadmap init|add|show|move|start|close|defer|promote` and contain no scheduling fields.
+- [x] `roadmap init` creates only missing vision, mission, and roadmap README seeds and reports created/skipped paths without overwrite.
+- [x] `roadmap add` creates a schema-valid planned item, creates the roadmap directory when needed, rejects duplicate IDs, and preserves immutable `created`.
+- [x] `roadmap show` returns the item plus the derived linked-project/receipt projection in stable human and JSON formats.
+- [x] Move/start/close/defer actions accept only their documented fields and enforce the lifecycle/closure contract before writing.
+- [x] Each single-item mutation writes `updated` once and leaves all non-whitelisted frontmatter/body bytes unchanged except an explicit evidence/reason append.
+- [x] Temporary-repository CLI tests cover success, invalid input, missing item, duplicate ID, invalid transition, and no-overwrite initialization.
 
 ## Traceability
 - Story: US-002,US-006
@@ -42,10 +42,16 @@ Add the native roadmap command/service boundary for non-destructive initializati
 
 Expose service functions beneath argument parsing so the viewer can call them in-process. Keep promotion command registration/help in this task; T-006 completes its creation semantics.
 ## Definition of Done
-- [ ] Implementation complete
-- [ ] Tests pass
-- [ ] Review complete
-- [ ] CLI help updated
+- [x] Implementation complete
+- [x] Tests pass
+- [x] Review complete
+- [x] CLI help updated
 
 ## Evidence Log
+
+- 2026-07-24T07:03:42Z: Shared roadmap service and native CLI implemented with stable JSON/human output; node --test CLI/roadmap contract suite passed 65/65.
+
+- 2026-07-24T06:57:57Z: Implement roadmap command and shared mutation service
+
+- 2026-07-24T06:57:57Z: T-003 and T-004 dependencies are done; readiness review complete
 - 2026-07-24T00:59:23Z: Created from .project/templates/task.md by `delano task add`.

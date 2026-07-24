@@ -41,6 +41,8 @@ test("npm pack excludes repo root Git config files from the payload", () => {
   assert.ok(packedPaths.has(".delano/viewer/public/delano-logo.svg"));
   assert.ok(packedPaths.has(".delano/viewer/public/favicon.png"));
   assert.ok(packedPaths.has(".delano/viewer/public/explorer.svg"));
+  assert.ok(packedPaths.has("src/cli/commands/roadmap.js"));
+  assert.ok(packedPaths.has("src/cli/lib/roadmap-state.js"));
   assert.ok(![...packedPaths].some((packedPath) => packedPath.startsWith("assets/payload/.delano/")));
 
   const tarballPath = path.join(repoRoot, packInfo.filename);
@@ -125,6 +127,39 @@ test("full and update-safe installs omit Viewer files and preserve legacy local 
     });
     assert.equal(installResult.status, 0, installResult.stderr || installResult.stdout);
     assert.equal(fs.existsSync(path.join(target, ".delano", "viewer")), false);
+    assert.match(
+      fs.readFileSync(path.join(target, ".project", "templates", "vision.md"), "utf8"),
+      /# Vision/
+    );
+    assert.match(
+      fs.readFileSync(path.join(target, ".project", "templates", "mission.md"), "utf8"),
+      /# Mission/
+    );
+    assert.match(
+      fs.readFileSync(path.join(target, ".project", "templates", "roadmap-item.md"), "utf8"),
+      /Strategic intent/
+    );
+    assert.match(
+      fs.readFileSync(path.join(target, ".project", "templates", "roadmap-readme.md"), "utf8"),
+      /derived from each project spec/
+    );
+    assert.match(
+      fs.readFileSync(path.join(target, ".agents", "rules", "roadmap.md"), "utf8"),
+      /Roadmap adoption is optional/
+    );
+    const roadmapSchema = JSON.parse(fs.readFileSync(
+      path.join(target, ".agents", "schemas", "artifacts", "roadmap_item.schema.json"),
+      "utf8"
+    ));
+    assert.deepEqual(roadmapSchema.required, ["id", "name", "status", "horizon", "created", "updated"]);
+    assert.match(
+      fs.readFileSync(path.join(target, ".agents", "scripts", "pm", "validate.sh"), "utf8"),
+      /check-roadmap-contracts\.mjs/
+    );
+    assert.match(
+      fs.readFileSync(path.join(target, ".agents", "scripts", "check-roadmap-contracts.mjs"), "utf8"),
+      /const REQUIRED_FIELDS = \["id", "name", "status", "horizon", "created", "updated"\]/
+    );
   }
 
   const legacyFile = path.join(updateTarget, ".delano", "viewer", "custom.js");
@@ -178,6 +213,18 @@ test("a packed CLI resolves the package-owned Viewer instead of a repository-loc
   assert.equal(resolvedServer, path.join(packageRoot, ".delano", "viewer", "server.js"));
   assert.equal(fs.existsSync(resolvedServer), true);
   assert.notEqual(resolvedServer, legacyServer);
+  assert.match(
+    fs.readFileSync(path.join(packageRoot, "src", "cli", "commands", "roadmap.js"), "utf8"),
+    /roadmap promote/
+  );
+  assert.match(
+    fs.readFileSync(resolvedServer, "utf8"),
+    /\/api\/roadmap\/action/
+  );
+  assert.match(
+    fs.readFileSync(path.join(packageRoot, ".delano", "viewer", "public", "assets", "viewer.js"), "utf8"),
+    /Roadmap/
+  );
 });
 test("package manifest and generated payload stay in sync", () => {
   const checkResult = spawnSync(process.execPath, ["scripts/check-package-manifest-drift.mjs"], {
@@ -197,6 +244,18 @@ test("install manifest includes shipped runtime script dependencies", () => {
   assert.ok(entries.has(".agents/scripts/check-text-safety.mjs"));
   assert.ok(entries.has(".agents/hooks/codex-session-status.js"));
   assert.ok(entries.has(".codex/hooks.json"));
+  assert.ok(entries.has(".agents/rules/roadmap.md"));
+  assert.ok(entries.has(".agents/schemas/artifacts/roadmap_item.schema.json"));
+  assert.ok(entries.has(".agents/scripts/check-roadmap-contracts.mjs"));
+  assert.ok(entries.has(".agents/src/cli/lib/errors.js"));
+  assert.ok(entries.has(".agents/src/cli/lib/project-state.js"));
+  assert.ok(entries.has(".agents/src/cli/lib/roadmap-projection.js"));
+  assert.ok(entries.has(".agents/src/cli/lib/runtime.js"));
+  assert.ok(entries.has(".agents/validation-fixtures/roadmap-contracts/cases.json"));
+  assert.ok(entries.has(".project/templates/vision.md"));
+  assert.ok(entries.has(".project/templates/mission.md"));
+  assert.ok(entries.has(".project/templates/roadmap-item.md"));
+  assert.ok(entries.has(".project/templates/roadmap-readme.md"));
 });
 
 test("status supports open brief output for startup context", () => {

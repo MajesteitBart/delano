@@ -1,0 +1,12 @@
+{
+  "expected": "fail",
+  "filename": "RM-006-id-mismatch.md",
+  "frontmatter": {
+    "id": "RM-005",
+    "name": "Invalid id mismatch",
+    "status": "planned",
+    "horizon": "later",
+    "created": "2026-07-24T00:00:00Z",
+    "updated": "2026-07-24T00:00:00Z"
+  }
+}
