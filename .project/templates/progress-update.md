@@ -8,13 +8,13 @@ stream: <stream-id>
 # Progress Update
 
 ## Completed
-- 
+-
 
 ## In Progress
-- 
+-
 
 ## Blockers
 - None / <blocker>
 
 ## Next Actions
-- 
+-

@@ -31,6 +31,10 @@
     "install-delano.sh"
   ],
   "scripts": {
+    "build:plugin": "node scripts/build-agent-plugin.mjs",
+    "check:plugin": "node scripts/build-agent-plugin.mjs --check",
+    "test:plugin": "node --test test/agent-plugin.test.js",
+    "pack:plugin": "node scripts/build-agent-plugin.mjs --prepare-pack && npm pack ./plugins/delano --ignore-scripts --pack-destination ./output",
     "build:assets": "node scripts/build-npm-assets.mjs",
     "prepack": "npm run build:assets",
     "test": "node --test",

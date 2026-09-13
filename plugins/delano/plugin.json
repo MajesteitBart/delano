@@ -1,0 +1,32 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "delano",
+  "version": "0.1.0",
+  "description": "Plan, execute, and review agent-assisted work with file-backed delivery contracts.",
+  "author": {
+    "name": "Bart van der Meeren",
+    "url": "https://github.com/MajesteitBart"
+  },
+  "homepage": "https://github.com/MajesteitBart/delano",
+  "repository": "https://github.com/MajesteitBart/delano",
+  "license": "MIT",
+  "keywords": ["delivery", "planning", "specifications", "coding-agents", "evidence"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Delano",
+        "shortDescription": "Carry delivery context between agents and sessions.",
+        "longDescription": "Ten workflows for discovery, research, prototyping, planning, task breakdown, execution, quality, synchronization, closeout, and learning. Keep decisions, tasks, and verification records in your repository. Includes contract templates and works without a repository-installed Delano runtime.",
+        "developerName": "Bart van der Meeren",
+        "category": "Productivity",
+        "capabilities": ["Read", "Write"],
+        "websiteURL": "https://github.com/MajesteitBart/delano",
+        "defaultPrompt": [
+          "Use Delano to turn this feature request into a delivery plan.",
+          "Use Delano to continue the next ready task in this repository.",
+          "Use Delano to review the evidence before closing this project."
+        ]
+      }
+    }
+  }
+}

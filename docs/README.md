@@ -27,6 +27,7 @@ Use these in order:
 
 ## Core Docs
 
+- [Portable Agent Plugin](../plugins/delano/README.md): ten lifecycle skills, bundled templates, package builds, and local installation without the CLI runtime.
 - [`user-guide.md`](user-guide.md): setup, install behavior, day-to-day workflow, and first commands.
 - [`cli-reference.md`](cli-reference.md): `delano` commands, options, examples, output expectations, and lifecycle rollups.
 - [`viewer-guide.md`](viewer-guide.md): launch, target selection, port behavior, guarded annotation/handover boundaries, and workflow use.
