@@ -1,3 +1,18 @@
+> [!IMPORTANT]
+> ## Archiving Delano
+>
+> *September 2026*
+>
+> I'm archiving Delano. It was built for the limitations of coding agents before GPT-6: weak memory across sessions, lost plans, and unreliable follow-through. External scaffolding held the plan, the state, and the proof that the work was done.
+>
+> With GPT-6, I've found that a lean repository guide, relevant code, and clear verification requirements are enough for most of my work. Removing Delano's layers of context and bookkeeping made us more productive. The agents spent more time on the software and less on maintaining the process around it.
+>
+> Claude remains another story. In my experience, piling on rules hasn't made it follow them reliably. Delano couldn't tame that either.
+>
+> I'm keeping the useful habits: concise plans when needed, clear boundaries, and evidence of what was actually verified. Those habits can live in a few Markdown files.
+>
+> The scaffolding did not get worse. The need for it fell below its cost.
+
 <p align="center">
   <img src="docs/images/delano-logo.svg" alt="Delano" width="340">
 </p>
