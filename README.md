@@ -84,6 +84,8 @@ That honesty is the point. You always know which guarantees are mechanical and w
 
 ## Skills
 
+The ten lifecycle skills are also available as a [portable Agent Plugins package](plugins/delano/README.md). That package includes its own references and contract templates, works without a repository-installed agent runtime, and builds with `npm run pack:plugin`. It is a separate distribution from the CLI runtime described below.
+
 Delano ships ten skills that cover the delivery lifecycle: discovery, research, prototype, planning, breakdown, execution, quality, sync, closeout, and learning.
 
 A skill is not a prompt trick. It's a contract: trigger context, required inputs, output schema, quality checks, failure behavior, and allowed side effects. The result: a Claude Code session and a Codex session decompose work the same way, because they follow the same file, not the same vibes.

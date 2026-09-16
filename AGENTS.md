@@ -33,6 +33,7 @@ When intent is unclear, use `delano research <project-slug> <research-slug> --ti
 
 - Product/process handbook: `HANDBOOK.md`
 - Delivery state and contracts: `.project/`
+- Portable plugin workflows and resources: `plugins/delano/`; skill instructions live in `plugins/delano/skills/<skill>/SKILL.md`. Build and validate this distribution with `npm run build:plugin`, `npm run check:plugin`, and `npm run test:plugin`.
 - Runtime scripts, hooks, rules, and skills: `.agents/`
 - Adapter-specific notes: `.agents/adapters/<agent>/README.md`
 - Compatibility runtime: `.claude/` is a generated mirror of `.agents/` for agents that still expect Claude-style paths; never edit it directly. Edit `.agents/` and run `npm run sync:claude-mirror`.

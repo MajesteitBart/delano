@@ -1,0 +1,32 @@
+{
+  "name": "@bvdm/delano-plugin",
+  "version": "0.1.0",
+  "description": "Plan, execute, and review agent-assisted work with file-backed delivery contracts.",
+  "author": {
+    "name": "Bart van der Meeren",
+    "url": "https://github.com/MajesteitBart"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/MajesteitBart/delano",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MajesteitBart/delano.git",
+    "directory": "plugins/delano"
+  },
+  "keywords": [
+    "delivery",
+    "planning",
+    "specifications",
+    "coding-agents",
+    "evidence"
+  ],
+  "files": [
+    "plugin.json",
+    ".codex-plugin/plugin.json",
+    "skills/",
+    "references/",
+    "assets/",
+    "README.md",
+    "LICENSE"
+  ]
+}
